@@ -19,7 +19,7 @@ interface WhiteboardProps {
   isOffline?: boolean;
 }
 
-type ToolType = 'select' | 'hand' | 'note' | 'text' | 'image' | 'pen';
+type ToolType = 'select' | 'hand' | 'note' | 'text' | 'image' | 'pen' | 'eraser';
 
 const COLORS = {
   yellow: {
@@ -267,6 +267,74 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   const [canvasSize, setCanvasSize] = useState(LANDSCAPE_SIZE);
   const [activeTool, setActiveTool] = useState<ToolType>('select');
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
+
+  // --- Drawing State ---
+  const [drawings, setDrawings] = useState<Array<{ id: string; user_id: string; whiteboard_id: string; path_points: { x: number; y: number }[]; color: string }>>([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [penColor, setPenColor] = useState('black');
+  const currentPathRef = useRef<{ x: number; y: number }[]>([]);
+
+  // --- Fetch Drawings ---
+  useEffect(() => {
+    const fetchDrawings = async () => {
+      if (!userId) return;
+      const { data, error } = await supabase
+        .from('whiteboard_drawings')
+        .select('*')
+        .eq('whiteboard_id', WHITEBOARD_ID);
+
+      if (error) {
+        console.error('Error fetching drawings:', error);
+      } else if (data) {
+        setDrawings(data);
+      }
+    };
+    fetchDrawings();
+  }, [userId]);
+
+  const saveDrawing = async (points: { x: number; y: number }[]) => {
+    if (!userId || points.length < 2) return;
+    // Save to DB
+    const newDrawing = {
+      whiteboard_id: WHITEBOARD_ID,
+      user_id: userId,
+      path_points: points,
+      color: penColor
+    };
+    const { error } = await supabase.from('whiteboard_drawings').insert(newDrawing);
+    if (error) console.error('Error saving drawing:', error);
+  };
+
+  const deleteDrawing = async (id: string) => {
+    // Optimistic Update
+    setDrawings(prev => prev.filter(d => d.id !== id));
+
+    // DB Update
+    const { error } = await supabase.from('whiteboard_drawings').delete().eq('id', id);
+    if (error) console.error('Error deleting drawing:', error);
+  };
+
+  const checkEraserCollision = (x: number, y: number) => {
+    const ERASER_RADIUS = 10; // px
+    const idsToDelete: string[] = [];
+
+    drawings.forEach(drawing => {
+      // Simple bounding box check first (optimization)
+      // skipping for now, direct point check
+      for (const p of drawing.path_points) {
+        const dist = Math.sqrt(Math.pow(p.x - x, 2) + Math.pow(p.y - y, 2));
+        if (dist <= ERASER_RADIUS) {
+          idsToDelete.push(drawing.id);
+          break; // Stop checking this drawing, it's already marked
+        }
+      }
+    });
+
+    if (idsToDelete.length > 0) {
+      idsToDelete.forEach(id => deleteDrawing(id));
+    }
+  };
+
 
   // Modify this part to include the new drawing tool
   const handleToolChange = (tool: ToolType) => {
@@ -609,12 +677,49 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   useEffect(() => {
     const handleGlobalPointerUp = () => {
       setDragState(null);
+      if (isDrawing) {
+        setIsDrawing(false);
+        if (currentPathRef.current.length > 0) {
+          saveDrawing(currentPathRef.current);
+          currentPathRef.current = [];
+        }
+      }
     };
     window.addEventListener('pointerup', handleGlobalPointerUp);
     return () => window.removeEventListener('pointerup', handleGlobalPointerUp);
-  }, []);
+  }, [isDrawing]); // Depend on isDrawing to close properly
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    // 0. Pen Tool (Drawing)
+    if (activeTool === 'pen') {
+      setIsDrawing(true);
+      const coords = screenToCanvas(e.clientX, e.clientY);
+      const newPoint = { x: coords.x, y: coords.y };
+      currentPathRef.current = [newPoint];
+
+      // Optimistic Render
+      const tempId = crypto.randomUUID();
+      setDrawings(prev => [...prev, {
+        id: tempId,
+        user_id: userId,
+        whiteboard_id: WHITEBOARD_ID,
+        path_points: [newPoint],
+        color: penColor
+      }]);
+      return;
+    }
+
+    // 0.5. Eraser Tool
+    if (activeTool === 'eraser') {
+      const coords = screenToCanvas(e.clientX, e.clientY);
+      checkEraserCollision(coords.x, coords.y);
+      // We don't need to "start" an interaction state for eraser, just continuous checking on move
+      // But we might want to track "isErasing" if we put it in handlePointerMove
+      // handlePointerMove usually checks "e.buttons" or implicit state.
+      // Let's rely on e.buttons in handlePointerMove
+      return;
+    }
+
     // 1. Hand Tool Panning
     if (activeTool === 'hand') {
       if (containerRef.current) {
@@ -658,6 +763,35 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    // --- Drawing ---
+    if (isDrawing && activeTool === 'pen') {
+      const coords = screenToCanvas(e.clientX, e.clientY);
+      const newPoint = { x: coords.x, y: coords.y };
+      currentPathRef.current.push(newPoint);
+
+      setDrawings(prev => {
+        const newDrawings = [...prev];
+        if (newDrawings.length > 0) {
+          const lastIdx = newDrawings.length - 1;
+          const lastDrawing = newDrawings[lastIdx];
+          newDrawings[lastIdx] = {
+            ...lastDrawing,
+            path_points: [...lastDrawing.path_points, newPoint],
+            color: 'color' in lastDrawing ? lastDrawing.color : penColor
+          };
+        }
+        return newDrawings;
+      });
+      return;
+    }
+
+    // --- Eraser ---
+    if (activeTool === 'eraser' && e.buttons === 1) {
+      const coords = screenToCanvas(e.clientX, e.clientY);
+      checkEraserCollision(coords.x, coords.y);
+      return;
+    }
+
     if (!dragState) return;
 
     // --- Panning ---
@@ -825,7 +959,10 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
 
   const getCursor = () => {
     if (dragState?.type === 'pan' || activeTool === 'hand') return 'grabbing';
-    if (activeTool === 'note' || activeTool === 'text') return 'crosshair';
+    if (activeTool === 'eraser') {
+      return `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="black" stroke-width="1.5" fill="white" fill-opacity="0.5"/></svg>') 12 12, auto`;
+    }
+    if (activeTool === 'note' || activeTool === 'text' || activeTool === 'pen') return 'crosshair';
     if (dragState?.type === 'rotate') return 'alias';
     if (dragState?.type === 'resize') {
       const h = dragState.handle;
@@ -837,9 +974,25 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     return 'default';
   };
 
-  
+
 
   const selectedNote = getSelectedNote();
+
+  const renderDrawings = () => {
+    return drawings.map((drawing) => (
+      <svg key={drawing.id} className="absolute top-0 left-0 pointer-events-none overflow-visible" width={canvasSize.width} height={canvasSize.height} style={{ zIndex: 9999 }}>
+        <polyline
+          points={drawing.path_points.map((p) => `${p.x},${p.y}`).join(' ')}
+          stroke={drawing.color || 'black'}
+          strokeWidth="3"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    ));
+  };
+
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 dark:bg-transparent overflow-hidden font-sans relative">
@@ -943,6 +1096,11 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
                   transform: `scale(${view.scale})`
                 }}
               >
+                {/* Drawings Layer */}
+                <div className="absolute top-0 left-0 pointer-events-none w-full h-full z-[9999]">
+                  {renderDrawings()}
+                </div>
+
                 {/* Removed duplicate noise layer to allow premium background to show */}
                 <div className="absolute inset-0 w-full h-full bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none canvas-background"></div>
 
@@ -956,6 +1114,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
                       onPointerDown={(e) => handleNotePointerDown(e, note.id)}
                       className={`absolute flex flex-col transition-shadow duration-200 group
                         ${isSelected ? 'z-[9999]' : ''}
+                        ${(activeTool === 'pen' || activeTool === 'eraser') ? 'pointer-events-none' : ''}
                       `}
                       style={{
                         left: note.x,
@@ -1125,6 +1284,29 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
                 title="Pen Tool"
               >
                 <span className="material-symbols-outlined">edit</span>
+              </button>
+
+              {/* Pen Color Picker */}
+              {activeTool === 'pen' && (
+                <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200 z-[60]">
+                  {['black', '#ef4444', '#3b82f6', '#22c55e', '#f97316'].map(c => (
+                    <button
+                      key={c}
+                      onClick={(e) => { e.stopPropagation(); setPenColor(c); }}
+                      className={`w-6 h-6 rounded-full border border-slate-200 dark:border-slate-600 ${penColor === c ? 'scale-125 ring-2 ring-blue-500 ring-offset-2' : 'hover:scale-110'} transition-all`}
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => handleToolChange('eraser')}
+                className={`p-3 rounded-xl transition-all group relative flex items-center justify-center ${activeTool === 'eraser' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                title="Eraser Tool"
+              >
+                <span className="material-symbols-outlined">ink_eraser</span>
               </button>
 
 
