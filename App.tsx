@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import TaskListView from './TaskListView';
 import Whiteboard from './components/Whiteboard/Whiteboard';
+import HandDrawView from './handdrawView';
 import LoginPage from './components/Auth/LoginPage';
 import { Task, WhiteboardNote } from './hooks/types';
 import { supabase } from './lib/supabase';
@@ -79,7 +80,7 @@ const seedNotes: WhiteboardNote[] = [
 ];
 
 const views = ['tasks', 'whiteboard'] as const;
-type View = (typeof views)[number];
+type View = 'tasks' | 'whiteboard' | 'handdraw';
 
 export default function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -332,9 +333,9 @@ export default function App() {
                     <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 rounded-xl animate-in fade-in zoom-in-95 duration-300"></div>
                   )}
                   <span className="relative z-10 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">
-                      {v === 'tasks' ? 'inventory' : 'dashboard_customize'}
-                    </span>
+                  <span className="material-symbols-outlined text-[18px]">
+                      {v === 'tasks' ? 'inventory' : v === 'whiteboard' ? 'dashboard_customize' : 'draw'}
+                  </span>
                     {v === 'tasks' ? `Tasks (${upcomingCount})` : 'Whiteboard'}
                   </span>
                 </button>
@@ -377,14 +378,19 @@ export default function App() {
               userId={userId || ''}
             />
           </div>
-        ) : (
+        ) : activeView === 'whiteboard' ? (
           <Whiteboard
             toggleTheme={toggleTheme}
             isDarkMode={isDarkMode}
             notes={notes}
             setNotes={setNotes}
             userId={userId}
+            onOpenHandDraw={() => setActiveView('handdraw')}
           />
+        ) : (
+          <div className="mx-auto max-w-6xl w-full px-4 pb-12 pt-4">
+            <HandDrawView />
+          </div>
         )}
       </main>
     </div>
