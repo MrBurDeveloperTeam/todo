@@ -273,6 +273,13 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [penColor, setPenColor] = useState('black');
   const currentPathRef = useRef<{ x: number; y: number }[]>([]);
+  const drawingsRef = useRef<typeof drawings>([]);
+  const currentDrawingIdRef = useRef<string | null>(null);
+  const cancelCurrentDrawingRef = useRef(false);
+
+  useEffect(() => {
+    drawingsRef.current = drawings;
+  }, [drawings]);
 
   // --- Fetch Drawings ---
   useEffect(() => {
@@ -292,16 +299,17 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     fetchDrawings();
   }, [userId]);
 
-  const saveDrawing = async (points: { x: number; y: number }[]) => {
+  const saveDrawing = async (id: string, points: { x: number; y: number }[]) => {
     if (!userId || points.length < 2) return;
     // Save to DB
     const newDrawing = {
+      id,
       whiteboard_id: WHITEBOARD_ID,
       user_id: userId,
       path_points: points,
       color: penColor
     };
-    const { error } = await supabase.from('whiteboard_drawings').insert(newDrawing);
+    const { error } = await supabase.from('whiteboard_drawings').upsert(newDrawing, { onConflict: 'id' });
     if (error) console.error('Error saving drawing:', error);
   };
 
@@ -318,7 +326,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     const ERASER_RADIUS = 10; // px
     const idsToDelete: string[] = [];
 
-    drawings.forEach(drawing => {
+    drawingsRef.current.forEach(drawing => {
       // Simple bounding box check first (optimization)
       // skipping for now, direct point check
       for (const p of drawing.path_points) {
@@ -333,11 +341,28 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     if (idsToDelete.length > 0) {
       idsToDelete.forEach(id => deleteDrawing(id));
     }
+
+    if (currentDrawingIdRef.current && idsToDelete.includes(currentDrawingIdRef.current)) {
+      cancelCurrentDrawingRef.current = true;
+      setIsDrawing(false);
+      currentPathRef.current = [];
+      currentDrawingIdRef.current = null;
+    }
   };
 
 
   // Modify this part to include the new drawing tool
   const handleToolChange = (tool: ToolType) => {
+    if (activeTool === 'pen' && isDrawing) {
+      cancelCurrentDrawingRef.current = true;
+      setIsDrawing(false);
+      currentPathRef.current = [];
+      if (currentDrawingIdRef.current) {
+        const idToRemove = currentDrawingIdRef.current;
+        setDrawings(prev => prev.filter(d => d.id !== idToRemove));
+      }
+      currentDrawingIdRef.current = null;
+    }
     setActiveTool(tool);
   };
 
@@ -679,10 +704,16 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       setDragState(null);
       if (isDrawing) {
         setIsDrawing(false);
-        if (currentPathRef.current.length > 0) {
-          saveDrawing(currentPathRef.current);
+        if (!cancelCurrentDrawingRef.current && currentPathRef.current.length > 0 && currentDrawingIdRef.current) {
+          saveDrawing(currentDrawingIdRef.current, currentPathRef.current);
           currentPathRef.current = [];
         }
+        if (cancelCurrentDrawingRef.current && currentDrawingIdRef.current) {
+          const idToRemove = currentDrawingIdRef.current;
+          setDrawings(prev => prev.filter(d => d.id !== idToRemove));
+        }
+        cancelCurrentDrawingRef.current = false;
+        currentDrawingIdRef.current = null;
       }
     };
     window.addEventListener('pointerup', handleGlobalPointerUp);
@@ -693,12 +724,14 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     // 0. Pen Tool (Drawing)
     if (activeTool === 'pen') {
       setIsDrawing(true);
+      cancelCurrentDrawingRef.current = false;
       const coords = screenToCanvas(e.clientX, e.clientY);
       const newPoint = { x: coords.x, y: coords.y };
       currentPathRef.current = [newPoint];
 
       // Optimistic Render
       const tempId = crypto.randomUUID();
+      currentDrawingIdRef.current = tempId;
       setDrawings(prev => [...prev, {
         id: tempId,
         user_id: userId,
@@ -765,6 +798,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   const handlePointerMove = (e: React.PointerEvent) => {
     // --- Drawing ---
     if (isDrawing && activeTool === 'pen') {
+      if (cancelCurrentDrawingRef.current) return;
       const coords = screenToCanvas(e.clientX, e.clientY);
       const newPoint = { x: coords.x, y: coords.y };
       currentPathRef.current.push(newPoint);
@@ -774,6 +808,9 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
         if (newDrawings.length > 0) {
           const lastIdx = newDrawings.length - 1;
           const lastDrawing = newDrawings[lastIdx];
+          if (currentDrawingIdRef.current && lastDrawing.id !== currentDrawingIdRef.current) {
+            return newDrawings;
+          }
           newDrawings[lastIdx] = {
             ...lastDrawing,
             path_points: [...lastDrawing.path_points, newPoint],
