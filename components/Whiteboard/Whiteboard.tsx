@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import QRCode from 'qrcode';
 import { WhiteboardNote } from '../../hooks/types';
 import { supabase } from '@/lib/supabase';
 
@@ -17,6 +18,8 @@ interface WhiteboardProps {
   setNotes: React.Dispatch<React.SetStateAction<WhiteboardNote[]>>;
   userId: string;
   isOffline?: boolean;
+  whiteboardId?: string;
+  allowShare?: boolean;
 }
 
 type ToolType = 'select' | 'hand' | 'note' | 'text' | 'image' | 'pen' | 'eraser';
@@ -59,9 +62,13 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   notes,
   setNotes,
   userId,
-  isOffline
+  isOffline,
+  whiteboardId,
+  allowShare
 }) => {
   const saveTimers = useRef<Record<string, number>>({});
+  const effectiveWhiteboardId = whiteboardId ?? WHITEBOARD_ID;
+  const canShare = allowShare !== false;
 
   // ✅ Prevent notes upsert before whiteboard exists (FK fix)
   const [whiteboardReady, setWhiteboardReady] = useState(false);
@@ -73,7 +80,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     // NOTE: This assumes whiteboard_notes.id is UUID
     id: n.id,
     user_id: userId, // must be UUID
-    whiteboard_id: WHITEBOARD_ID, // must exist in whiteboards
+    whiteboard_id: effectiveWhiteboardId, // must exist in whiteboards
 
     type: n.type,
     x: n.x,
@@ -149,7 +156,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       const { data, error } = await supabase
         .from('whiteboards')
         .select('id')
-        .eq('id', WHITEBOARD_ID)
+        .eq('id', effectiveWhiteboardId)
         .maybeSingle();
 
       if (error) {
@@ -158,7 +165,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       }
 
       if (!data) {
-        console.log('Whiteboard missing, creating...', WHITEBOARD_ID);
+        console.log('Whiteboard missing, creating...', effectiveWhiteboardId);
 
         // ✅ IMPORTANT:
         // If your table uses "owner_id" instead of "user_id",
@@ -166,7 +173,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
         const { error: insertError } = await supabase
           .from('whiteboards')
           .insert({
-            id: WHITEBOARD_ID,
+            id: effectiveWhiteboardId,
             title: 'My Whiteboard',
             owner_id: userId
           });
@@ -191,6 +198,23 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   // ----------------------------
   // Fetch Notes on Load
   // ----------------------------
+  const mapDbNote = useCallback((n: any): WhiteboardNote => ({
+    id: n.id,
+    type: n.type,
+    x: n.x ?? 100,
+    y: n.y ?? 100,
+    width: n.width ?? 200,
+    height: n.height ?? 200,
+    rotation: n.rotation ?? 0,
+    zIndex: n.z_index ?? 1,
+    color: n.color ?? 'yellow',
+    content: n.content ?? '',
+    title: n.title ?? '',
+    imageUrl: n.image_url,
+    fontSize: n.font_size ?? 16,
+    createdAt: new Date(n.created_at).getTime(),
+  }), []);
+
   useEffect(() => {
     const fetchNotes = async () => {
       if (isOffline) return;
@@ -200,7 +224,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       const { data, error } = await supabase
         .from('whiteboard_notes')
         .select('*')
-        .eq('whiteboard_id', WHITEBOARD_ID);
+        .eq('whiteboard_id', effectiveWhiteboardId);
 
       if (error) {
         console.error('Error fetching notes:', error);
@@ -213,22 +237,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
           console.log('Sample Note Data:', data[0]);
         }
 
-        const mappedNotes: WhiteboardNote[] = data.map((n: any) => ({
-          id: n.id,
-          type: n.type,
-          x: n.x ?? 100,
-          y: n.y ?? 100,
-          width: n.width ?? 200,
-          height: n.height ?? 200,
-          rotation: n.rotation ?? 0,
-          zIndex: n.z_index ?? 1,
-          color: n.color ?? 'yellow',
-          content: n.content ?? '',
-          title: n.title ?? '',
-          imageUrl: n.image_url,
-          fontSize: n.font_size ?? 16,
-          createdAt: new Date(n.created_at).getTime(),
-        }));
+        const mappedNotes: WhiteboardNote[] = data.map(mapDbNote);
 
         // Update highestZIndex to match loaded notes
         const maxZ = Math.max(...mappedNotes.map(n => n.zIndex), 10);
@@ -239,7 +248,59 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     };
 
     fetchNotes();
-  }, [userId, whiteboardReady, isOffline, setNotes]);
+  }, [userId, whiteboardReady, isOffline, setNotes, mapDbNote, effectiveWhiteboardId]);
+
+  // ----------------------------
+  // Realtime Sync (Notes + Drawings)
+  // ----------------------------
+  useEffect(() => {
+    if (isOffline) return;
+    if (!effectiveWhiteboardId) return;
+
+    const channel = supabase
+      .channel(`whiteboard-${effectiveWhiteboardId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whiteboard_notes', filter: `whiteboard_id=eq.${effectiveWhiteboardId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setNotes((prev) => prev.filter((n) => n.id !== (payload.old as any).id));
+          } else {
+            const next = mapDbNote(payload.new);
+            setNotes((prev) => {
+              const idx = prev.findIndex((n) => n.id === next.id);
+              if (idx === -1) return [...prev, next];
+              const updated = [...prev];
+              updated[idx] = next;
+              return updated;
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whiteboard_drawings', filter: `whiteboard_id=eq.${effectiveWhiteboardId}` },
+        (payload) => {
+          if (payload.eventType === 'DELETE') {
+            setDrawings((prev) => prev.filter((d) => d.id !== (payload.old as any).id));
+          } else {
+            const next = payload.new as any;
+            setDrawings((prev) => {
+              const idx = prev.findIndex((d) => d.id === next.id);
+              if (idx === -1) return [...prev, next];
+              const updated = [...prev];
+              updated[idx] = next;
+              return updated;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [effectiveWhiteboardId, isOffline, mapDbNote, setNotes]);
 
   // ----------------------------
   // Debounced Autosave
@@ -288,7 +349,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       const { data, error } = await supabase
         .from('whiteboard_drawings')
         .select('*')
-        .eq('whiteboard_id', WHITEBOARD_ID);
+        .eq('whiteboard_id', effectiveWhiteboardId);
 
       if (error) {
         console.error('Error fetching drawings:', error);
@@ -304,7 +365,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     // Save to DB
     const newDrawing = {
       id,
-      whiteboard_id: WHITEBOARD_ID,
+      whiteboard_id: effectiveWhiteboardId,
       user_id: userId,
       path_points: points,
       color: penColor
@@ -382,10 +443,53 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     setActiveTool(tool);
   };
 
+  const openShare = async () => {
+    if (!canShare) return;
+    setShareLoading(true);
+    setShareError(null);
+    try {
+      const baseUrl = (import.meta as any).env?.VITE_PUBLIC_BASE_URL || 'http://localhost:3000';
+      const { data: existing, error: selectError } = await supabase
+        .from('whiteboard_shares')
+        .select('id')
+        .eq('whiteboard_id', effectiveWhiteboardId)
+        .maybeSingle();
+
+      if (selectError) throw selectError;
+
+      let shareId = existing?.id;
+      if (!shareId) {
+        shareId = crypto.randomUUID();
+        const { error: insertError } = await supabase.from('whiteboard_shares').insert({
+          id: shareId,
+          whiteboard_id: effectiveWhiteboardId,
+          created_by: userId
+        });
+        if (insertError) throw insertError;
+      }
+
+      const url = `${baseUrl.replace(/\/$/, '')}/share/${shareId}`;
+      setShareUrl(url);
+      const dataUrl = await QRCode.toDataURL(url, { width: 220, margin: 1 });
+      setShareQrDataUrl(dataUrl);
+      setIsShareOpen(true);
+    } catch (e) {
+      console.error('Share error:', e);
+      setShareError('Failed to create share link.');
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
 
   // UI State
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isToolbarExpanded, setIsToolbarExpanded] = useState(true);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareQrDataUrl, setShareQrDataUrl] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
 
   // Interaction State
   const [dragState, setDragState] = useState<{
@@ -751,7 +855,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       setDrawings(prev => [...prev, {
         id: tempId,
         user_id: userId,
-        whiteboard_id: WHITEBOARD_ID,
+        whiteboard_id: effectiveWhiteboardId,
         path_points: [newPoint],
         color: penColor
       }]);
@@ -1282,6 +1386,68 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
               </div>
             </div>
           </div>
+
+          {canShare && (
+            <div className="absolute top-6 right-6 z-50">
+              <button
+                onClick={openShare}
+                disabled={shareLoading}
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-lg hover:bg-white transition-colors disabled:opacity-60"
+                title="Share Whiteboard"
+              >
+                {shareLoading ? 'Creating...' : 'Share'}
+              </button>
+            </div>
+          )}
+
+          {isShareOpen && shareUrl && (
+            <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="w-[320px] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Share Whiteboard</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Scan to open on phone or iPad.</p>
+                  </div>
+                  <button
+                    onClick={() => setIsShareOpen(false)}
+                    className="size-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">close</span>
+                  </button>
+                </div>
+
+                <div className="mt-4 flex items-center justify-center">
+                  <div className="p-3 bg-white rounded-xl border border-slate-200">
+                    {shareQrDataUrl ? (
+                      <img src={shareQrDataUrl} alt="Whiteboard QR" className="w-[200px] h-[200px]" />
+                    ) : (
+                      <div className="w-[200px] h-[200px] flex items-center justify-center text-xs text-slate-400">
+                        Generating QR...
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Share Link</label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      className="flex-1 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1.5 text-slate-700 dark:text-slate-200"
+                      value={shareUrl}
+                      readOnly
+                    />
+                    <button
+                      onClick={() => navigator.clipboard.writeText(shareUrl)}
+                      className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-primary text-white"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                {shareError && <div className="mt-2 text-xs text-red-500">{shareError}</div>}
+              </div>
+            </div>
+          )}
 
           {/* Floating Toolbar (Tools only) */}
           <div

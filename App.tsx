@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Routes, Route, useParams } from 'react-router-dom';
 import TaskListView from './TaskListView';
 import Whiteboard from './components/Whiteboard/Whiteboard';
 import LoginPage from './components/Auth/LoginPage';
@@ -81,7 +82,7 @@ const seedNotes: WhiteboardNote[] = [
 const views = ['tasks', 'whiteboard'] as const;
 type View = 'tasks' | 'whiteboard';
 
-export default function App() {
+function MainApp() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   /* const [tasks, setTasks] = useState<Task[]>(seedTasks); */
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -388,5 +389,101 @@ export default function App() {
         )}
       </main>
     </div>
+  );
+}
+
+function ShareWhiteboardPage() {
+  const { shareId } = useParams();
+  const [guestId, setGuestId] = useState<string | null>(null);
+  const [whiteboardId, setWhiteboardId] = useState<string | null>(null);
+  const [notes, setNotes] = useState<WhiteboardNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('whiteboard_guest_id');
+    if (stored) {
+      setGuestId(stored);
+    } else {
+      const id = crypto.randomUUID();
+      localStorage.setItem('whiteboard_guest_id', id);
+      setGuestId(id);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchShare = async () => {
+      if (!shareId) {
+        setError('Invalid share link.');
+        setLoading(false);
+        return;
+      }
+      const { data, error: shareError } = await supabase
+        .from('whiteboard_shares')
+        .select('whiteboard_id')
+        .eq('id', shareId)
+        .maybeSingle();
+
+      if (shareError) {
+        setError('Failed to load share.');
+        setLoading(false);
+        return;
+      }
+
+      if (!data) {
+        setError('Share not found.');
+        setLoading(false);
+        return;
+      }
+
+      setWhiteboardId(data.whiteboard_id);
+      setLoading(false);
+    };
+
+    fetchShare();
+  }, [shareId]);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-sm text-slate-500">Loading shared whiteboard...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !guestId || !whiteboardId) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="text-sm text-red-500">{error || 'Unable to load share.'}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50">
+      <main className="flex-1 w-full flex flex-col">
+        <Whiteboard
+          toggleTheme={() => {}}
+          isDarkMode={false}
+          notes={notes}
+          setNotes={setNotes}
+          userId={guestId}
+          whiteboardId={whiteboardId}
+          allowShare={false}
+        />
+      </main>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/share/:shareId" element={<ShareWhiteboardPage />} />
+      <Route path="/*" element={<MainApp />} />
+    </Routes>
   );
 }
