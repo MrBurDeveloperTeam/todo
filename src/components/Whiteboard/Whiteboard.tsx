@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import QRCode from 'qrcode';
-import { WhiteboardNote } from '../../hooks/types';
-import { supabase } from '@/lib/supabase';
+import { WhiteboardNote } from '@/src/hooks/types';
+import { supabase } from '@/src/lib/supabase';
 
 // ✅ Use a real UUID for the whiteboard too
 const WHITEBOARD_ID = 'a1111111-b222-c333-d444-e55555555555';
@@ -750,9 +750,10 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   };
 
   const updateNoteColor = (color: WhiteboardNote['color']) => {
+    const stickyType: WhiteboardNote['type'] = 'sticky';
     saveHistorySnapshot();
     setNotes(prev => {
-      const next = prev.map(n => selectedNoteIds.has(n.id) ? { ...n, color, type: 'sticky' } : n);
+      const next = prev.map(n => selectedNoteIds.has(n.id) ? { ...n, color, type: stickyType } : n);
       next.forEach(n => { if (selectedNoteIds.has(n.id)) scheduleSaveNote(n); });
       return next;
     });

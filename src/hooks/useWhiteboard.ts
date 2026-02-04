@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { APP_USER_ID } from '@/config/appUser';
+import { supabase } from '@/src/lib/supabase';
+import { APP_USER_ID } from '@/src/config/appUser';
 import { WhiteboardNote } from '@/hooks/types';
 
 

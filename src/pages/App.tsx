@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
 import TaskListView from './TaskListView';
-import Whiteboard from './components/Whiteboard/Whiteboard';
-import LoginPage from './components/Auth/LoginPage';
-import { Task, WhiteboardNote } from './hooks/types';
-import { supabase } from './lib/supabase';
+import Whiteboard from '../components/Whiteboard/Whiteboard';
+import LoginPage from '../components/Auth/LoginPage';
+import { Task, WhiteboardNote } from '../hooks/types';
+import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 
 // Seed data to showcase the views without a backend
