@@ -606,12 +606,29 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     };
   };
 
-  const handleZoom = (delta: number) => {
+  const handleZoom = useCallback((delta: number) => {
     setView(prev => {
       const newScale = Math.min(Math.max(prev.scale + delta, 0.2), 3);
       return { ...prev, scale: newScale };
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        handleZoom(e.deltaY * -0.001);
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+    };
+  }, [handleZoom]);
 
   const bringToFront = (id: string) => {
     highestZIndex.current += 1;
@@ -1231,12 +1248,6 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
             onPointerMove={handlePointerMove}
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            onWheel={(e) => {
-              if (e.ctrlKey) {
-                e.preventDefault();
-                handleZoom(e.deltaY * -0.001);
-              }
-            }}
           >
             <div
               className="relative shrink-0 m-auto transition-all duration-75 ease-out will-change-transform"

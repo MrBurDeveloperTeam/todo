@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { APP_USER_ID } from '@/src/config/appUser';
-import { WhiteboardNote } from '@/hooks/types';
+import { WhiteboardNote } from './types';
 
 
 export function useWhiteboard(whiteboardId: string) {

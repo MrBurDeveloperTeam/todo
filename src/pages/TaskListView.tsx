@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import confetti from 'canvas-confetti';
-import { Task } from './hooks/types';
+import { Task } from '../hooks/types';
 import NewTaskModal from './NewTaskModal';
 import { supabase } from '../lib/supabase'; // Adjusted import
 

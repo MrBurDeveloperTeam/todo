@@ -112,10 +112,22 @@ function MainApp() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Initialize theme from storage/system
+  useEffect(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark') {
+      setIsDarkMode(true);
+    } else if (stored === 'light') {
+      setIsDarkMode(false);
+    } else {
+      setIsDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+  }, []);
+
   // Sync dark mode
   useEffect(() => {
-    if (isDarkMode) document.documentElement.classList.add('dark');
-    else document.documentElement.classList.remove('dark');
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
   const toggleTheme = () => setIsDarkMode((v) => !v);
@@ -127,47 +139,7 @@ function MainApp() {
   const upcomingCount = useMemo(() => tasks.filter((t) => t.date >= todayStr && t.status !== 'completed').length, [tasks, todayStr]);
 
   // --- Task Persistence ---
-  const [taskListId, setTaskListId] = useState<string | null>(null);
-
-  // 1. Ensure Task List Exists
-  useEffect(() => {
-    const ensureTaskList = async () => {
-      console.log('ensureTaskList: Checking for user', userId);
-      if (!userId) return;
-
-      const { data, error } = await supabase
-        .from('task_lists')
-        .select('id')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (data) {
-        console.log('ensureTaskList: Found list', data.id);
-        setTaskListId(data.id);
-      } else {
-        console.log('ensureTaskList: Creating new list...');
-        // Create default list
-        const { data: newList, error: createError } = await supabase
-          .from('task_lists')
-          .insert({ user_id: userId, title: 'My Tasks' })
-          .select()
-          .single();
-
-        if (newList) {
-          console.log('ensureTaskList: Created list', newList.id);
-          setTaskListId(newList.id);
-        }
-        if (createError) console.error('Error creating task list:', createError);
-      }
-    };
-
-    if (userId) {
-      ensureTaskList();
-    }
-  }, [userId]);
-
-  // 2. Fetch Tasks
-  // 2. Fetch Tasks
+  // 1. Fetch Tasks
   useEffect(() => {
     const fetchTasks = async () => {
       console.log('fetchTasks: Triggered', { userId });
