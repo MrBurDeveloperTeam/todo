@@ -46,7 +46,7 @@ coverage/
 
 wrangler/
 cloudflare/
-wrangler.jsconc
+wrangler.jsonc
 .wrangler
 .wrangler/
 .wrangler/tmp/
