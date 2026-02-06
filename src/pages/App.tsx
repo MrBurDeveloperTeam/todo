@@ -98,7 +98,7 @@ function MainApp() {
   useEffect(() => {
     const loadUserId = async () => {
       try {
-        const result = await apiFetch('/api/verify-token', { method: 'GET' });
+        const result = await apiFetch('/verify-token', { method: 'GET' });
         const uid = result?.user?.profiles?.user?.user_id || null;
         setUserId(uid);
       } catch (error) {
@@ -174,7 +174,7 @@ function MainApp() {
       if (!userId) return;
 
       try {
-        const result = await apiFetch(`/api/tasks?user_id=${userId}`, { method: 'GET' });
+        const result = await apiFetch(`/tasks?user_id=${userId}`, { method: 'GET' });
         const data = result?.tasks ?? [];
         console.log('fetchTasks: Data received', data.length);
         const mappedTasks: Task[] = data.map((t: any) => ({
@@ -226,7 +226,7 @@ function MainApp() {
     setTasks((prev) => [...prev, task]);
 
     try {
-      await apiFetch('/api/tasks', {
+      await apiFetch('/tasks', {
         method: 'POST',
         body: JSON.stringify({
           id: task.id,
@@ -253,7 +253,7 @@ function MainApp() {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
 
     try {
-      await apiFetch(`/api/tasks/${updated.id}`, {
+      await apiFetch(`/tasks/${updated.id}`, {
         method: 'PUT',
         body: JSON.stringify({
           title: updated.title,
@@ -279,7 +279,7 @@ function MainApp() {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
 
     try {
-      await apiFetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+      await apiFetch(`/tasks/${taskId}`, { method: 'DELETE' });
     } catch (error) {
       console.error('Error deleting task:', error);
     }
@@ -296,7 +296,7 @@ function MainApp() {
     );
 
     try {
-      await apiFetch(`/api/tasks/${taskId}`, {
+      await apiFetch(`/tasks/${taskId}`, {
         method: 'PUT',
         body: JSON.stringify({ status: newStatus }),
       });
@@ -439,7 +439,7 @@ function ShareWhiteboardPage() {
         const apiToken = (import.meta as any).env?.VITE_API_TOKEN as string | undefined;
         if (apiToken) headers.Authorization = `Bearer ${apiToken}`;
 
-        const res = await fetch(`${apiBase.replace(/\/$/, "")}/api/whiteboard-shares/${shareId}`, {
+        const res = await fetch(`${apiBase.replace(/\/$/, "")}/whiteboard-shares/${shareId}`, {
           method: 'GET',
           headers,
           credentials: 'include',
