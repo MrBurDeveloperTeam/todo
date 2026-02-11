@@ -183,13 +183,6 @@ function MainApp() {
     );
   }
 
-  if (!userId) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="text-sm text-red-500">VITE_APP_USER_ID is not set.</div>
-      </div>
-    );
-  }
 
   // 3. Handlers
   // 3. Handlers

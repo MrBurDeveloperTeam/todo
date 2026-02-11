@@ -1450,11 +1450,6 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
               shadow-[0_-4px_10px_rgb(0,0,0,0.03)] md:shadow-none`}
               title={isToolbarExpanded ? "Hide Toolbar" : "Show Toolbar"}
             >
-              {/* Mobile Icon */}
-              <span className={`md:hidden material-symbols-outlined transition-transform duration-500 text-[26px] 
-              ${isToolbarExpanded ? '' : 'rotate-180'}`}>
-                keyboard_arrow_down
-              </span>
               {/* Desktop Icon */}
               <span className={`hidden md:block material-symbols-outlined transition-transform duration-500 text-[26px] 
               ${isToolbarExpanded ? '' : 'rotate-180'}`}>

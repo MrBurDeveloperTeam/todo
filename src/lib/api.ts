@@ -14,6 +14,11 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> | undefined),
   };
+  // Dev-only: allow a local token override when cookies are unavailable.
+  const devToken = (import.meta as any).env?.VITE_DEV_TOKEN as string | undefined;
+  if ((import.meta as any).env?.DEV && devToken && !headers.Authorization) {
+    headers.Authorization = `Bearer ${devToken}`;
+  }
 
   const method = (options.method || 'GET').toUpperCase();
   let data: any = undefined;
@@ -66,6 +71,12 @@ export const api = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+// Dev-only: allow a local token override when cookies are unavailable.
+const devToken = (import.meta as any).env?.VITE_DEV_TOKEN as string | undefined;
+if ((import.meta as any).env?.DEV && devToken) {
+  api.defaults.headers.common.Authorization = `Bearer ${devToken}`;
+}
 
 // Optional: basic error unwrap
 api.interceptors.response.use(
