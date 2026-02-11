@@ -93,7 +93,7 @@ function MainApp() {
   // Keep the document class in sync so Tailwind dark styles work
   // --- Auth State ---
   const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadUserId = async () => {
