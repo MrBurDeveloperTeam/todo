@@ -4,7 +4,7 @@ import TaskListView from './TaskListView';
 import Whiteboard from '../components/Whiteboard/Whiteboard';
 import { Task, WhiteboardNote } from '../hooks/types';
 import { redirectToLogin } from '../lib/auth';
-import { apiFetch } from '../lib/api';
+import { api, apiFetch } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
 
 // Seed data to showcase the views without a backend
@@ -98,7 +98,7 @@ function MainApp() {
   useEffect(() => {
     const loadUserId = async () => {
       try {
-        const result = await apiFetch('/verify-token', { method: 'GET' });
+        const {data: result} = await api.get('/verify-token');
         const uid = result?.user?.profiles?.user?.user_id || null;
         setUserId(uid);
       } catch (error) {
