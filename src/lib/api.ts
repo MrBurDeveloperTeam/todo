@@ -1,6 +1,16 @@
 import { redirectToLogin } from './auth';
+import { AxiosHeaders } from "axios";
 import axios from "axios";
 
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const cookie = document.cookie
+    .split('; ')
+    .find((row) => row.startsWith(`${name}=`));
+  if (!cookie) return null;
+  const value = cookie.substring(name.length + 1);
+  return value ? decodeURIComponent(value) : null;
+}
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const envBase =
@@ -14,10 +24,13 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> | undefined),
   };
-  // Dev-only: allow a local token override when cookies are unavailable.
-  const devToken = (import.meta as any).env?.VITE_DEV_TOKEN as string | undefined;
-  if ((import.meta as any).env?.DEV && devToken && !headers.Authorization) {
-    headers.Authorization = `Bearer ${devToken}`;
+  const ssoToken = getCookie('mrbur_sso');
+  console.log('[auth] mrbur_sso cookie found:', Boolean(ssoToken));
+  if (ssoToken) {
+    console.log('[auth] mrbur_sso token preview:', `${ssoToken.slice(0, 16)}...`);
+  }
+  if (ssoToken) {
+    headers.Authorization = `Bearer ${ssoToken}`;
   }
 
   const method = (options.method || 'GET').toUpperCase();
@@ -49,12 +62,13 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     const res = await doRequest(apiBase);
     return res.data ?? null;
   } catch (err: any) {
-    const status = err?.response?.status;
+    const status = err?.status ?? err?.response?.status;
     if (status === 401) {
-      redirectToLogin();
+
       return null;
     }
-    if (apiBase !== window.location.origin) {
+    // Only try local proxy as a network fallback, not for HTTP status errors.
+    if (!status && apiBase !== window.location.origin) {
       const proxyBase = `${window.location.origin}/api`;
       const res = await doRequest(proxyBase);
       return res.data ?? null;
@@ -62,7 +76,6 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     throw err;
   }
 }
-
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL, 
@@ -72,20 +85,13 @@ export const api = axios.create({
   },
 });
 
-// Dev-only: allow a local token override when cookies are unavailable.
-const devToken = (import.meta as any).env?.VITE_DEV_TOKEN as string | undefined;
-if ((import.meta as any).env?.DEV && devToken) {
-  api.defaults.headers.common.Authorization = `Bearer ${devToken}`;
-}
-
-// Optional: basic error unwrap
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const msg =
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      err.message;
-    return Promise.reject(new Error(msg));
+api.interceptors.request.use((config) => {
+  const ssoToken = getCookie("mrbur_sso");
+  if (ssoToken) {
+    const headers = AxiosHeaders.from(config.headers);
+    headers.set("Authorization", `Bearer ${ssoToken}`);
+    config.headers = headers;
   }
-);
+  return config;
+});
+

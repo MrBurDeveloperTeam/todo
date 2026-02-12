@@ -183,6 +183,13 @@ function MainApp() {
     );
   }
 
+  if (!userId) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="text-sm text-red-500">Authentication failed. Please sign in again.</div>
+      </div>
+    );
+  }
 
   // 3. Handlers
   // 3. Handlers
@@ -403,29 +410,7 @@ function ShareWhiteboardPage() {
         return;
       }
       try {
-        const apiBase =
-          ((import.meta as any).env?.VITE_API_BASE_URL as string) ||
-          ((import.meta as any).env?.VITE_PUBLIC_BASE_URL as string) ||
-          window.location.origin;
-
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        const apiToken = (import.meta as any).env?.VITE_API_TOKEN as string | undefined;
-        if (apiToken) headers.Authorization = `Bearer ${apiToken}`;
-
-        const res = await fetch(`${apiBase.replace(/\/$/, "")}/whiteboard-shares/${shareId}`, {
-          method: 'GET',
-          headers,
-          credentials: 'include',
-        });
-
-        const text = await res.text();
-        if (res.status === 401) {
-          redirectToLogin();
-          return;
-        }
-        if (!res.ok) throw new Error(text || `API error ${res.status}`);
-
-        const payload = text ? JSON.parse(text) : null;
+        const payload = await apiFetch(`/whiteboard-shares/${shareId}`, { method: 'GET' });
         const share = payload?.share;
         if (!share) {
           setError('Share not found.');
