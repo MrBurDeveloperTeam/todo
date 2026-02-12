@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import QRCode from 'qrcode';
-import { WhiteboardNote } from '@/src/hooks/types';
+import { Task, WhiteboardNote } from '@/src/hooks/types';
 import { apiFetch } from '@/src/lib/api';
 
 // ✅ Use a real UUID for the whiteboard too
@@ -10,6 +10,8 @@ const WHITEBOARD_ID = 'a1111111-b222-c333-d444-e55555555555';
 const LANDSCAPE_SIZE = { width: 1920, height: 1080 };
 const PORTRAIT_SIZE = { width: 1080, height: 1920 };
 const MIN_SIZE = 150;
+const REMINDER_CHECKED_PREFIX = '[x] ';
+const REMINDER_UNCHECKED_PREFIX = '[ ] ';
 
 interface WhiteboardProps {
   toggleTheme: () => void;
@@ -17,12 +19,26 @@ interface WhiteboardProps {
   notes: WhiteboardNote[];
   setNotes: React.Dispatch<React.SetStateAction<WhiteboardNote[]>>;
   userId: string;
+  tasks?: Task[];
   isOffline?: boolean;
   whiteboardId?: string;
   allowShare?: boolean;
 }
 
-type ToolType = 'select' | 'hand' | 'note' | 'text' | 'image' | 'pen' | 'eraser';
+type ToolType = 'select' | 'hand' | 'note' | 'reminder' | 'text' | 'image' | 'pen' | 'eraser';
+type WhiteboardDrawing = {
+  id: string;
+  user_id: string;
+  whiteboard_id: string;
+  path_points: { x: number; y: number }[];
+  color: string;
+  thickness?: number;
+};
+
+type WhiteboardSnapshot = {
+  notes: WhiteboardNote[];
+  drawings: WhiteboardDrawing[];
+};
 
 const COLORS = {
   yellow: {
@@ -62,6 +78,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   notes,
   setNotes,
   userId,
+  tasks = [],
   isOffline,
   whiteboardId,
   allowShare
@@ -297,9 +314,10 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
 
   // --- Drawing State ---
-  const [drawings, setDrawings] = useState<Array<{ id: string; user_id: string; whiteboard_id: string; path_points: { x: number; y: number }[]; color: string }>>([]);
+  const [drawings, setDrawings] = useState<WhiteboardDrawing[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [penColor, setPenColor] = useState('black');
+  const [penThickness, setPenThickness] = useState(3);
   const currentPathRef = useRef<{ x: number; y: number }[]>([]);
   const drawingsRef = useRef<typeof drawings>([]);
   const currentDrawingIdRef = useRef<string | null>(null);
@@ -318,7 +336,11 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
           method: 'GET',
         });
         const data = result?.drawings ?? [];
-        setDrawings(data);
+        const normalized: WhiteboardDrawing[] = data.map((d: any) => ({
+          ...d,
+          thickness: Number(d?.stroke_width ?? d?.thickness ?? 3),
+        }));
+        setDrawings(normalized);
       } catch (error) {
         console.error('Error fetching drawings:', error);
       }
@@ -326,23 +348,39 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     fetchDrawings();
   }, [userId, apiFetchFn, effectiveWhiteboardId]);
 
-  const saveDrawing = async (id: string, points: { x: number; y: number }[]) => {
-    if (!userId || points.length < 2) return;
-    // Save to DB
-    const newDrawing = {
-      id,
+  const saveDrawing = async (drawing: WhiteboardDrawing) => {
+    if (!userId || drawing.path_points.length < 2) return;
+    const withStrokeWidth = {
+      id: drawing.id,
       whiteboard_id: effectiveWhiteboardId,
       user_id: userId,
-      path_points: points,
-      color: penColor
+      path_points: drawing.path_points,
+      color: drawing.color,
+      stroke_width: drawing.thickness ?? 3,
     };
+
+    const withoutStrokeWidth = {
+      id: drawing.id,
+      whiteboard_id: effectiveWhiteboardId,
+      user_id: userId,
+      path_points: drawing.path_points,
+      color: drawing.color,
+    };
+
     try {
-      await apiFetchFn(`/whiteboard-drawings/${id}`, {
+      await apiFetchFn(`/whiteboard-drawings/${drawing.id}`, {
         method: 'PUT',
-        body: JSON.stringify(newDrawing),
+        body: JSON.stringify(withStrokeWidth),
       });
     } catch (error) {
-      console.error('Error saving drawing:', error);
+      try {
+        await apiFetchFn(`/whiteboard-drawings/${drawing.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(withoutStrokeWidth),
+        });
+      } catch (fallbackError) {
+        console.error('Error saving drawing:', fallbackError);
+      }
     }
   };
 
@@ -355,6 +393,67 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       await apiFetchFn(`/whiteboard-drawings/${id}`, { method: 'DELETE' });
     } catch (error) {
       console.error('Error deleting drawing:', error);
+    }
+  };
+
+  const upsertDrawing = async (drawing: WhiteboardDrawing) => {
+    if (isOffline) return;
+    if (!userId) return;
+    if (!whiteboardReady) return;
+
+    const withStrokeWidth = {
+      id: drawing.id,
+      whiteboard_id: effectiveWhiteboardId,
+      user_id: userId,
+      path_points: drawing.path_points,
+      color: drawing.color,
+      stroke_width: drawing.thickness ?? 3,
+    };
+    const withoutStrokeWidth = {
+      id: drawing.id,
+      whiteboard_id: effectiveWhiteboardId,
+      user_id: userId,
+      path_points: drawing.path_points,
+      color: drawing.color,
+    };
+
+    try {
+      await apiFetchFn(`/whiteboard-drawings/${drawing.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(withStrokeWidth),
+      });
+    } catch (error) {
+      try {
+        await apiFetchFn(`/whiteboard-drawings/${drawing.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(withoutStrokeWidth),
+        });
+      } catch (fallbackError) {
+        console.error('Error upserting drawing:', fallbackError);
+      }
+    }
+  };
+
+  const clearAllDrawings = async () => {
+    const drawingIds = drawingsRef.current.map((drawing) => drawing.id);
+    if (drawingIds.length === 0) return;
+    saveHistorySnapshot();
+
+    // Clear canvas immediately.
+    setDrawings([]);
+
+    // Cancel in-progress drawing to avoid restoring it on pointer-up.
+    cancelCurrentDrawingRef.current = true;
+    setIsDrawing(false);
+    currentPathRef.current = [];
+    currentDrawingIdRef.current = null;
+
+    try {
+      await Promise.all(
+        drawingIds.map((id) => apiFetchFn(`/whiteboard-drawings/${id}`, { method: 'DELETE' }))
+      );
+    } catch (error) {
+      console.error('Error clearing all drawings:', error);
     }
   };
 
@@ -459,6 +558,12 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [isToolbarExpanded, setIsToolbarExpanded] = useState(true);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isClearDrawingsModalOpen, setIsClearDrawingsModalOpen] = useState(false);
+  const [isReminderMenuOpen, setIsReminderMenuOpen] = useState(false);
+  const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
+  const [editingReminderDateNoteId, setEditingReminderDateNoteId] = useState<string | null>(null);
+  const [editingReminderTitleNoteId, setEditingReminderTitleNoteId] = useState<string | null>(null);
+  const [editingReminderTitleValue, setEditingReminderTitleValue] = useState('');
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareQrDataUrl, setShareQrDataUrl] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
@@ -474,33 +579,78 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   } | null>(null);
 
   // --- History State ---
-  const [history, setHistory] = useState<WhiteboardNote[][]>([]);
-  const [future, setFuture] = useState<WhiteboardNote[][]>([]);
+  const [history, setHistory] = useState<WhiteboardSnapshot[]>([]);
+  const [future, setFuture] = useState<WhiteboardSnapshot[]>([]);
+
+  const buildSnapshot = useCallback((): WhiteboardSnapshot => ({
+    notes: notes.map((n) => ({ ...n })),
+    drawings: drawings.map((d) => ({
+      ...d,
+      path_points: d.path_points.map((p) => ({ ...p })),
+    })),
+  }), [notes, drawings]);
 
   const saveHistorySnapshot = useCallback(() => {
-    setHistory(prev => [...prev, [...notes]].slice(-50));
+    setHistory(prev => [...prev, buildSnapshot()].slice(-50));
     setFuture([]);
-  }, [notes]);
+  }, [buildSnapshot]);
+
+  const clearPendingNoteSaves = useCallback(() => {
+    Object.values(saveTimers.current).forEach((timerId) => window.clearTimeout(timerId));
+    saveTimers.current = {};
+  }, []);
+
+  const syncSnapshotToDb = useCallback(async (from: WhiteboardSnapshot, to: WhiteboardSnapshot) => {
+    if (isOffline) return;
+    if (!userId) return;
+    if (!whiteboardReady) return;
+
+    const fromNoteIds = new Set(from.notes.map((n) => n.id));
+    const toNoteIds = new Set(to.notes.map((n) => n.id));
+    const noteIdsToDelete = Array.from(fromNoteIds).filter((id) => !toNoteIds.has(id));
+
+    const fromDrawingIds = new Set(from.drawings.map((d) => d.id));
+    const toDrawingIds = new Set(to.drawings.map((d) => d.id));
+    const drawingIdsToDelete = Array.from(fromDrawingIds).filter((id) => !toDrawingIds.has(id));
+
+    await Promise.all([
+      ...to.notes.map((note) => upsertNote(note)),
+      ...noteIdsToDelete.map((id) => deleteNoteFromDb(id)),
+      ...to.drawings.map((drawing) => upsertDrawing(drawing)),
+      ...drawingIdsToDelete.map((id) => apiFetchFn(`/whiteboard-drawings/${id}`, { method: 'DELETE' })),
+    ]);
+  }, [isOffline, userId, whiteboardReady, apiFetchFn, upsertNote, deleteNoteFromDb, upsertDrawing]);
 
   const undo = useCallback(() => {
     if (history.length === 0) return;
+    const current = buildSnapshot();
     const previous = history[history.length - 1];
-    setFuture(prev => [[...notes], ...prev]);
+    clearPendingNoteSaves();
+    setFuture(prev => [current, ...prev]);
     setHistory(prev => prev.slice(0, -1));
-    setNotes(previous);
-  }, [history, notes, setNotes]);
+    setNotes(previous.notes);
+    setDrawings(previous.drawings);
+    setSelectedNoteIds(new Set());
+    void syncSnapshotToDb(current, previous);
+  }, [history, buildSnapshot, setNotes, clearPendingNoteSaves, syncSnapshotToDb]);
 
   const redo = useCallback(() => {
     if (future.length === 0) return;
+    const current = buildSnapshot();
     const next = future[0];
-    setHistory(prev => [...prev, [...notes]]);
+    clearPendingNoteSaves();
+    setHistory(prev => [...prev, current]);
     setFuture(prev => prev.slice(1));
-    setNotes(next);
-  }, [future, notes, setNotes]);
+    setNotes(next.notes);
+    setDrawings(next.drawings);
+    setSelectedNoteIds(new Set());
+    void syncSnapshotToDb(current, next);
+  }, [future, buildSnapshot, setNotes, clearPendingNoteSaves, syncSnapshotToDb]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const reminderMenuRef = useRef<HTMLDivElement>(null);
   const highestZIndex = useRef(10);
 
   // --- Resize Logic ---
@@ -566,6 +716,18 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       (document.body.style as any).webkitUserSelect = prevWebkitUserSelect;
     };
   }, [dragState]);
+
+  useEffect(() => {
+    if (!isReminderMenuOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (reminderMenuRef.current && !reminderMenuRef.current.contains(event.target as Node)) {
+        setIsReminderMenuOpen(false);
+        setIsTaskPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isReminderMenuOpen]);
 
 
   // --- Helpers ---
@@ -660,6 +822,169 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
 
     // ✅ Save immediately (only if ready)
     upsertNote(newNote);
+  };
+
+  const addTaskAsNote = (task: Task) => {
+    saveHistorySnapshot();
+    const id = crypto.randomUUID();
+    highestZIndex.current += 1;
+
+    const width = 340;
+    const height = 260;
+    const x = Math.max(0, Math.min(canvasSize.width - width, canvasSize.width / 2 - width / 2 + (Math.random() * 120 - 60)));
+    const y = Math.max(0, Math.min(canvasSize.height - height, canvasSize.height / 2 - height / 2 + (Math.random() * 80 - 40)));
+
+    const content = [
+      `Date: ${task.date || new Date().toLocaleDateString('en-CA')}`,
+      task.time ? `Time: ${task.time}` : '',
+      task.description ? `Description: ${task.description}` : '',
+      '',
+      'Write notes here...'
+    ].filter(Boolean).join('\n');
+
+    const newNote: WhiteboardNote = {
+      id,
+      type: 'sticky',
+      x,
+      y,
+      width,
+      height,
+      content,
+      title: `${REMINDER_UNCHECKED_PREFIX}${task.title}`,
+      color: 'pink',
+      rotation: Math.random() * 4 - 2,
+      zIndex: highestZIndex.current,
+      fontSize: 16,
+      createdAt: Date.now(),
+    };
+
+    setNotes((prev) => [...prev, newNote]);
+    setSelectedNoteIds(new Set([id]));
+    setActiveTool('select');
+    setIsTaskPickerOpen(false);
+    setIsReminderMenuOpen(false);
+    upsertNote(newNote);
+  };
+
+  const addReminderSticky = (x: number, y: number) => {
+    saveHistorySnapshot();
+    const id = crypto.randomUUID();
+    highestZIndex.current += 1;
+
+    const width = 360;
+    const height = 280;
+    const noteX = Math.max(0, Math.min(canvasSize.width - width, x - width / 2));
+    const noteY = Math.max(0, Math.min(canvasSize.height - height, y - height / 2));
+
+    const today = new Date().toLocaleDateString('en-CA');
+    const newNote: WhiteboardNote = {
+      id,
+      type: 'sticky',
+      x: noteX,
+      y: noteY,
+      width,
+      height,
+      content: `Date: ${today}\n\nWrite notes here...`,
+      title: `${REMINDER_UNCHECKED_PREFIX}Reminder Task`,
+      color: 'pink',
+      rotation: Math.random() * 4 - 2,
+      zIndex: highestZIndex.current,
+      fontSize: 16,
+      createdAt: Date.now(),
+    };
+
+    setNotes((prev) => [...prev, newNote]);
+    setSelectedNoteIds(new Set([id]));
+    setActiveTool('select');
+    upsertNote(newNote);
+  };
+
+  const getReminderDateValue = (content: string) => {
+    const firstLine = (content || '').split('\n')[0] || '';
+    if (!firstLine.startsWith('Date: ')) return '';
+    const dateValue = firstLine.replace('Date: ', '').trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(dateValue) ? dateValue : '';
+  };
+
+  const formatReminderDateLabel = (dateValue: string) => {
+    if (!dateValue) return 'Set date';
+    const parsed = new Date(`${dateValue}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return 'Set date';
+    return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const updateReminderDate = (noteId: string, dateValue: string) => {
+    if (!dateValue) return;
+    saveHistorySnapshot();
+    setNotes((prev) => {
+      const next = prev.map((n) => {
+        if (n.id !== noteId) return n;
+        const lines = (n.content || '').split('\n');
+        const hasDateLine = lines[0]?.startsWith('Date: ');
+        if (hasDateLine) {
+          lines[0] = `Date: ${dateValue}`;
+          return { ...n, content: lines.join('\n') };
+        }
+        const body = (n.content || '').trim();
+        const content = body ? `Date: ${dateValue}\n\n${body}` : `Date: ${dateValue}\n\nWrite notes here...`;
+        return { ...n, content };
+      });
+      const changed = next.find((n) => n.id === noteId);
+      if (changed) scheduleSaveNote(changed);
+      return next;
+    });
+  };
+
+  const parseReminderTitle = (note: WhiteboardNote) => {
+    const raw = (note.title || 'Reminder Task').trim();
+    if (raw.startsWith(REMINDER_CHECKED_PREFIX)) {
+      return { checked: true, taskName: raw.slice(REMINDER_CHECKED_PREFIX.length) || 'Reminder Task' };
+    }
+    if (raw.startsWith(REMINDER_UNCHECKED_PREFIX)) {
+      return { checked: false, taskName: raw.slice(REMINDER_UNCHECKED_PREFIX.length) || 'Reminder Task' };
+    }
+    return { checked: false, taskName: raw || 'Reminder Task' };
+  };
+
+  const toggleReminderChecked = (noteId: string) => {
+    saveHistorySnapshot();
+    setNotes((prev) => {
+      const next = prev.map((n) => {
+        if (n.id !== noteId) return n;
+        const parsed = parseReminderTitle(n);
+        const nextChecked = !parsed.checked;
+        const nextTitle = `${nextChecked ? REMINDER_CHECKED_PREFIX : REMINDER_UNCHECKED_PREFIX}${parsed.taskName}`;
+        return { ...n, title: nextTitle };
+      });
+      const changed = next.find((n) => n.id === noteId);
+      if (changed) scheduleSaveNote(changed);
+      return next;
+    });
+  };
+
+  const startReminderTitleEdit = (note: WhiteboardNote) => {
+    const parsed = parseReminderTitle(note);
+    setEditingReminderTitleNoteId(note.id);
+    setEditingReminderTitleValue(parsed.taskName);
+  };
+
+  const saveReminderTitleEdit = (noteId: string) => {
+    const nextName = editingReminderTitleValue.trim();
+    setEditingReminderTitleNoteId(null);
+    if (!nextName) return;
+
+    saveHistorySnapshot();
+    setNotes((prev) => {
+      const next = prev.map((n) => {
+        if (n.id !== noteId) return n;
+        const parsed = parseReminderTitle(n);
+        const prefix = parsed.checked ? REMINDER_CHECKED_PREFIX : REMINDER_UNCHECKED_PREFIX;
+        return { ...n, title: `${prefix}${nextName}` };
+      });
+      const changed = next.find((n) => n.id === noteId);
+      if (changed) scheduleSaveNote(changed);
+      return next;
+    });
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -801,6 +1126,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       setActiveTool('hand');
     }
     if (e.key === 'n') setActiveTool('note');
+    if (e.key === 'r') setActiveTool('reminder');
     if (e.key === 't') setActiveTool('text');
 
   }, [deleteSelected, undo, redo]);
@@ -816,7 +1142,10 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       if (isDrawing) {
         setIsDrawing(false);
         if (!cancelCurrentDrawingRef.current && currentPathRef.current.length > 0 && currentDrawingIdRef.current) {
-          saveDrawing(currentDrawingIdRef.current, currentPathRef.current);
+          const finishedDrawing = drawingsRef.current.find((d) => d.id === currentDrawingIdRef.current);
+          if (finishedDrawing) {
+            saveDrawing(finishedDrawing);
+          }
           currentPathRef.current = [];
         }
         if (cancelCurrentDrawingRef.current && currentDrawingIdRef.current) {
@@ -834,6 +1163,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
   const handlePointerDown = (e: React.PointerEvent) => {
     // 0. Pen Tool (Drawing)
     if (activeTool === 'pen') {
+      saveHistorySnapshot();
       setIsDrawing(true);
       cancelCurrentDrawingRef.current = false;
       const coords = screenToCanvas(e.clientX, e.clientY);
@@ -848,13 +1178,17 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
         user_id: userId,
         whiteboard_id: effectiveWhiteboardId,
         path_points: [newPoint],
-        color: penColor
+        color: penColor,
+        thickness: penThickness,
       }]);
       return;
     }
 
     // 0.5. Eraser Tool
     if (activeTool === 'eraser') {
+      if (drawingsRef.current.length > 0) {
+        saveHistorySnapshot();
+      }
       const coords = screenToCanvas(e.clientX, e.clientY);
       checkEraserCollision(coords.x, coords.y);
       // We don't need to "start" an interaction state for eraser, just continuous checking on move
@@ -879,14 +1213,21 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
       return;
     }
 
-    // 3. Text Creation Tool
+    // 3. Reminder Creation Tool
+    if (activeTool === 'reminder') {
+      const coords = screenToCanvas(e.clientX, e.clientY);
+      addReminderSticky(coords.x, coords.y);
+      return;
+    }
+
+    // 4. Text Creation Tool
     if (activeTool === 'text') {
       const coords = screenToCanvas(e.clientX, e.clientY);
       addNote(coords.x, coords.y, 'text');
       return;
     }
 
-    // 4. Deselect if clicking empty space
+    // 5. Deselect if clicking empty space
     if (e.target === containerRef.current || (e.target as HTMLElement).closest('.canvas-background')) {
       setSelectedNoteIds(new Set());
       setShowColorPicker(false);
@@ -925,7 +1266,6 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
           newDrawings[lastIdx] = {
             ...lastDrawing,
             path_points: [...lastDrawing.path_points, newPoint],
-            color: 'color' in lastDrawing ? lastDrawing.color : penColor
           };
         }
         return newDrawings;
@@ -1110,7 +1450,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
     if (activeTool === 'eraser') {
       return `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="black" stroke-width="1.5" fill="white" fill-opacity="0.5"/></svg>') 12 12, auto`;
     }
-    if (activeTool === 'note' || activeTool === 'text' || activeTool === 'pen') return 'crosshair';
+    if (activeTool === 'note' || activeTool === 'reminder' || activeTool === 'text' || activeTool === 'pen') return 'crosshair';
     if (dragState?.type === 'rotate') return 'alias';
     if (dragState?.type === 'resize') {
       const h = dragState.handle;
@@ -1132,7 +1472,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
         <polyline
           points={drawing.path_points.map((p) => `${p.x},${p.y}`).join(' ')}
           stroke={drawing.color || 'black'}
-          strokeWidth="3"
+          strokeWidth={drawing.thickness ?? 3}
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -1249,12 +1589,19 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
                 {notes.map(note => {
                   const isSelected = selectedNoteIds.has(note.id);
                   const isText = note.type === 'text';
+                  const isReminder =
+                    note.type === 'sticky' &&
+                    (note.title?.startsWith(REMINDER_CHECKED_PREFIX) ||
+                      note.title?.startsWith(REMINDER_UNCHECKED_PREFIX) ||
+                      note.title === 'Reminder');
+                  const reminderMeta = parseReminderTitle(note);
                   const theme = COLORS[note.color];
                   return (
                     <div
                       key={note.id}
                       onPointerDown={(e) => handleNotePointerDown(e, note.id)}
                       className={`absolute flex flex-col transition-shadow duration-200 group
+                        ${isReminder ? 'rounded-2xl overflow-hidden shadow-[0_12px_32px_rgba(15,23,42,0.18)]' : ''}
                         ${isSelected ? 'z-[9999]' : ''}
                         ${(activeTool === 'pen' || activeTool === 'eraser') ? 'pointer-events-none' : ''}
                       `}
@@ -1270,7 +1617,7 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
                     >
                       {isSelected && (
                         <>
-                          <div className="absolute -inset-1 border-2 border-blue-500 rounded-lg pointer-events-none"></div>
+                          <div className={`absolute -inset-1 border-2 border-blue-500 pointer-events-none ${isReminder ? 'rounded-2xl' : 'rounded-lg'}`}></div>
                           <div
                             className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-8 h-3 bg-white border-2 border-blue-500 rounded-full cursor-ns-resize z-50 hover:bg-blue-50 transition-colors shadow-sm"
                             onPointerDown={(e) => handleResizeStart(e, note, 't')}
@@ -1322,11 +1669,17 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
                         </div>
                       )}
 
-                      {note.type !== 'image' && (
+                      {note.type !== 'image' && !isReminder && (
                         <div className={`absolute inset-0 top-0 ${theme.bg} rounded-sm ${!isText ? 'shadow-md' : ''} border ${theme.border} transition-colors`}></div>
                       )}
 
-                      {note.type === 'sticky' && (
+                      {isReminder && (
+                        <div className={`absolute inset-0 rounded-2xl border ${reminderMeta.checked ? 'border-rose-200/70 bg-gradient-to-br from-rose-50/80 via-orange-50/80 to-amber-50/80 dark:border-rose-900/40 dark:from-rose-950/30 dark:via-slate-900/70 dark:to-amber-950/15 brightness-75 saturate-75' : 'border-rose-200/80 bg-gradient-to-br from-rose-50 via-orange-50 to-amber-50 dark:border-rose-900/50 dark:from-rose-950/40 dark:via-slate-900 dark:to-amber-950/20'}`}>
+                          <div className={`absolute inset-x-0 top-0 h-10 ${reminderMeta.checked ? 'bg-gradient-to-r from-rose-500/12 via-orange-400/10 to-amber-400/12 border-b border-rose-200/50 dark:border-rose-900/35' : 'bg-gradient-to-r from-rose-500/20 via-orange-400/15 to-amber-400/20 border-b border-rose-200/60 dark:border-rose-900/40'}`}></div>
+                        </div>
+                      )}
+
+                      {note.type === 'sticky' && !isReminder && (
                         <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none drop-shadow-md w-1/2">
                           <div className="w-full h-9 bg-slate-200/90 dark:bg-white/10 backdrop-blur-md border-white/20 dark:border-white/5 skew-x-1 flex items-center justify-center overflow-hidden [clip-path:polygon(0%_0%,100%_0%,100%_75%,96%_100%,92%_75%,88%_100%,84%_75%,80%_100%,76%_75%,72%_100%,68%_75%,64%_100%,60%_75%,56%_100%,52%_75%,48%_100%,44%_75%,40%_100%,36%_75%,32%_100%,28%_75%,24%_100%,20%_75%,16%_100%,12%_75%,8%_100%,4%_75%,0%_100%)]">
                             <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/30 to-transparent opacity-50"></div>
@@ -1334,13 +1687,108 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
                         </div>
                       )}
 
-                      <div className={`relative flex-1 flex flex-col z-10 ${note.type === 'image' ? 'p-0' : 'p-5'} ${note.type === 'sticky' ? 'pt-10' : ''} h-full`}>
+                      <div className={`relative flex-1 flex flex-col z-10 ${note.type === 'image' ? 'p-0' : isReminder ? 'p-0' : 'p-5'} ${note.type === 'sticky' && !isReminder ? 'pt-10' : ''} h-full`}>
                         {note.type === 'image' ? (
                           <div className="flex-1 w-full h-full relative overflow-hidden rounded-md">
                             <img
                               src={note.imageUrl}
                               alt="Uploaded"
                               className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                            />
+                          </div>
+                        ) : isReminder ? (
+                          <div className="relative flex-1 flex flex-col z-10 p-4 pt-10 h-full">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleReminderChecked(note.id);
+                              }}
+                              className={`absolute top-3 left-3 size-6 rounded-md border flex items-center justify-center transition-colors z-20 ${reminderMeta.checked ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white/80 dark:bg-slate-900/50 border-slate-300 dark:border-slate-600 text-transparent hover:border-emerald-500'}`}
+                              title={reminderMeta.checked ? 'Mark not done' : 'Mark done'}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">check</span>
+                            </button>
+                            <div className="mb-3 flex items-center gap-2 min-h-8">
+                              {editingReminderTitleNoteId === note.id ? (
+                                <input
+                                  value={editingReminderTitleValue}
+                                  onChange={(e) => setEditingReminderTitleValue(e.target.value)}
+                                  onBlur={() => saveReminderTitleEdit(note.id)}
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      saveReminderTitleEdit(note.id);
+                                    }
+                                    if (e.key === 'Escape') {
+                                      setEditingReminderTitleNoteId(null);
+                                    }
+                                  }}
+                                  className={`h-9 px-2 rounded-md border text-base font-bold w-full max-w-[230px] ${reminderMeta.checked ? 'bg-white/40 border-rose-200/60 text-rose-900/75 dark:bg-rose-950/20 dark:border-rose-900/35 dark:text-rose-100/75' : 'bg-white/70 border-rose-200/70 text-slate-800 dark:bg-slate-900/50 dark:border-rose-900/40 dark:text-slate-100'}`}
+                                  autoFocus
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  onDoubleClick={(e) => {
+                                    e.stopPropagation();
+                                    startReminderTitleEdit(note);
+                                  }}
+                                  className={`text-left text-base font-bold px-1 rounded ${reminderMeta.checked ? 'text-rose-900/70 dark:text-rose-100/70 line-through' : 'text-slate-800 dark:text-slate-100'}`}
+                                  title="Double-click to rename"
+                                >
+                                  {reminderMeta.taskName}
+                                </button>
+                              )}
+                            </div>
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <div className={`inline-flex items-center gap-1.5 self-start px-2 py-1 rounded-md text-[11px] font-bold tracking-wide uppercase border ${reminderMeta.checked ? 'bg-white/45 dark:bg-rose-950/25 text-rose-800/75 dark:text-rose-200/75 border-rose-200/60 dark:border-rose-900/35' : 'bg-white/70 dark:bg-slate-800/70 text-rose-700 dark:text-rose-300 border-rose-200/70 dark:border-rose-900/40'}`}>
+                                <span className="material-symbols-outlined text-[14px]">notifications_active</span>
+                                Notes
+                              </div>
+                              {editingReminderDateNoteId === note.id ? (
+                                <input
+                                  type="date"
+                                  value={getReminderDateValue(note.content)}
+                                  onChange={(e) => updateReminderDate(note.id, e.target.value)}
+                                  onBlur={() => setEditingReminderDateNoteId(null)}
+                                  onPointerDown={(e) => e.stopPropagation()}
+                                  className={`h-7 px-2 rounded-md text-[11px] font-semibold border ${reminderMeta.checked ? 'border-rose-200/60 dark:border-rose-900/35 bg-white/45 dark:bg-rose-950/25 text-rose-800/80 dark:text-rose-200/80' : 'border-rose-200/80 dark:border-rose-900/50 bg-white/80 dark:bg-slate-900/60 text-rose-700 dark:text-rose-300'}`}
+                                  autoFocus
+                                />
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingReminderDateNoteId(note.id);
+                                  }}
+                                  className={`h-7 px-2 rounded-md text-[11px] font-semibold border transition-colors ${reminderMeta.checked ? 'border-rose-200/60 dark:border-rose-900/35 bg-white/45 dark:bg-rose-950/25 text-rose-800/80 dark:text-rose-200/80 hover:bg-white/55 dark:hover:bg-rose-950/35' : 'border-rose-200/80 dark:border-rose-900/50 bg-white/80 dark:bg-slate-900/60 text-rose-700 dark:text-rose-300 hover:bg-white dark:hover:bg-slate-900'}`}
+                                  title="Change date"
+                                >
+                                  {formatReminderDateLabel(getReminderDateValue(note.content))}
+                                </button>
+                              )}
+                            </div>
+                            <textarea
+                              value={note.content}
+                              onChange={(e) => updateNoteContent(note.id, e.target.value)}
+                              placeholder="Add reminder details..."
+                              className={`flex-1 w-full h-full border rounded-xl resize-none focus:ring-0 p-3 font-medium leading-relaxed transition-all [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${reminderMeta.checked ? 'bg-white/40 dark:bg-rose-950/20 border-rose-200/60 dark:border-rose-900/35 text-rose-900/75 dark:text-rose-100/80 placeholder:text-rose-800/35 dark:placeholder:text-rose-100/25' : 'bg-white/60 dark:bg-slate-900/50 border-rose-200/70 dark:border-rose-900/40 text-slate-800 dark:text-slate-100 placeholder:text-slate-500/40'} ${activeTool === 'hand' ? 'pointer-events-none' : 'cursor-text'}`}
+                              style={{
+                                fontSize: `${note.fontSize}px`,
+                                lineHeight: 1.4
+                              }}
+                              spellCheck={false}
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                if (!selectedNoteIds.has(note.id)) {
+                                  setSelectedNoteIds(new Set([note.id]));
+                                }
+                                bringToFront(note.id);
+                              }}
+                              autoFocus={isSelected}
                             />
                           </div>
                         ) : (
@@ -1434,6 +1882,46 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
             </div>
           )}
 
+          {isClearDrawingsModalOpen && (
+            <div className="absolute inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+              <div className="w-[360px] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Clear all drawings?</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      This will remove all pen drawings on this whiteboard.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsClearDrawingsModalOpen(false)}
+                    className="size-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500"
+                    title="Close"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">close</span>
+                  </button>
+                </div>
+
+                <div className="mt-5 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setIsClearDrawingsModalOpen(false)}
+                    className="px-3.5 py-2 text-sm font-semibold rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await clearAllDrawings();
+                      setIsClearDrawingsModalOpen(false);
+                    }}
+                    className="px-3.5 py-2 text-sm font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600"
+                  >
+                    Clear Drawings
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Floating Toolbar (Tools only) */}
           <div
             className={`absolute flex flex-row md:flex-col items-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_-8px_30px_rgb(0,0,0,0.06)] md:shadow-[0_8px_30px_rgb(0,0,0,0.12)] border-t md:border border-slate-100 dark:border-slate-800 z-50 transition-all duration-300 ease-[cubic-bezier(0.19,1,0.22,1)]
@@ -1497,6 +1985,20 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
                       title={c}
                     />
                   ))}
+                  <div className="h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
+                  {[2, 4, 6, 8].map((size) => (
+                    <button
+                      key={size}
+                      onClick={(e) => { e.stopPropagation(); setPenThickness(size); }}
+                      className={`w-9 h-8 rounded-lg border flex items-center justify-center transition-all ${penThickness === size ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'}`}
+                      title={`Thickness ${size}px`}
+                    >
+                      <span
+                        className="rounded-full bg-slate-700 dark:bg-slate-100"
+                        style={{ width: `${size + 2}px`, height: `${size + 2}px` }}
+                      />
+                    </button>
+                  ))}
                 </div>
               )}
 
@@ -1506,6 +2008,15 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
                 title="Eraser Tool"
               >
                 <span className="material-symbols-outlined">ink_eraser</span>
+              </button>
+
+              <button
+                onClick={() => setIsClearDrawingsModalOpen(true)}
+                disabled={drawings.length === 0}
+                className={`p-3 rounded-xl transition-all group relative flex items-center justify-center ${drawings.length === 0 ? 'opacity-30 cursor-not-allowed' : 'text-slate-500 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500'}`}
+                title="Clear All Drawings"
+              >
+                <span className="material-symbols-outlined">delete_sweep</span>
               </button>
 
 
@@ -1519,6 +2030,64 @@ const Whiteboard: React.FC<WhiteboardProps> = ({
               >
                 <span className="material-symbols-outlined">sticky_note_2</span>
               </button>
+
+              <div className="relative" ref={reminderMenuRef}>
+                <button
+                  onClick={() => {
+                    setIsReminderMenuOpen((prev) => !prev);
+                    setIsTaskPickerOpen(false);
+                  }}
+                  className={`p-3 rounded-xl transition-all group relative flex items-center justify-center ${activeTool === 'reminder' || isReminderMenuOpen ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                  title="Reminder Options"
+                >
+                  <span className="material-symbols-outlined">notifications_active</span>
+                </button>
+
+                {isReminderMenuOpen && (
+                  <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-full md:ml-3 md:translate-x-0 w-56 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl z-[70]">
+                    <button
+                      onClick={() => {
+                        setActiveTool('reminder');
+                        setIsReminderMenuOpen(false);
+                        setIsTaskPickerOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">note_add</span>
+                      Empty Reminder
+                    </button>
+
+                    <button
+                      onClick={() => setIsTaskPickerOpen((prev) => !prev)}
+                      disabled={tasks.length === 0}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-between ${tasks.length === 0 ? 'opacity-50 cursor-not-allowed text-slate-400' : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[18px]">add_task</span>
+                        Add Task
+                      </span>
+                      <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                    </button>
+
+                    {isTaskPickerOpen && tasks.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 max-h-56 overflow-y-auto space-y-1">
+                        {tasks.map((task) => (
+                          <button
+                            key={task.id}
+                            onClick={() => addTaskAsNote(task)}
+                            className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                          >
+                            <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{task.title}</div>
+                            <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {[task.date, task.time].filter(Boolean).join(' ')}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Text Tool */}
               <button

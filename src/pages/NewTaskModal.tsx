@@ -15,6 +15,7 @@ interface NewTaskModalProps {
 const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, onDelete, initialDate, initialTask }) => {
   const [type, setType] = useState<'task' | 'event'>('task');
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [color, setColor] = useState('blue');
   const [urgency, setUrgency] = useState<Task['urgency']>('Normal');
 
@@ -37,6 +38,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
       if (initialTask) {
         setType(initialTask.type);
         setTitle(initialTask.title);
+        setDescription(initialTask.description || '');
         setColor(initialTask.color || 'blue');
         setUrgency(initialTask.urgency);
         setDate(initialTask.date);
@@ -45,6 +47,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
       } else {
         setType('task');
         setTitle('');
+        setDescription('');
         setColor('blue');
         setUrgency('Normal');
         const d = initialDate || new Date();
@@ -104,6 +107,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
     const newTask: Task = {
       id: initialTask?.id || uuidv4(),
       title,
+      description: description.trim() || undefined,
       category: 'Deep Work',
       type,
       color,
@@ -258,6 +262,16 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
                 onChange={(e) => setTitle(e.target.value)}
                 required
                 autoFocus
+              />
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Description</span>
+              <textarea
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent min-h-[84px] resize-y"
+                placeholder="Add details..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
             </label>
 

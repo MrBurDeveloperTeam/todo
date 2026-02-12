@@ -154,6 +154,7 @@ function MainApp() {
         const mappedTasks: Task[] = data.map((t: any) => ({
           id: t.id,
           title: t.title,
+          description: t.description || '',
           category: t.category || 'Deep Work',
           type: t.type,
           color: t.color,
@@ -205,6 +206,7 @@ function MainApp() {
         body: JSON.stringify({
           id: task.id,
           title: task.title,
+          description: task.description || '',
           category: task.category || 'Deep Work',
           date: task.date,
           time: task.time,
@@ -231,6 +233,7 @@ function MainApp() {
         method: 'PUT',
         body: JSON.stringify({
           title: updated.title,
+          description: updated.description || '',
           category: updated.category,
           date: updated.date,
           time: updated.time,
@@ -376,6 +379,7 @@ function MainApp() {
             notes={notes}
             setNotes={setNotes}
             userId={userId}
+            tasks={tasks}
           />
         )}
       </main>

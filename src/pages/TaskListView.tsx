@@ -24,6 +24,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ toggleTheme, tasks, onToggl
 
     // Filter State
     const [isFilterOpen, setIsFilterOpen] = useState(false);
+    const [openUrgencyTaskId, setOpenUrgencyTaskId] = useState<string | null>(null);
     const [filters, setFilters] = useState<{
         status: 'all' | 'active' | 'completed';
         type: 'all' | 'task' | 'event';
@@ -36,6 +37,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({ toggleTheme, tasks, onToggl
         timeframe: 'all',
     });
     const filterRef = useRef<HTMLDivElement>(null);
+    const urgencyMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const updateColumns = () => {
@@ -55,14 +57,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({ toggleTheme, tasks, onToggl
             if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
                 setIsFilterOpen(false);
             }
+            if (urgencyMenuRef.current && !urgencyMenuRef.current.contains(event.target as Node)) {
+                setOpenUrgencyTaskId(null);
+            }
         };
-        if (isFilterOpen) {
+        if (isFilterOpen || openUrgencyTaskId) {
             document.addEventListener('mousedown', handleClickOutside);
         }
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [isFilterOpen]);
+    }, [isFilterOpen, openUrgencyTaskId]);
 
     const toggleGroup = (group: string) => {
         const newSet = new Set(collapsedGroups);
@@ -172,6 +177,14 @@ const TaskListView: React.FC<TaskListViewProps> = ({ toggleTheme, tasks, onToggl
             default: return 'bg-slate-50 text-slate-500 border-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
         }
     };
+
+    const setTaskUrgency = (task: Task, urgency: Task['urgency']) => {
+        if (task.urgency === urgency) return;
+        onEditTask({ ...task, urgency });
+        setOpenUrgencyTaskId(null);
+    };
+
+    const urgencyOptions: Task['urgency'][] = ['Low', 'Normal', 'Medium', 'High'];
 
     const getTaskStyles = (task: Task) => {
         if (task.color) {
@@ -380,6 +393,11 @@ const TaskListView: React.FC<TaskListViewProps> = ({ toggleTheme, tasks, onToggl
                                     </span>
                                 )}
                             </div>
+                            {task.description && (
+                                <p className={`text-xs leading-relaxed mb-1 line-clamp-2 ${isCompleted ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'}`}>
+                                    {task.description}
+                                </p>
+                            )}
                             <div className="flex items-center gap-3 text-xs font-medium text-slate-500 dark:text-slate-400">
                                 {task.time && (
                                     <span className={`flex items-center gap-1 ${isCompleted ? 'text-slate-400' : 'text-slate-600 dark:text-slate-300'}`}>
@@ -391,10 +409,40 @@ const TaskListView: React.FC<TaskListViewProps> = ({ toggleTheme, tasks, onToggl
                         </div>
 
                         <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto mt-2 sm:mt-0">
-                            <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border uppercase tracking-wide flex items-center gap-1.5 ${urgencyClass} ${isCompleted ? 'opacity-50' : ''}`}>
-                                <span className={`material-symbols-outlined text-[16px] ${task.urgency !== 'Normal' ? 'filled' : ''}`}>flag</span>
-                                {task.urgency}
-                            </span>
+                            <div className="relative" ref={openUrgencyTaskId === task.id ? urgencyMenuRef : null}>
+                                <button
+                                    type="button"
+                                    onClick={() => setOpenUrgencyTaskId(openUrgencyTaskId === task.id ? null : task.id)}
+                                    className={`relative px-2.5 py-1 rounded-xl text-xs font-bold border uppercase tracking-wide flex items-center gap-1.5 shadow-sm transition-all ${urgencyClass} ${isCompleted ? 'opacity-50' : 'hover:shadow-md hover:scale-[1.01]'}`}
+                                    title="Set urgency"
+                                >
+                                    <span className={`material-symbols-outlined text-[16px] ${task.urgency !== 'Normal' ? 'filled' : ''}`}>flag</span>
+                                    <span className="font-black tracking-wider">{task.urgency}</span>
+                                    <span className="material-symbols-outlined text-[14px] opacity-70">expand_more</span>
+                                </button>
+
+                                {openUrgencyTaskId === task.id && (
+                                    <div className="absolute top-full right-0 mt-2 w-36 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl p-1.5 z-40">
+                                        {urgencyOptions.map((urgency) => {
+                                            const optionClass = getUrgencyStyles(urgency);
+                                            const isSelected = task.urgency === urgency;
+                                            return (
+                                                <button
+                                                    key={urgency}
+                                                    type="button"
+                                                    onClick={() => setTaskUrgency(task, urgency)}
+                                                    className={`w-full px-2 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border flex items-center justify-between transition-colors mb-1 last:mb-0 ${optionClass} ${isSelected ? 'ring-1 ring-slate-400/40 dark:ring-slate-500/40' : 'hover:brightness-95'}`}
+                                                >
+                                                    <span>{urgency}</span>
+                                                    {isSelected && (
+                                                        <span className="material-symbols-outlined text-[14px]">check</span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <button
