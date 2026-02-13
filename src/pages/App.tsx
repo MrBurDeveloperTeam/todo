@@ -4,7 +4,7 @@ import TasksPage from './TasksPage';
 import WhiteboardPage from './WhiteboardPage';
 import { Task, WhiteboardNote } from '../hooks/types';
 import { redirectToLogin } from '../lib/auth';
-import { apiFetch } from '../lib/api';
+import { api, apiFetch } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
 
 // Seed data to showcase the views without a backend
@@ -93,12 +93,12 @@ function MainApp() {
   // Keep the document class in sync so Tailwind dark styles work
   // --- Auth State ---
   const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadUserId = async () => {
       try {
-        const result = await apiFetch('/verify-token', { method: 'GET' });
+        const {data: result} = await api.get('/verify-token');
         const uid = result?.user?.profiles?.user?.user_id || null;
         setUserId(uid);
       } catch (error) {
@@ -109,7 +109,7 @@ function MainApp() {
       }
     };
 
-    loadUserId();
+    // loadUserId();
   }, []);
 
   // Initialize theme from storage/system
@@ -184,13 +184,13 @@ function MainApp() {
     );
   }
 
-  if (!userId) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="text-sm text-red-500">Authentication failed. Please sign in again.</div>
-      </div>
-    );
-  }
+  // if (!userId) {
+  //   return (
+  //     <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+  //       <div className="text-sm text-red-500">VITE_APP_USER_ID is not set.</div>
+  //     </div>
+  //   );
+  // }
 
   // 3. Handlers
   // 3. Handlers
