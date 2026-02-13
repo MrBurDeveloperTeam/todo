@@ -3,6 +3,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './src/pages/App';
+import { initSsoCookieOnLoad } from './src/lib/auth';
+
+initSsoCookieOnLoad();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

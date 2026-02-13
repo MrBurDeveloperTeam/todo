@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
-import TaskListView from './TaskListView';
-import Whiteboard from '../components/Whiteboard/Whiteboard';
+import TasksPage from './TasksPage';
+import WhiteboardPage from './WhiteboardPage';
 import { Task, WhiteboardNote } from '../hooks/types';
 import { redirectToLogin } from '../lib/auth';
 import { apiFetch } from '../lib/api';
@@ -88,7 +88,7 @@ function MainApp() {
   const [tasks, setTasks] = useState<Task[]>([]);
   /* const [notes, setNotes] = useState<WhiteboardNote[]>(seedNotes); */
   const [notes, setNotes] = useState<WhiteboardNote[]>([]);
-  const [activeView, setActiveView] = useState<View>('whiteboard');
+  const [activeView, setActiveView] = useState<View>('tasks');
 
   // Keep the document class in sync so Tailwind dark styles work
   // --- Auth State ---
@@ -154,6 +154,7 @@ function MainApp() {
         const mappedTasks: Task[] = data.map((t: any) => ({
           id: t.id,
           title: t.title,
+          description: t.description || '',
           category: t.category || 'Deep Work',
           type: t.type,
           color: t.color,
@@ -186,7 +187,7 @@ function MainApp() {
   if (!userId) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="text-sm text-red-500">VITE_APP_USER_ID is not set.</div>
+        <div className="text-sm text-red-500">Authentication failed. Please sign in again.</div>
       </div>
     );
   }
@@ -205,6 +206,7 @@ function MainApp() {
         body: JSON.stringify({
           id: task.id,
           title: task.title,
+          description: task.description || '',
           category: task.category || 'Deep Work',
           date: task.date,
           time: task.time,
@@ -231,6 +233,7 @@ function MainApp() {
         method: 'PUT',
         body: JSON.stringify({
           title: updated.title,
+          description: updated.description || '',
           category: updated.category,
           date: updated.date,
           time: updated.time,
@@ -358,7 +361,7 @@ function MainApp() {
       <main className="flex-1 w-full flex flex-col">
         {activeView === 'tasks' ? (
           <div className="mx-auto max-w-6xl w-full px-4 pb-12 pt-4">
-            <TaskListView
+            <TasksPage
               toggleTheme={toggleTheme}
               isDarkMode={isDarkMode}
               tasks={tasks}
@@ -370,12 +373,13 @@ function MainApp() {
             />
           </div>
         ) : (
-          <Whiteboard
+          <WhiteboardPage
             toggleTheme={toggleTheme}
             isDarkMode={isDarkMode}
             notes={notes}
             setNotes={setNotes}
             userId={userId}
+            tasks={tasks}
           />
         )}
       </main>
@@ -410,29 +414,7 @@ function ShareWhiteboardPage() {
         return;
       }
       try {
-        const apiBase =
-          ((import.meta as any).env?.VITE_API_BASE_URL as string) ||
-          ((import.meta as any).env?.VITE_PUBLIC_BASE_URL as string) ||
-          window.location.origin;
-
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        const apiToken = (import.meta as any).env?.VITE_API_TOKEN as string | undefined;
-        if (apiToken) headers.Authorization = `Bearer ${apiToken}`;
-
-        const res = await fetch(`${apiBase.replace(/\/$/, "")}/whiteboard-shares/${shareId}`, {
-          method: 'GET',
-          headers,
-          credentials: 'include',
-        });
-
-        const text = await res.text();
-        if (res.status === 401) {
-          redirectToLogin();
-          return;
-        }
-        if (!res.ok) throw new Error(text || `API error ${res.status}`);
-
-        const payload = text ? JSON.parse(text) : null;
+        const payload = await apiFetch(`/whiteboard-shares/${shareId}`, { method: 'GET' });
         const share = payload?.share;
         if (!share) {
           setError('Share not found.');
@@ -474,7 +456,7 @@ function ShareWhiteboardPage() {
   return (
     <div className="h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50">
       <main className="flex-1 w-full flex flex-col">
-        <Whiteboard
+        <WhiteboardPage
           toggleTheme={() => {}}
           isDarkMode={false}
           notes={notes}

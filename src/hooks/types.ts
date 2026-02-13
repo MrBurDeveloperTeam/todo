@@ -2,6 +2,7 @@
 export interface Task {
   id: string;
   title: string;
+  description?: string;
   category: 'Deep Work' | 'Product' | 'Admin' | 'Personal' | 'Meeting' | 'Health' | 'Event' | 'Learning';
   type: 'task' | 'event';
   color?: string;
