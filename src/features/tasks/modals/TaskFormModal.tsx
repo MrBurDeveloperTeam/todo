@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
-import { Task } from '../hooks/types';
+import { Task } from '../../../hooks/types';
 
-interface NewTaskModalProps {
+interface TaskFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (task: Task) => void;
@@ -12,7 +12,7 @@ interface NewTaskModalProps {
   initialTask?: Task | null;
 }
 
-const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, onDelete, initialDate, initialTask }) => {
+const TaskFormModal: React.FC<TaskFormModalProps> = ({ isOpen, onClose, onSave, onDelete, initialDate, initialTask }) => {
   const [type, setType] = useState<'task' | 'event'>('task');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -307,8 +307,8 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
                     </div>
 
                     <div className="grid grid-cols-7 gap-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
-                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d) => (
-                        <div key={d} className="text-center py-1">{d}</div>
+                      {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, index) => (
+                        <div key={`${d}-${index}`} className="text-center py-1">{d}</div>
                       ))}
                     </div>
                     <div className="grid grid-cols-7 gap-1 text-sm">
@@ -446,4 +446,4 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
   );
 };
 
-export default NewTaskModal;
+export default TaskFormModal;

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
-import TaskListView from './TaskListView';
-import Whiteboard from '../components/Whiteboard/Whiteboard';
+import TasksPage from './TasksPage';
+import WhiteboardPage from './WhiteboardPage';
 import { Task, WhiteboardNote } from '../hooks/types';
 import { redirectToLogin } from '../lib/auth';
 import { apiFetch } from '../lib/api';
@@ -88,7 +88,7 @@ function MainApp() {
   const [tasks, setTasks] = useState<Task[]>([]);
   /* const [notes, setNotes] = useState<WhiteboardNote[]>(seedNotes); */
   const [notes, setNotes] = useState<WhiteboardNote[]>([]);
-  const [activeView, setActiveView] = useState<View>('whiteboard');
+  const [activeView, setActiveView] = useState<View>('tasks');
 
   // Keep the document class in sync so Tailwind dark styles work
   // --- Auth State ---
@@ -361,7 +361,7 @@ function MainApp() {
       <main className="flex-1 w-full flex flex-col">
         {activeView === 'tasks' ? (
           <div className="mx-auto max-w-6xl w-full px-4 pb-12 pt-4">
-            <TaskListView
+            <TasksPage
               toggleTheme={toggleTheme}
               isDarkMode={isDarkMode}
               tasks={tasks}
@@ -373,7 +373,7 @@ function MainApp() {
             />
           </div>
         ) : (
-          <Whiteboard
+          <WhiteboardPage
             toggleTheme={toggleTheme}
             isDarkMode={isDarkMode}
             notes={notes}
@@ -456,7 +456,7 @@ function ShareWhiteboardPage() {
   return (
     <div className="h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50">
       <main className="flex-1 w-full flex flex-col">
-        <Whiteboard
+        <WhiteboardPage
           toggleTheme={() => {}}
           isDarkMode={false}
           notes={notes}
