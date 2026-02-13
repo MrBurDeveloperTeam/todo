@@ -23,13 +23,11 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isUrgencyMenuOpen, setIsUrgencyMenuOpen] = useState(false);
   const [pickerView, setPickerView] = useState<'calendar' | 'time'>('calendar');
   const [pickerViewDate, setPickerViewDate] = useState(new Date());
   const datePickerRef = useRef<HTMLDivElement>(null);
-
-  // Priority Management
-  const [isPriorityPickerOpen, setIsPriorityPickerOpen] = useState(false);
-  const priorityPickerRef = useRef<HTMLDivElement>(null);
+  const urgencyMenuRef = useRef<HTMLDivElement>(null);
 
   const duration = '1h'; // Default duration hidden
 
@@ -58,7 +56,7 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
       }
       setPickerView('calendar');
       setIsDatePickerOpen(false);
-      setIsPriorityPickerOpen(false);
+      setIsUrgencyMenuOpen(false);
     }
   }, [isOpen, initialDate, initialTask]);
 
@@ -67,23 +65,36 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
       if (datePickerRef.current && !datePickerRef.current.contains(event.target as Node)) {
         setIsDatePickerOpen(false);
       }
-      if (priorityPickerRef.current && !priorityPickerRef.current.contains(event.target as Node)) {
-        setIsPriorityPickerOpen(false);
+      if (urgencyMenuRef.current && !urgencyMenuRef.current.contains(event.target as Node)) {
+        setIsUrgencyMenuOpen(false);
       }
     };
-    if (isDatePickerOpen || isPriorityPickerOpen) {
+    if (isDatePickerOpen || isUrgencyMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isDatePickerOpen, isPriorityPickerOpen]);
+  }, [isDatePickerOpen, isUrgencyMenuOpen]);
 
   const handleTypeChange = (newType: 'task' | 'event') => {
     setType(newType);
   };
 
   const urgencies: Task['urgency'][] = ['Low', 'Normal', 'Medium', 'High'];
+
+  const getUrgencyStyles = (value: Task['urgency']) => {
+    switch (value) {
+      case 'High':
+        return 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800';
+      case 'Medium':
+        return 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800';
+      case 'Low':
+        return 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
+      default:
+        return 'bg-slate-50 text-slate-500 border-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+    }
+  };
 
   const colors = [
     { id: 'blue', class: 'bg-blue-500', ring: 'ring-blue-500' },
@@ -173,15 +184,6 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
     }
     const offsetDate = new Date(targetDate.getTime() - targetDate.getTimezoneOffset() * 60000);
     setDate(offsetDate.toISOString().split('T')[0]);
-  };
-
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let i = 0; i < 24; i++) {
-      slots.push(`${String(i).padStart(2, '0')}:00`);
-      slots.push(`${String(i).padStart(2, '0')}:30`);
-    }
-    return slots;
   };
 
   const renderCalendarGrid = () => {
@@ -342,46 +344,54 @@ const NewTaskModal: React.FC<NewTaskModalProps> = ({ isOpen, onClose, onSave, on
 
               <div className="space-y-2">
                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Time</span>
-                <select
+                <input
+                  type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
-                >
-                  <option value="">None</option>
-                  {generateTimeSlots().map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
               </div>
             </div>
 
             {type === 'task' && (
-              <div className="space-y-2" ref={priorityPickerRef}>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Urgency</span>
+              <label className="block space-y-1">
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Urgency</span>
+                <div className="relative" ref={urgencyMenuRef}>
                   <button
                     type="button"
-                    onClick={() => setIsPriorityPickerOpen((v) => !v)}
-                    className="text-xs font-semibold text-primary"
+                    onClick={() => setIsUrgencyMenuOpen((v) => !v)}
+                    className={`w-full px-3 py-2 rounded-xl text-xs font-bold border uppercase tracking-wide flex items-center justify-between shadow-sm transition-all ${getUrgencyStyles(urgency)}`}
                   >
-                    {urgency}
+                    <span className="flex items-center gap-1.5">
+                      <span className={`material-symbols-outlined text-[16px] ${urgency !== 'Normal' ? 'filled' : ''}`}>flag</span>
+                      <span className="font-black tracking-wider">{urgency}</span>
+                    </span>
+                    <span className="material-symbols-outlined text-[16px] opacity-70">expand_more</span>
                   </button>
+
+                  {isUrgencyMenuOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl p-1.5 z-50">
+                      {urgencies.map((u) => {
+                        const isSelected = urgency === u;
+                        return (
+                          <button
+                            key={u}
+                            type="button"
+                            onClick={() => {
+                              setUrgency(u);
+                              setIsUrgencyMenuOpen(false);
+                            }}
+                            className={`w-full px-2 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wide border flex items-center justify-between transition-colors mb-1 last:mb-0 ${getUrgencyStyles(u)} ${isSelected ? 'ring-1 ring-slate-400/40 dark:ring-slate-500/40' : 'hover:brightness-95'}`}
+                          >
+                            <span>{u}</span>
+                            {isSelected && <span className="material-symbols-outlined text-[14px]">check</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                {isPriorityPickerOpen && (
-                  <div className="grid grid-cols-4 gap-2 text-sm">
-                    {urgencies.map((u) => (
-                      <button
-                        key={u}
-                        type="button"
-                        onClick={() => { setUrgency(u); setIsPriorityPickerOpen(false); }}
-                        className={`px-3 py-2 rounded-lg border text-center ${urgency === u ? 'border-primary text-primary' : 'border-slate-200 dark:border-slate-700 hover:border-primary/40'}`}
-                      >
-                        {u}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              </label>
             )}
 
             <div className="space-y-2">

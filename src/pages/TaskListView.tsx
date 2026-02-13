@@ -25,6 +25,8 @@ const TaskListView: React.FC<TaskListViewProps> = ({ toggleTheme, tasks, onToggl
     // Filter State
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [openUrgencyTaskId, setOpenUrgencyTaskId] = useState<string | null>(null);
+    const [editingTitleTaskId, setEditingTitleTaskId] = useState<string | null>(null);
+    const [editingTitleValue, setEditingTitleValue] = useState('');
     const [filters, setFilters] = useState<{
         status: 'all' | 'active' | 'completed';
         type: 'all' | 'task' | 'event';
@@ -182,6 +184,18 @@ const TaskListView: React.FC<TaskListViewProps> = ({ toggleTheme, tasks, onToggl
         if (task.urgency === urgency) return;
         onEditTask({ ...task, urgency });
         setOpenUrgencyTaskId(null);
+    };
+
+    const startTitleEdit = (task: Task) => {
+        setEditingTitleTaskId(task.id);
+        setEditingTitleValue(task.title);
+    };
+
+    const saveTitleEdit = (task: Task) => {
+        const nextTitle = editingTitleValue.trim();
+        setEditingTitleTaskId(null);
+        if (!nextTitle || nextTitle === task.title) return;
+        onEditTask({ ...task, title: nextTitle });
     };
 
     const urgencyOptions: Task['urgency'][] = ['Low', 'Normal', 'Medium', 'High'];
@@ -383,10 +397,38 @@ const TaskListView: React.FC<TaskListViewProps> = ({ toggleTheme, tasks, onToggl
 
                     <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                                <h4 className={`text-base font-bold truncate transition-colors ${isCompleted ? 'line-through text-slate-400' : 'text-slate-900 dark:text-white'}`}>
-                                    {task.title}
-                                </h4>
+                            <div className="flex flex-col items-start gap-1 mb-1">
+                                {editingTitleTaskId === task.id ? (
+                                    <input
+                                        value={editingTitleValue}
+                                        onChange={(e) => setEditingTitleValue(e.target.value)}
+                                        onBlur={() => saveTitleEdit(task)}
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                saveTitleEdit(task);
+                                            }
+                                            if (e.key === 'Escape') {
+                                                setEditingTitleTaskId(null);
+                                            }
+                                        }}
+                                        className="text-base font-bold w-full max-w-[320px] bg-white/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-md px-2 py-0.5 focus:ring-2 focus:ring-primary"
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onDoubleClick={(e) => {
+                                            e.stopPropagation();
+                                            startTitleEdit(task);
+                                        }}
+                                        className={`text-left text-base font-bold transition-colors whitespace-normal break-words leading-tight ${isCompleted ? 'line-through text-slate-400' : 'text-slate-900 dark:text-white'}`}
+                                        title="Double-click to rename"
+                                    >
+                                        {task.title}
+                                    </button>
+                                )}
                                 {isEvent && (
                                     <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-500 px-1.5 py-0.5 rounded">
                                         Event
