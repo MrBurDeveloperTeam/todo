@@ -79,7 +79,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 }
 
 export const api = axios.create({
-  baseURL: "https://todo.mrburstudio.com/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
