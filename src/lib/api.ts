@@ -1,6 +1,7 @@
 import { redirectToLogin } from './auth';
 import { AxiosHeaders } from "axios";
 import axios from "axios";
+import { supabase } from './supabaseClient';
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -78,7 +79,7 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 }
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL, 
+  baseURL: "https://todo.mrburstudio.com/api",
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
@@ -95,3 +96,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+export const checkSession = async () => {
+    try{
+      const sso = await api.get('/sso/exchange');
+      await supabase.auth.setSession({
+        access_token: sso.data.access_token,
+        refresh_token: sso.data.refresh_token
+      });
+    } catch (err) {
+      await supabase.auth.signOut();
+      console.error('SSO exchange failed:', err);
+    }
+  };

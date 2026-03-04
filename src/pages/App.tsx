@@ -4,7 +4,7 @@ import TasksPage from './TasksPage';
 import WhiteboardPage from './WhiteboardPage';
 import { Task, WhiteboardNote } from '../hooks/types';
 import { redirectToLogin } from '../lib/auth';
-import { apiFetch } from '../lib/api';
+import { apiFetch, checkSession } from '../lib/api';
 import { v4 as uuidv4 } from 'uuid';
 
 // Seed data to showcase the views without a backend
@@ -96,20 +96,21 @@ function MainApp() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadUserId = async () => {
-      try {
-        const result = await apiFetch('/verify-token', { method: 'GET' });
-        const uid = result?.user?.profiles?.user?.user_id || null;
-        setUserId(uid);
-      } catch (error) {
-        console.error('Failed to load user profile:', error);
-        setUserId(null);
-      } finally {
-        setLoading(false);
-      }
-    };
+    checkSession();
+    // const loadUserId = async () => {
+      // try {
+      //   const result = await apiFetch('/verify-token', { method: 'GET' });
+      //   const uid = result?.user?.profiles?.user?.user_id || null;
+      //   setUserId(uid);
+      // } catch (error) {
+      //   console.error('Failed to load user profile:', error);
+      //   setUserId(null);
+      // } finally {
+      //   setLoading(false);
+    //   }
+    // };
 
-    loadUserId();
+    // loadUserId();
   }, []);
 
   // Initialize theme from storage/system
