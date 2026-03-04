@@ -197,7 +197,7 @@ function MainApp() {
   // 3. Handlers
   const handleAddTask = async (task: Task) => {
     if (!userId) return;
-
+    console.log('handleAddTask: Adding task', task);
     // Optimistic UI update
     setTasks((prev) => [...prev, task]);
 
