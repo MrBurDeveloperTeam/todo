@@ -27,6 +27,7 @@ interface WhiteboardToolbarProps {
   redo: () => void;
   historyLength: number;
   futureLength: number;
+  isMobileApp?: boolean;
 }
 
 export default function WhiteboardToolbar({
@@ -54,6 +55,7 @@ export default function WhiteboardToolbar({
   redo,
   historyLength,
   futureLength,
+  isMobileApp,
 }: WhiteboardToolbarProps) {
   return (
     <div
@@ -78,6 +80,7 @@ export default function WhiteboardToolbar({
 
       <div className={`flex flex-1 md:flex-none flex-row md:flex-col items-center justify-around md:justify-center gap-1 md:gap-3 transition-all duration-300 ${isToolbarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none w-0 h-0 md:h-0 overflow-hidden'}`}>
         <div className="hidden md:block w-full h-px bg-slate-100 dark:bg-slate-800 my-1"></div>
+
         <button
           onClick={() => setActiveTool('select')}
           className={`p-3 rounded-xl transition-all group relative flex items-center justify-center ${activeTool === 'select' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}

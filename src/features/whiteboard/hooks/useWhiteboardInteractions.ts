@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { WhiteboardNote } from '@/src/hooks/types';
 import { ToolType, WhiteboardDragState, WhiteboardDrawing } from '@/src/features/whiteboard/types/whiteboard.types';
 import { MIN_SIZE } from '@/src/features/whiteboard/constants/whiteboard.constants';
@@ -32,6 +32,7 @@ interface UseWhiteboardInteractionsParams {
   addNote: (x: number, y: number, type?: 'sticky' | 'text' | 'image', imageUrl?: string) => void;
   addReminderSticky: (x: number, y: number) => void;
   bringToFront: (id: string) => void;
+  isMobileApp?: boolean;
 }
 
 export function useWhiteboardInteractions({
@@ -63,30 +64,72 @@ export function useWhiteboardInteractions({
   addNote,
   addReminderSticky,
   bringToFront,
+  isMobileApp,
 }: UseWhiteboardInteractionsParams) {
+  const activePointerIdRef = useRef<number | null>(null);
+  const isDrawingRef = useRef(false);
+
   useEffect(() => {
-    const handleGlobalPointerUp = () => {
-      setDragState(null);
-      if (isDrawing) {
-        setIsDrawing(false);
-        if (!cancelCurrentDrawingRef.current && currentPathRef.current.length > 0 && currentDrawingIdRef.current) {
-          const finishedDrawing = drawingsRef.current.find((d) => d.id === currentDrawingIdRef.current);
-          if (finishedDrawing) {
-            void saveDrawing(finishedDrawing);
-          }
-          currentPathRef.current = [];
+    isDrawingRef.current = isDrawing;
+  }, [isDrawing]);
+
+  useEffect(() => {
+    isDrawingRef.current = isDrawing;
+  }, [isDrawing]);
+
+  const handlePointerUp = useCallback((e?: React.PointerEvent | TouchEvent | Event) => {
+    console.log('[pointerUp] fired', {
+      pointerType: e && 'pointerType' in e ? (e as any).pointerType : 'n/a',
+      isDrawingRef: isDrawingRef.current,
+      currentDrawingId: currentDrawingIdRef.current,
+      pathLength: currentPathRef.current.length,
+      cancelled: cancelCurrentDrawingRef.current,
+    });
+
+    if (e && 'pointerId' in e) {
+      try {
+        if ((e.target as HTMLElement).hasPointerCapture((e as any).pointerId)) {
+          (e.target as HTMLElement).releasePointerCapture((e as any).pointerId);
         }
-        if (cancelCurrentDrawingRef.current && currentDrawingIdRef.current) {
-          const idToRemove = currentDrawingIdRef.current;
-          setDrawings((prev) => prev.filter((d) => d.id !== idToRemove));
+      } catch (err) { }
+    }
+
+    activePointerIdRef.current = null;
+    setDragState(null);
+
+    if (isDrawingRef.current) {
+      setIsDrawing(false);
+      isDrawingRef.current = false;
+      if (!cancelCurrentDrawingRef.current && currentPathRef.current.length > 0 && currentDrawingIdRef.current) {
+        const finishedDrawing = drawingsRef.current.find((d) => d.id === currentDrawingIdRef.current);
+        console.log('[pointerUp] saving drawing', { found: !!finishedDrawing, pathLen: currentPathRef.current.length });
+        if (finishedDrawing) {
+          void saveDrawing({
+            ...finishedDrawing,
+            path_points: [...currentPathRef.current],
+          });
         }
-        cancelCurrentDrawingRef.current = false;
-        currentDrawingIdRef.current = null;
+        currentPathRef.current = [];
       }
+      if (cancelCurrentDrawingRef.current && currentDrawingIdRef.current) {
+        const idToRemove = currentDrawingIdRef.current;
+        setDrawings((prev) => prev.filter((d) => d.id !== idToRemove));
+      }
+      cancelCurrentDrawingRef.current = false;
+      currentDrawingIdRef.current = null;
+    }
+  }, [setDragState, setIsDrawing, saveDrawing, drawingsRef, currentDrawingIdRef, currentPathRef, cancelCurrentDrawingRef, setDrawings]);
+
+  useEffect(() => {
+    const handleGlobalEnd = (e: Event) => handlePointerUp(e);
+    window.addEventListener('pointerup', handleGlobalEnd);
+    window.addEventListener('pointercancel', handleGlobalEnd);
+
+    return () => {
+      window.removeEventListener('pointerup', handleGlobalEnd);
+      window.removeEventListener('pointercancel', handleGlobalEnd);
     };
-    window.addEventListener('pointerup', handleGlobalPointerUp);
-    return () => window.removeEventListener('pointerup', handleGlobalPointerUp);
-  }, [isDrawing, setDragState, setIsDrawing, saveDrawing, drawingsRef, currentDrawingIdRef, currentPathRef, cancelCurrentDrawingRef, setDrawings]);
+  }, [handlePointerUp]);
 
   const startInteraction = useCallback((type: 'move' | 'resize' | 'rotate' | 'pan', mouse: { x: number; y: number }, note?: WhiteboardNote, handle?: string) => {
     if (type !== 'pan') {
@@ -102,7 +145,32 @@ export function useWhiteboardInteractions({
   }, [saveHistorySnapshot, setDragState, containerRef]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    if (activePointerIdRef.current !== null) return;
+    activePointerIdRef.current = e.pointerId;
+
+    try {
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    } catch (err) { }
+
     if (activeTool === 'pen') {
+      // On some phones, a new touch can start before the previous pointer-up
+      // is processed; force-close the previous stroke to avoid connecting lines.
+      if (currentDrawingIdRef.current) {
+        const danglingDrawing = drawingsRef.current.find((d) => d.id === currentDrawingIdRef.current);
+        if (!cancelCurrentDrawingRef.current && danglingDrawing && currentPathRef.current.length > 1) {
+          void saveDrawing({
+            ...danglingDrawing,
+            path_points: [...currentPathRef.current],
+          });
+        } else {
+          const idToRemove = currentDrawingIdRef.current;
+          setDrawings((prev) => prev.filter((d) => d.id !== idToRemove));
+        }
+        currentPathRef.current = [];
+        currentDrawingIdRef.current = null;
+        cancelCurrentDrawingRef.current = false;
+      }
+
       saveHistorySnapshot();
       setIsDrawing(true);
       cancelCurrentDrawingRef.current = false;
@@ -168,7 +236,9 @@ export function useWhiteboardInteractions({
   ]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (isDrawing && activeTool === 'pen') {
+    if (activePointerIdRef.current !== null && e.pointerId !== activePointerIdRef.current) return;
+
+    if (isDrawingRef.current && activeTool === 'pen') {
       if (cancelCurrentDrawingRef.current) return;
       const coords = screenToCanvas(e.clientX, e.clientY);
       const newPoint = { x: coords.x, y: coords.y };
@@ -192,7 +262,7 @@ export function useWhiteboardInteractions({
       return;
     }
 
-    if (activeTool === 'eraser' && e.buttons === 1) {
+    if (activeTool === 'eraser' && (e.buttons === 1 || e.pointerType !== 'mouse')) {
       const coords = screenToCanvas(e.clientX, e.clientY);
       checkEraserCollision(coords.x, coords.y);
       return;
@@ -356,6 +426,7 @@ export function useWhiteboardInteractions({
   return {
     handlePointerDown,
     handlePointerMove,
+    handlePointerUp,
     handleNotePointerDown,
     handleResizeStart,
     handleRotateStart,

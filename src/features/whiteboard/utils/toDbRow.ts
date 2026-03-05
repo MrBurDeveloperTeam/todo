@@ -1,9 +1,10 @@
 import { WhiteboardNote } from '@/src/hooks/types';
 
-export function toDbRow(note: WhiteboardNote, whiteboardId: string) {
+export function toDbRow(note: WhiteboardNote, whiteboardId: string, userId?: string) {
   return {
     id: note.id,
     whiteboard_id: whiteboardId,
+    ...(userId ? { user_id: userId } : {}),
     type: note.type,
     x: note.x,
     y: note.y,

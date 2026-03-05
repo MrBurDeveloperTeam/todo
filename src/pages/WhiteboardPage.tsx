@@ -33,6 +33,7 @@ interface WhiteboardProps {
   isOffline?: boolean;
   whiteboardId?: string;
   allowShare?: boolean;
+  isMobileApp?: boolean;
 }
 
 const WhiteboardPage: React.FC<WhiteboardProps> = ({
@@ -43,14 +44,15 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   tasks = [],
   isOffline,
   whiteboardId,
-  allowShare
+  allowShare,
+  isMobileApp
 }) => {
   const canShare = allowShare !== false;
 
   // --- State ---
-  const [view, setView] = useState({ scale: 0.75 });
+  const [view, setView] = useState({ scale: 0.7 });
   const [canvasSize, setCanvasSize] = useState(LANDSCAPE_SIZE);
-  const [activeTool, setActiveTool] = useState<ToolType>('select');
+  const [activeTool, setActiveTool] = useState<ToolType>(isMobileApp ? 'pen' : 'select');
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
 
   // UI State
@@ -59,6 +61,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   const [isClearDrawingsModalOpen, setIsClearDrawingsModalOpen] = useState(false);
   const [isReminderMenuOpen, setIsReminderMenuOpen] = useState(false);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
+  const [isSavingAll, setIsSavingAll] = useState(false);
   const [editingReminderDateNoteId, setEditingReminderDateNoteId] = useState<string | null>(null);
   const [editingReminderTitleNoteId, setEditingReminderTitleNoteId] = useState<string | null>(null);
   const [editingReminderTitleValue, setEditingReminderTitleValue] = useState('');
@@ -141,6 +144,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     contentRef,
     reminderMenuRef,
     highestZIndex,
+    isMobileApp,
   });
   // ----------------------------
   // Create Note (immediate save)
@@ -225,6 +229,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   const {
     handlePointerDown,
     handlePointerMove,
+    handlePointerUp,
     handleNotePointerDown,
     handleResizeStart,
     handleRotateStart,
@@ -258,6 +263,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     addNote,
     addReminderSticky,
     bringToFront,
+    isMobileApp,
   });
   const selectedNote = getSelectedNote();
   const rotatingNoteId = dragState?.type === 'rotate' ? dragState.startNote?.id ?? null : null;
@@ -277,6 +283,18 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     ));
   };
 
+  const handleSaveAll = async () => {
+    setIsSavingAll(true);
+    try {
+      const notePromises = notes.map((note) => upsertNote(note));
+      const drawingPromises = drawings.map((drawing) => saveDrawing(drawing));
+      await Promise.all([...notePromises, ...drawingPromises]);
+    } catch (e) {
+      console.error('Failed to quick-save:', e);
+    } finally {
+      setTimeout(() => setIsSavingAll(false), 500);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 dark:bg-transparent overflow-hidden font-sans relative">
@@ -351,15 +369,17 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
           {/* SCROLL CONTAINER */}
           <div
             ref={containerRef}
-            className="absolute inset-0 w-full h-full overflow-auto flex touch-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-            style={{ cursor: getCursor() }}
+            className="absolute inset-0 w-full h-full overflow-auto flex [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            style={{ cursor: getCursor(), touchAction: 'none' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
             <div
-              className="relative shrink-0 m-auto transition-all duration-75 ease-out will-change-transform"
+              className="relative shrink-0 m-auto min-w-max min-h-max transition-all duration-75 ease-out will-change-transform"
               style={{
                 width: canvasSize.width * view.scale,
                 height: canvasSize.height * view.scale
@@ -410,16 +430,31 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
             </div>
           </div>
 
-          {canShare && (
-            <div className="absolute top-6 right-6 z-50">
+          {!isMobileApp && (
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2">
               <button
-                onClick={openShare}
-                disabled={shareLoading}
-                className="px-4 py-2 rounded-xl text-sm font-bold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-lg hover:bg-white transition-colors disabled:opacity-60"
-                title="Share Whiteboard"
+                onClick={handleSaveAll}
+                disabled={isSavingAll}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-sm font-bold border shadow-lg transition-colors flex items-center gap-1.5 ${isSavingAll ? 'bg-green-500 text-white border-green-600' : 'bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:text-green-600 hover:border-green-200'} disabled:opacity-60 backdrop-blur-md`}
+                title="Save All to Cloud"
               >
-                {shareLoading ? 'Creating...' : 'Share'}
+                <span className={`material-symbols-outlined text-[18px] md:text-[20px] ${isSavingAll ? 'animate-pulse' : ''}`}>
+                  {isSavingAll ? 'cloud_sync' : 'save'}
+                </span>
+                <span className="hidden md:inline">{isSavingAll ? 'Saving...' : 'Save'}</span>
               </button>
+
+              {canShare && (
+                <button
+                  onClick={openShare}
+                  disabled={shareLoading}
+                  className="px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-sm font-bold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-lg hover:bg-white transition-colors disabled:opacity-60 backdrop-blur-md flex items-center gap-1.5"
+                  title="Share Whiteboard"
+                >
+                  <span className="hidden md:inline">{shareLoading ? 'Creating...' : 'Share'}</span>
+                  <span className="md:hidden material-symbols-outlined text-[18px]">share</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -465,22 +500,25 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
             redo={redo}
             historyLength={history.length}
             futureLength={future.length}
+            isMobileApp={isMobileApp}
           />
 
-          <div className="absolute bottom-6 right-4 md:right-6 flex flex-col gap-3 z-50">
-            {/* Zoom Controls */}
-            <div className="flex flex-col bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xl rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-              <button onClick={() => handleZoom(0.1)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
-                <span className="material-symbols-outlined text-[20px]">add</span>
-              </button>
-              <div className="px-1 py-1 text-[10px] font-black text-center text-slate-400 dark:text-slate-500 border-y border-slate-50 dark:border-slate-800 select-none bg-slate-50/50 dark:bg-slate-800/30">
-                {Math.round(view.scale * 100)}%
+          {!isMobileApp && (
+            <div className="absolute bottom-6 right-4 md:right-6 flex flex-col gap-3 z-50">
+              {/* Zoom Controls */}
+              <div className="flex flex-col bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xl rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                <button onClick={() => handleZoom(0.1)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
+                  <span className="material-symbols-outlined text-[20px]">add</span>
+                </button>
+                <div className="px-1 py-1 text-[10px] font-black text-center text-slate-400 dark:text-slate-500 border-y border-slate-50 dark:border-slate-800 select-none bg-slate-50/50 dark:bg-slate-800/30">
+                  {Math.round(view.scale * 100)}%
+                </div>
+                <button onClick={() => handleZoom(-0.1)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
+                  <span className="material-symbols-outlined text-[20px]">remove</span>
+                </button>
               </div>
-              <button onClick={() => handleZoom(-0.1)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
-                <span className="material-symbols-outlined text-[20px]">remove</span>
-              </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

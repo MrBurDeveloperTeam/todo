@@ -36,13 +36,13 @@ export const getTaskStyles = (task: Task) => {
 
 export const getDayColumnStyle = (index: number) => {
   const styles = [
-    'bg-[#FDF6D8] dark:bg-yellow-900/30 border-[#F5E6A3] dark:border-yellow-900/40 backdrop-blur-sm',
-    'bg-[#E3F1FC] dark:bg-blue-900/30 border-[#C8E4FA] dark:border-blue-900/40 backdrop-blur-sm',
-    'bg-[#E8F5E9] dark:bg-green-900/30 border-[#C8E6C9] dark:border-green-900/40 backdrop-blur-sm',
-    'bg-[#F3E5F5] dark:bg-purple-900/30 border-[#E1BEE7] dark:border-purple-900/40 backdrop-blur-sm',
-    'bg-[#FCE4EC] dark:bg-pink-900/30 border-[#F8BBD0] dark:border-pink-900/40 backdrop-blur-sm',
-    'bg-[#FFF3E0] dark:bg-orange-900/30 border-[#FFE0B2] dark:border-orange-900/40 backdrop-blur-sm',
-    'bg-[#E0F7FA] dark:bg-cyan-900/30 border-[#B2EBF2] dark:border-cyan-900/40 backdrop-blur-sm',
+    'bg-[#FDF6D8] dark:bg-yellow-500/10 border-[#F5E6A3] dark:border-yellow-500/20 backdrop-blur-sm',
+    'bg-[#E3F1FC] dark:bg-blue-500/10 border-[#C8E4FA] dark:border-blue-500/20 backdrop-blur-sm',
+    'bg-[#E8F5E9] dark:bg-green-500/10 border-[#C8E6C9] dark:border-green-500/20 backdrop-blur-sm',
+    'bg-[#F3E5F5] dark:bg-purple-500/10 border-[#E1BEE7] dark:border-purple-500/20 backdrop-blur-sm',
+    'bg-[#FCE4EC] dark:bg-pink-500/10 border-[#F8BBD0] dark:border-pink-500/20 backdrop-blur-sm',
+    'bg-[#FFF3E0] dark:bg-orange-500/10 border-[#FFE0B2] dark:border-orange-500/20 backdrop-blur-sm',
+    'bg-[#E0F7FA] dark:bg-cyan-500/10 border-[#B2EBF2] dark:border-cyan-500/20 backdrop-blur-sm',
   ];
   return styles[index % styles.length];
 };

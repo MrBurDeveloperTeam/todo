@@ -25,13 +25,11 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> | undefined),
   };
-  const ssoToken = getCookie('mrbur_sso');
-  console.log('[auth] mrbur_sso cookie found:', Boolean(ssoToken));
-  if (ssoToken) {
-    console.log('[auth] mrbur_sso token preview:', `${ssoToken.slice(0, 16)}...`);
-  }
-  if (ssoToken) {
-    headers.Authorization = `Bearer ${ssoToken}`;
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
   }
 
   const method = (options.method || 'GET').toUpperCase();
@@ -86,25 +84,21 @@ export const api = axios.create({
   },
 });
 
-api.interceptors.request.use((config) => {
-  const ssoToken = getCookie("mrbur_sso");
-  if (ssoToken) {
+api.interceptors.request.use(async (config) => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (token) {
     const headers = AxiosHeaders.from(config.headers);
-    headers.set("Authorization", `Bearer ${ssoToken}`);
+    headers.set("Authorization", `Bearer ${token}`);
     config.headers = headers;
   }
   return config;
 });
 
 export const checkSession = async () => {
-    try{
-      const sso = await api.get('/sso/exchange');
-      await supabase.auth.setSession({
-        access_token: sso.data.access_token,
-        refresh_token: sso.data.refresh_token
-      });
-    } catch (err) {
-      await supabase.auth.signOut();
-      console.error('SSO exchange failed:', err);
-    }
-  };
+  const { data: { session }, error } = await supabase.auth.getSession();
+  if (error || !session) {
+    await supabase.auth.signOut();
+  }
+  return session;
+};
