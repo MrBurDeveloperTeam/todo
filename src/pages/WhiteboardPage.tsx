@@ -28,7 +28,7 @@ interface WhiteboardProps {
   isDarkMode: boolean;
   notes: WhiteboardNote[];
   setNotes: React.Dispatch<React.SetStateAction<WhiteboardNote[]>>;
-  userId: string;
+  userId: string | null;
   tasks?: Task[];
   isOffline?: boolean;
   whiteboardId?: string;
@@ -77,6 +77,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
 
   const {
     effectiveWhiteboardId,
+    whiteboardReady,
     drawings,
     setDrawings,
     isDrawing,
@@ -93,6 +94,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     deleteNoteFromDb,
     scheduleSaveNote,
     saveDrawing,
+    scheduleSaveDrawing,
     clearAllDrawings,
     checkEraserCollision,
     saveHistorySnapshot,
@@ -257,6 +259,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     containerRef,
     saveHistorySnapshot,
     saveDrawing,
+    scheduleSaveDrawing,
     scheduleSaveNote,
     screenToCanvas,
     checkEraserCollision,
@@ -296,8 +299,53 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     }
   };
 
+  useEffect(() => {
+    if (!isMobileApp) return;
+    if (!whiteboardReady) return;
+    if (!userId) return;
+
+    const timer = window.setTimeout(() => {
+      const notePromises = notes.map((note) => upsertNote(note));
+      const drawingPromises = drawings.map((drawing) => saveDrawing(drawing));
+      void Promise.all([...notePromises, ...drawingPromises]);
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [isMobileApp, whiteboardReady, userId, notes, drawings, upsertNote, saveDrawing]);
+
+  // Debug: track pointer events on mobile
+  const [debugInfo, setDebugInfo] = useState({ pointerDown: 0, pointerMove: 0, pointerUp: 0 });
+  useEffect(() => {
+    if (!isMobileApp) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const onDown = () => setDebugInfo(prev => ({ ...prev, pointerDown: prev.pointerDown + 1 }));
+    const onMove = () => setDebugInfo(prev => ({ ...prev, pointerMove: prev.pointerMove + 1 }));
+    const onUp = () => setDebugInfo(prev => ({ ...prev, pointerUp: prev.pointerUp + 1 }));
+    container.addEventListener('pointerdown', onDown);
+    container.addEventListener('pointermove', onMove);
+    container.addEventListener('pointerup', onUp);
+    return () => {
+      container.removeEventListener('pointerdown', onDown);
+      container.removeEventListener('pointermove', onMove);
+      container.removeEventListener('pointerup', onUp);
+    };
+  }, [isMobileApp]);
+
   return (
     <div className="flex flex-col h-full bg-slate-50/50 dark:bg-transparent overflow-hidden font-sans relative">
+      {/* Mobile Debug Overlay */}
+      {isMobileApp && (
+        <div className="fixed top-2 left-2 z-[99999] bg-black/80 text-green-400 text-[10px] font-mono p-2 rounded-lg pointer-events-none max-w-[200px]">
+          <div>ready: {String(whiteboardReady)}</div>
+          <div>tool: {activeTool}</div>
+          <div>drawing: {String(isDrawing)}</div>
+          <div>strokes: {drawings.length}</div>
+          <div>userId: {userId ? userId.slice(0, 8) + '...' : 'null'}</div>
+          <div>wbId: {effectiveWhiteboardId ? effectiveWhiteboardId.slice(0, 8) + '...' : 'null'}</div>
+          <div>pDown:{debugInfo.pointerDown} pMove:{debugInfo.pointerMove} pUp:{debugInfo.pointerUp}</div>
+        </div>
+      )}
       <div className="relative z-10 flex flex-col h-full overflow-hidden">
         <div className="relative flex-1 bg-transparent overflow-hidden">
 
@@ -432,17 +480,19 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
 
           {!isMobileApp && (
             <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2">
-              <button
-                onClick={handleSaveAll}
-                disabled={isSavingAll}
-                className={`px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-sm font-bold border shadow-lg transition-colors flex items-center gap-1.5 ${isSavingAll ? 'bg-green-500 text-white border-green-600' : 'bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:text-green-600 hover:border-green-200'} disabled:opacity-60 backdrop-blur-md`}
-                title="Save All to Cloud"
-              >
-                <span className={`material-symbols-outlined text-[18px] md:text-[20px] ${isSavingAll ? 'animate-pulse' : ''}`}>
-                  {isSavingAll ? 'cloud_sync' : 'save'}
-                </span>
-                <span className="hidden md:inline">{isSavingAll ? 'Saving...' : 'Save'}</span>
-              </button>
+              {!isMobileApp && (
+                <button
+                  onClick={handleSaveAll}
+                  disabled={isSavingAll}
+                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-sm font-bold border shadow-lg transition-colors flex items-center gap-1.5 ${isSavingAll ? 'bg-green-500 text-white border-green-600' : 'bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:text-green-600 hover:border-green-200'} disabled:opacity-60 backdrop-blur-md`}
+                  title="Save All to Cloud"
+                >
+                  <span className={`material-symbols-outlined text-[18px] md:text-[20px] ${isSavingAll ? 'animate-pulse' : ''}`}>
+                    {isSavingAll ? 'cloud_sync' : 'save'}
+                  </span>
+                  <span className="hidden md:inline">{isSavingAll ? 'Saving...' : 'Save'}</span>
+                </button>
+              )}
 
               {canShare && (
                 <button

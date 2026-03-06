@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { v4 as uuidv4 } from 'uuid';
 import { WhiteboardNote } from '@/src/hooks/types';
 import { supabase } from '@/src/lib/supabaseClient';
 import { toDbRow } from '@/src/features/whiteboard/utils/toDbRow';
@@ -11,7 +12,7 @@ interface UseWhiteboardDataParams {
   notes: WhiteboardNote[];
   setNotes: React.Dispatch<React.SetStateAction<WhiteboardNote[]>>;
   setSelectedNoteIds: React.Dispatch<React.SetStateAction<Set<string>>>;
-  userId: string;
+  userId: string | null;
   isOffline?: boolean;
   whiteboardId?: string;
   canShare: boolean;
@@ -33,6 +34,7 @@ export function useWhiteboardData({
   highestZIndex,
 }: UseWhiteboardDataParams) {
   const saveTimers = useRef<Record<string, number>>({});
+  const drawingSaveTimers = useRef<Record<string, number>>({});
   const [effectiveWhiteboardId, setEffectiveWhiteboardId] = useState<string>(whiteboardId ?? WHITEBOARD_ID);
   const [whiteboardReady, setWhiteboardReady] = useState(false);
 
@@ -111,7 +113,18 @@ export function useWhiteboardData({
   useEffect(() => {
     const ensureWhiteboardExists = async () => {
       if (isOffline) return;
-      if (!userId || !isValidUUID(userId) || !isValidUUID(effectiveWhiteboardId)) return;
+      if (!userId) return;
+
+      // If whiteboardId was explicitly passed (shared page), the board already
+      // exists on the owner's side.  Skip the select/insert check which would
+      // fail for guest users due to RLS.
+      if (whiteboardId) {
+        setWhiteboardReady(true);
+        return;
+      }
+
+      if (!isValidUUID(userId) || !isValidUUID(effectiveWhiteboardId)) return;
+
       setWhiteboardReady(false);
 
       let board = null;
@@ -145,7 +158,7 @@ export function useWhiteboardData({
     };
 
     void ensureWhiteboardExists();
-  }, [userId, isOffline, effectiveWhiteboardId]);
+  }, [userId, isOffline, effectiveWhiteboardId, whiteboardId]);
 
   useEffect(() => {
     const fetchNotes = async () => {
@@ -304,6 +317,17 @@ export function useWhiteboardData({
       }
     }
   }, [userId, effectiveWhiteboardId]);
+
+  const scheduleSaveDrawing = useCallback((drawing: WhiteboardDrawing) => {
+    const id = drawing.id;
+    if (drawingSaveTimers.current[id]) {
+      window.clearTimeout(drawingSaveTimers.current[id]);
+    }
+    drawingSaveTimers.current[id] = window.setTimeout(() => {
+      void saveDrawing(drawing);
+      delete drawingSaveTimers.current[id];
+    }, 1000);
+  }, [saveDrawing]);
 
   const deleteDrawing = useCallback(async (id: string) => {
     setDrawings((prev) => prev.filter((d) => d.id !== id));
@@ -488,6 +512,13 @@ export function useWhiteboardData({
     setShareError(null);
     try {
       let baseUrl = (import.meta as any).env?.VITE_PUBLIC_BASE_URL || window.location.origin;
+      // Strip any path component — we only need the origin (protocol + host + port)
+      try {
+        const parsed = new URL(baseUrl);
+        baseUrl = parsed.origin;
+      } catch {
+        // fallback: already just an origin
+      }
       if (baseUrl.includes('localhost')) {
         baseUrl = baseUrl.replace('localhost', '192.168.0.123');
       }
@@ -499,7 +530,7 @@ export function useWhiteboardData({
       if (existingError) throw existingError;
       let shareId = existingData?.[0]?.id as string | undefined;
       if (!shareId) {
-        shareId = crypto.randomUUID();
+        shareId = uuidv4();
         const { error } = await supabase.from('whiteboard_shares').insert({
           id: shareId,
           whiteboard_id: effectiveWhiteboardId,
@@ -539,6 +570,7 @@ export function useWhiteboardData({
     deleteNoteFromDb,
     scheduleSaveNote,
     saveDrawing,
+    scheduleSaveDrawing,
     upsertDrawing,
     clearAllDrawings,
     checkEraserCollision,

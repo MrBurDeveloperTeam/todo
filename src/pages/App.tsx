@@ -408,23 +408,35 @@ function MainApp() {
   );
 }
 
+function getOrCreateGuestId(): string {
+  const GUEST_KEY = 'whiteboard_guest_id';
+  let guestId = sessionStorage.getItem(GUEST_KEY);
+  if (!guestId) {
+    guestId = `guest-${uuidv4()}`;
+    sessionStorage.setItem(GUEST_KEY, guestId);
+  }
+  return guestId;
+}
+
 function ShareWhiteboardPage() {
   const { shareId } = useParams();
-  const [guestId, setGuestId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [whiteboardId, setWhiteboardId] = useState<string | null>(null);
   const [notes, setNotes] = useState<WhiteboardNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem('whiteboard_guest_id');
-    if (stored) {
-      setGuestId(stored);
-    } else {
-      const id = crypto.randomUUID();
-      localStorage.setItem('whiteboard_guest_id', id);
-      setGuestId(id);
-    }
+    let mounted = true;
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
+      setUserId(session?.user?.id || getOrCreateGuestId());
+    };
+    void initSession();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -470,13 +482,14 @@ function ShareWhiteboardPage() {
     );
   }
 
-  if (error || !guestId || !whiteboardId) {
+  if (error || !whiteboardId) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="text-sm text-red-500">{error || 'Unable to load share.'}</div>
       </div>
     );
   }
+
 
   return (
     <div className="h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50">
@@ -486,7 +499,7 @@ function ShareWhiteboardPage() {
           isDarkMode={false}
           notes={notes}
           setNotes={setNotes}
-          userId={guestId}
+          userId={userId}
           whiteboardId={whiteboardId}
           allowShare={false}
           isMobileApp={typeof window !== 'undefined' ? window.innerWidth < 768 : false}

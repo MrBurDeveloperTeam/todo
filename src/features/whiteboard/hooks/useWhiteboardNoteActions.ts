@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Task, WhiteboardNote } from '@/src/hooks/types';
 import { ToolType } from '@/src/features/whiteboard/types/whiteboard.types';
 import {
@@ -63,7 +64,7 @@ export function useWhiteboardNoteActions({
     if (x < 0 || y < 0 || x > canvasSize.width || y > canvasSize.height) return;
 
     saveHistorySnapshot();
-    const id = crypto.randomUUID();
+    const id = uuidv4();
     highestZIndex.current += 1;
 
     let width = 256;
@@ -101,7 +102,7 @@ export function useWhiteboardNoteActions({
 
   const addTaskAsNote = useCallback((task: Task) => {
     saveHistorySnapshot();
-    const id = crypto.randomUUID();
+    const id = uuidv4();
     highestZIndex.current += 1;
 
     const width = 340;
@@ -143,7 +144,7 @@ export function useWhiteboardNoteActions({
 
   const addReminderSticky = useCallback((x: number, y: number) => {
     saveHistorySnapshot();
-    const id = crypto.randomUUID();
+    const id = uuidv4();
     highestZIndex.current += 1;
 
     const width = 360;

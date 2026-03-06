@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { WhiteboardNote } from '@/src/hooks/types';
 import { ToolType, WhiteboardDragState, WhiteboardDrawing } from '@/src/features/whiteboard/types/whiteboard.types';
 import { MIN_SIZE } from '@/src/features/whiteboard/constants/whiteboard.constants';
@@ -16,7 +17,7 @@ interface UseWhiteboardInteractionsParams {
   setDrawings: React.Dispatch<React.SetStateAction<WhiteboardDrawing[]>>;
   penColor: string;
   penThickness: number;
-  userId: string;
+  userId: string | null;
   effectiveWhiteboardId: string;
   notes: WhiteboardNote[];
   setNotes: React.Dispatch<React.SetStateAction<WhiteboardNote[]>>;
@@ -26,6 +27,7 @@ interface UseWhiteboardInteractionsParams {
   containerRef: React.RefObject<HTMLDivElement | null>;
   saveHistorySnapshot: () => void;
   saveDrawing: (drawing: WhiteboardDrawing) => Promise<void>;
+  scheduleSaveDrawing: (drawing: WhiteboardDrawing) => void;
   scheduleSaveNote: (note: WhiteboardNote) => void;
   screenToCanvas: (screenX: number, screenY: number) => { x: number; y: number };
   checkEraserCollision: (x: number, y: number) => void;
@@ -58,6 +60,7 @@ export function useWhiteboardInteractions({
   containerRef,
   saveHistorySnapshot,
   saveDrawing,
+  scheduleSaveDrawing,
   scheduleSaveNote,
   screenToCanvas,
   checkEraserCollision,
@@ -68,24 +71,39 @@ export function useWhiteboardInteractions({
 }: UseWhiteboardInteractionsParams) {
   const activePointerIdRef = useRef<number | null>(null);
   const isDrawingRef = useRef(false);
+  const moveIdleTimerRef = useRef<number | null>(null);
+  const closeDanglingStroke = useCallback((persist: boolean) => {
+    if (!currentDrawingIdRef.current) return;
 
-  useEffect(() => {
-    isDrawingRef.current = isDrawing;
-  }, [isDrawing]);
+    const id = currentDrawingIdRef.current;
+    const existing = drawingsRef.current.find((d) => d.id === id);
+
+    if (persist && !cancelCurrentDrawingRef.current && existing && currentPathRef.current.length > 1) {
+      void saveDrawing({
+        ...existing,
+        path_points: [...currentPathRef.current],
+      });
+    } else {
+      setDrawings((prev) => prev.filter((d) => d.id !== id));
+    }
+
+    currentPathRef.current = [];
+    currentDrawingIdRef.current = null;
+    cancelCurrentDrawingRef.current = false;
+    setIsDrawing(false);
+    isDrawingRef.current = false;
+    activePointerIdRef.current = null;
+    if (moveIdleTimerRef.current) {
+      window.clearTimeout(moveIdleTimerRef.current);
+      moveIdleTimerRef.current = null;
+    }
+  }, [cancelCurrentDrawingRef, currentDrawingIdRef, currentPathRef, drawingsRef, saveDrawing, setDrawings, setIsDrawing]);
 
   useEffect(() => {
     isDrawingRef.current = isDrawing;
   }, [isDrawing]);
 
   const handlePointerUp = useCallback((e?: React.PointerEvent | TouchEvent | Event) => {
-    console.log('[pointerUp] fired', {
-      pointerType: e && 'pointerType' in e ? (e as any).pointerType : 'n/a',
-      isDrawingRef: isDrawingRef.current,
-      currentDrawingId: currentDrawingIdRef.current,
-      pathLength: currentPathRef.current.length,
-      cancelled: cancelCurrentDrawingRef.current,
-    });
-
     if (e && 'pointerId' in e) {
       try {
         if ((e.target as HTMLElement).hasPointerCapture((e as any).pointerId)) {
@@ -96,13 +114,16 @@ export function useWhiteboardInteractions({
 
     activePointerIdRef.current = null;
     setDragState(null);
+    if (moveIdleTimerRef.current) {
+      window.clearTimeout(moveIdleTimerRef.current);
+      moveIdleTimerRef.current = null;
+    }
 
     if (isDrawingRef.current) {
       setIsDrawing(false);
       isDrawingRef.current = false;
       if (!cancelCurrentDrawingRef.current && currentPathRef.current.length > 0 && currentDrawingIdRef.current) {
         const finishedDrawing = drawingsRef.current.find((d) => d.id === currentDrawingIdRef.current);
-        console.log('[pointerUp] saving drawing', { found: !!finishedDrawing, pathLen: currentPathRef.current.length });
         if (finishedDrawing) {
           void saveDrawing({
             ...finishedDrawing,
@@ -124,12 +145,38 @@ export function useWhiteboardInteractions({
     const handleGlobalEnd = (e: Event) => handlePointerUp(e);
     window.addEventListener('pointerup', handleGlobalEnd);
     window.addEventListener('pointercancel', handleGlobalEnd);
+    window.addEventListener('touchend', handleGlobalEnd);
+    window.addEventListener('touchcancel', handleGlobalEnd);
 
     return () => {
       window.removeEventListener('pointerup', handleGlobalEnd);
       window.removeEventListener('pointercancel', handleGlobalEnd);
+      window.removeEventListener('touchend', handleGlobalEnd);
+      window.removeEventListener('touchcancel', handleGlobalEnd);
     };
   }, [handlePointerUp]);
+
+  // Safari iOS fix: attach native touch listeners directly on the container.
+  // Safari sometimes swallows pointerup but always fires touchend on the element.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onTouchEnd = () => {
+      // If pointerup didn't fire, this will catch it
+      if (isDrawingRef.current) {
+        handlePointerUp();
+      }
+    };
+
+    container.addEventListener('touchend', onTouchEnd, { passive: true });
+    container.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener('touchend', onTouchEnd);
+      container.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [containerRef, handlePointerUp]);
 
   const startInteraction = useCallback((type: 'move' | 'resize' | 'rotate' | 'pan', mouse: { x: number; y: number }, note?: WhiteboardNote, handle?: string) => {
     if (type !== 'pan') {
@@ -145,40 +192,41 @@ export function useWhiteboardInteractions({
   }, [saveHistorySnapshot, setDragState, containerRef]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (activePointerIdRef.current !== null) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    if (activePointerIdRef.current !== null) {
+      // iPhone Safari can miss pointer-up; recover so the next touch can start.
+      if (activeTool === 'pen' && e.pointerType !== 'mouse') {
+        closeDanglingStroke(true);
+        setDragState(null);
+        activePointerIdRef.current = null;
+      } else {
+        return;
+      }
+    }
+
     activePointerIdRef.current = e.pointerId;
 
     try {
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      // Skip pointer capture for touch — Safari iOS keeps the session alive
+      // and never fires pointerup when capture is active.
+      if (e.pointerType === 'mouse') {
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      }
     } catch (err) { }
 
     if (activeTool === 'pen') {
-      // On some phones, a new touch can start before the previous pointer-up
-      // is processed; force-close the previous stroke to avoid connecting lines.
-      if (currentDrawingIdRef.current) {
-        const danglingDrawing = drawingsRef.current.find((d) => d.id === currentDrawingIdRef.current);
-        if (!cancelCurrentDrawingRef.current && danglingDrawing && currentPathRef.current.length > 1) {
-          void saveDrawing({
-            ...danglingDrawing,
-            path_points: [...currentPathRef.current],
-          });
-        } else {
-          const idToRemove = currentDrawingIdRef.current;
-          setDrawings((prev) => prev.filter((d) => d.id !== idToRemove));
-        }
-        currentPathRef.current = [];
-        currentDrawingIdRef.current = null;
-        cancelCurrentDrawingRef.current = false;
-      }
+      closeDanglingStroke(true);
 
       saveHistorySnapshot();
       setIsDrawing(true);
+      isDrawingRef.current = true;
       cancelCurrentDrawingRef.current = false;
       const coords = screenToCanvas(e.clientX, e.clientY);
       const newPoint = { x: coords.x, y: coords.y };
       currentPathRef.current = [newPoint];
 
-      const tempId = crypto.randomUUID();
+      const tempId = uuidv4();
       currentDrawingIdRef.current = tempId;
       setDrawings((prev) => [...prev, {
         id: tempId,
@@ -233,6 +281,7 @@ export function useWhiteboardInteractions({
     activeTool, saveHistorySnapshot, setIsDrawing, screenToCanvas, setDrawings, userId, effectiveWhiteboardId, penColor,
     penThickness, drawingsRef, checkEraserCollision, containerRef, startInteraction, addNote, addReminderSticky,
     setSelectedNoteIds, setShowColorPicker, cancelCurrentDrawingRef, currentPathRef, currentDrawingIdRef,
+    closeDanglingStroke, setDragState,
   ]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -242,7 +291,50 @@ export function useWhiteboardInteractions({
       if (cancelCurrentDrawingRef.current) return;
       const coords = screenToCanvas(e.clientX, e.clientY);
       const newPoint = { x: coords.x, y: coords.y };
+
+      // Distance-jump detection: if the new point is very far from the last
+      // point, the user almost certainly lifted their finger and placed it
+      // somewhere else.  Safari never fired pointerup in between.
+      const prevPoints = currentPathRef.current;
+      if (prevPoints.length > 0) {
+        const last = prevPoints[prevPoints.length - 1];
+        const dist = Math.sqrt(Math.pow(newPoint.x - last.x, 2) + Math.pow(newPoint.y - last.y, 2));
+        if (dist > 50) {
+          // Auto-close the old stroke and start a brand new one
+          closeDanglingStroke(true);
+          activePointerIdRef.current = e.pointerId;
+          saveHistorySnapshot();
+          setIsDrawing(true);
+          isDrawingRef.current = true;
+          cancelCurrentDrawingRef.current = false;
+          currentPathRef.current = [newPoint];
+          const tempId = uuidv4();
+          currentDrawingIdRef.current = tempId;
+          setDrawings((prev) => [...prev, {
+            id: tempId,
+            user_id: userId,
+            whiteboard_id: effectiveWhiteboardId,
+            path_points: [newPoint],
+            color: penColor,
+            thickness: penThickness,
+          }]);
+          return;
+        }
+      }
+
       currentPathRef.current.push(newPoint);
+
+      // Reset the idle timer — if no move event arrives within 300ms,
+      // automatically finalize the stroke.  This is the ultimate Safari
+      // fallback because it doesn’t rely on ANY up/end event at all.
+      if (moveIdleTimerRef.current) {
+        window.clearTimeout(moveIdleTimerRef.current);
+      }
+      moveIdleTimerRef.current = window.setTimeout(() => {
+        if (isDrawingRef.current) {
+          closeDanglingStroke(true);
+        }
+      }, 300);
 
       setDrawings((prev) => {
         const newDrawings = [...prev];
@@ -252,10 +344,13 @@ export function useWhiteboardInteractions({
           if (currentDrawingIdRef.current && lastDrawing.id !== currentDrawingIdRef.current) {
             return newDrawings;
           }
-          newDrawings[lastIdx] = {
+          const updated = {
             ...lastDrawing,
             path_points: [...lastDrawing.path_points, newPoint],
           };
+          newDrawings[lastIdx] = updated;
+          // Debounced auto-save every 1s while drawing
+          scheduleSaveDrawing(updated);
         }
         return newDrawings;
       });
@@ -379,6 +474,8 @@ export function useWhiteboardInteractions({
   }, [
     isDrawing, activeTool, cancelCurrentDrawingRef, screenToCanvas, currentPathRef, setDrawings, currentDrawingIdRef,
     checkEraserCollision, dragState, containerRef, setNotes, scheduleSaveNote,
+    closeDanglingStroke, userId, effectiveWhiteboardId, penColor, penThickness, saveHistorySnapshot, setIsDrawing,
+    scheduleSaveDrawing,
   ]);
 
   const handleNotePointerDown = useCallback((e: React.PointerEvent, id: string) => {

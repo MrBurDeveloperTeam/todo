@@ -4,11 +4,25 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+    const rawApiBase = env.VITE_API_BASE_URL || '';
+    const apiTarget = rawApiBase
+      ? rawApiBase.replace(/\/api\/?$/, '')
+      : undefined;
+
     return {
       base: '/',
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: apiTarget
+          ? {
+              '/api': {
+                target: apiTarget,
+                changeOrigin: true,
+                secure: true,
+              },
+            }
+          : undefined,
       },
       plugins: [react()],
       define: {
