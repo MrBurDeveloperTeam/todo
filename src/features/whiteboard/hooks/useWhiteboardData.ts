@@ -205,7 +205,7 @@ export function useWhiteboardData({
         }
 
         // Fetch drawings (skip if user is actively drawing)
-        if (!currentDrawingIdRef.current) {
+        if (!currentDrawingIdRef.current && !isDrawing) {
           const { data: drawData } = await supabase
             .from('whiteboard_drawings')
             .select('*')

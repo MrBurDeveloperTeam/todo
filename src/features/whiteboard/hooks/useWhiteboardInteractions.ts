@@ -299,7 +299,7 @@ export function useWhiteboardInteractions({
       if (prevPoints.length > 0) {
         const last = prevPoints[prevPoints.length - 1];
         const dist = Math.sqrt(Math.pow(newPoint.x - last.x, 2) + Math.pow(newPoint.y - last.y, 2));
-        if (dist > 50) {
+        if (dist > 200) {
           // Auto-close the old stroke and start a brand new one
           closeDanglingStroke(true);
           activePointerIdRef.current = e.pointerId;
@@ -334,7 +334,7 @@ export function useWhiteboardInteractions({
         if (isDrawingRef.current) {
           closeDanglingStroke(true);
         }
-      }, 300);
+      }, 2000);
 
       setDrawings((prev) => {
         const newDrawings = [...prev];
