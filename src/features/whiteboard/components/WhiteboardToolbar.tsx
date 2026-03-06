@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '@/src/hooks/types';
 import { ToolType } from '@/src/features/whiteboard/types/whiteboard.types';
 
@@ -58,6 +58,20 @@ export default function WhiteboardToolbar({
   isMobileApp,
 }: WhiteboardToolbarProps) {
   const btnBase = isMobileApp ? 'p-2 rounded-lg' : 'p-3 rounded-xl';
+  const [showPenOptions, setShowPenOptions] = useState(false);
+  const penPopupRef = useRef<HTMLDivElement>(null);
+
+  // Close popup on outside click/touch
+  useEffect(() => {
+    if (!showPenOptions) return;
+    const handleOutside = (e: PointerEvent) => {
+      if (penPopupRef.current && !penPopupRef.current.contains(e.target as Node)) {
+        setShowPenOptions(false);
+      }
+    };
+    window.addEventListener('pointerdown', handleOutside);
+    return () => window.removeEventListener('pointerdown', handleOutside);
+  }, [showPenOptions]);
   return (
     <div
       className={isMobileApp
@@ -100,45 +114,60 @@ export default function WhiteboardToolbar({
           <span className="material-symbols-outlined">pan_tool</span>
         </button>
 
-        <button
-          onClick={() => handleToolChange('pen')}
-          className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'pen' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-          title="Pen Tool"
-        >
-          <span className="material-symbols-outlined">edit</span>
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => { handleToolChange('pen'); setShowPenOptions(prev => !prev); }}
+            className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'pen' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            title="Pen Tool"
+          >
+            <span className="material-symbols-outlined">edit</span>
+          </button>
 
-        {activeTool === 'pen' && (
-          <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 animate-in fade-in zoom-in-95 duration-200 z-[60]">
-            <div className="flex flex-row md:flex-col gap-2">
-              {['black', '#ef4444', '#3b82f6', '#22c55e', '#f97316'].map(c => (
-                <button
-                  key={c}
-                  onClick={(e) => { e.stopPropagation(); setPenColor(c); }}
-                  className={`w-6 h-6 rounded-full border border-slate-200 dark:border-slate-600 ${penColor === c ? 'scale-125 ring-2 ring-blue-500 ring-offset-2' : 'hover:scale-110'} transition-all`}
-                  style={{ backgroundColor: c }}
-                  title={c}
-                />
-              ))}
-            </div>
-            <div className="w-full h-px bg-slate-200 dark:bg-slate-700"></div>
-            <div className="flex flex-col gap-2">
-              {[2, 4, 6, 8].map((size) => (
-                <button
-                  key={size}
-                  onClick={(e) => { e.stopPropagation(); setPenThickness(size); }}
-                  className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${penThickness === size ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30' : 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/40'}`}
-                  title={`Thickness ${size}px`}
-                >
-                  <span
-                    className="rounded-full bg-slate-700 dark:bg-slate-100"
-                    style={{ width: `${size + 2}px`, height: `${size + 2}px` }}
+          {activeTool === 'pen' && showPenOptions && (
+            <div
+              className="absolute left-full ml-2 top-1/2 -translate-y-1/2 flex flex-col gap-2 p-3 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-[9999]"
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+              ref={penPopupRef}
+            >
+              <div className="flex flex-row gap-2">
+                {['black', '#ef4444', '#3b82f6', '#22c55e', '#f97316'].map(c => (
+                  <button
+                    key={c}
+                    onClick={(e) => { e.stopPropagation(); setPenColor(c); setShowPenOptions(false); }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className={`w-7 h-7 rounded-full border-2 border-slate-200 dark:border-slate-600 ${penColor === c ? 'scale-125 ring-2 ring-blue-500 ring-offset-2' : 'hover:scale-110'} transition-all`}
+                    style={{ backgroundColor: c }}
+                    title={c}
                   />
-                </button>
-              ))}
+                ))}
+              </div>
+              <div className="w-full h-px bg-slate-200 dark:bg-slate-700"></div>
+              <div className="flex flex-col items-center gap-1.5 px-1">
+                <input
+                  type="range"
+                  min={1}
+                  max={12}
+                  value={penThickness}
+                  onChange={(e) => { e.stopPropagation(); setPenThickness(Number(e.target.value)); }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchMove={(e) => e.stopPropagation()}
+                  className="w-full h-1.5 accent-blue-500 cursor-pointer"
+                  style={{ touchAction: 'auto' }}
+                  title={`Thickness ${penThickness}px`}
+                />
+                <div className="flex items-center justify-center w-8 h-8">
+                  <span
+                    className="rounded-full bg-slate-700 dark:bg-slate-100 transition-all"
+                    style={{ width: `${penThickness + 2}px`, height: `${penThickness + 2}px` }}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <button
           onClick={() => handleToolChange('eraser')}

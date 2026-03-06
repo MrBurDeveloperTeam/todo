@@ -334,18 +334,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-slate-50/50 dark:bg-transparent overflow-hidden font-sans relative">
-      {/* Mobile Debug Overlay */}
-      {isMobileApp && (
-        <div className="fixed top-2 left-2 z-[99999] bg-black/80 text-green-400 text-[10px] font-mono p-2 rounded-lg pointer-events-none max-w-[200px]">
-          <div>ready: {String(whiteboardReady)}</div>
-          <div>tool: {activeTool}</div>
-          <div>drawing: {String(isDrawing)}</div>
-          <div>strokes: {drawings.length}</div>
-          <div>userId: {userId ? userId.slice(0, 8) + '...' : 'null'}</div>
-          <div>wbId: {effectiveWhiteboardId ? effectiveWhiteboardId.slice(0, 8) + '...' : 'null'}</div>
-          <div>pDown:{debugInfo.pointerDown} pMove:{debugInfo.pointerMove} pUp:{debugInfo.pointerUp}</div>
-        </div>
-      )}
+
       <div className={`relative z-10 flex ${isMobileApp ? 'flex-row' : 'flex-col'} h-full overflow-hidden`}>
         {/* Toolbar Sidebar - only as sidebar on mobile */}
         {isMobileApp && (
