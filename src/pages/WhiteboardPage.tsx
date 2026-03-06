@@ -346,7 +346,39 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
           <div>pDown:{debugInfo.pointerDown} pMove:{debugInfo.pointerMove} pUp:{debugInfo.pointerUp}</div>
         </div>
       )}
-      <div className="relative z-10 flex flex-col h-full overflow-hidden">
+      <div className={`relative z-10 flex ${isMobileApp ? 'flex-row' : 'flex-col'} h-full overflow-hidden`}>
+        {/* Toolbar Sidebar - only as sidebar on mobile */}
+        {isMobileApp && (
+          <WhiteboardToolbar
+            isToolbarExpanded={isToolbarExpanded}
+            setIsToolbarExpanded={setIsToolbarExpanded}
+            activeTool={activeTool}
+            setActiveTool={setActiveTool}
+            handleToolChange={handleToolChange}
+            penColor={penColor}
+            setPenColor={setPenColor}
+            penThickness={penThickness}
+            setPenThickness={setPenThickness}
+            drawingsLength={drawings.length}
+            onOpenClearDrawingsModal={() => setIsClearDrawingsModalOpen(true)}
+            reminderMenuRef={reminderMenuRef}
+            isReminderMenuOpen={isReminderMenuOpen}
+            setIsReminderMenuOpen={setIsReminderMenuOpen}
+            isTaskPickerOpen={isTaskPickerOpen}
+            setIsTaskPickerOpen={setIsTaskPickerOpen}
+            tasks={tasks}
+            addTaskAsNote={addTaskAsNote}
+            fileInputRef={fileInputRef}
+            handleImageUpload={handleImageUpload}
+            undo={undo}
+            redo={redo}
+            historyLength={history.length}
+            futureLength={future.length}
+            isMobileApp={isMobileApp}
+          />
+        )}
+
+        {/* Canvas Area */}
         <div className="relative flex-1 bg-transparent overflow-hidden">
 
           {/* Floating Toolbar (Properties) */}
@@ -525,34 +557,36 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
             }}
           />
 
-          <WhiteboardToolbar
-            isToolbarExpanded={isToolbarExpanded}
-            setIsToolbarExpanded={setIsToolbarExpanded}
-            activeTool={activeTool}
-            setActiveTool={setActiveTool}
-            handleToolChange={handleToolChange}
-            penColor={penColor}
-            setPenColor={setPenColor}
-            penThickness={penThickness}
-            setPenThickness={setPenThickness}
-            drawingsLength={drawings.length}
-            onOpenClearDrawingsModal={() => setIsClearDrawingsModalOpen(true)}
-            reminderMenuRef={reminderMenuRef}
-            isReminderMenuOpen={isReminderMenuOpen}
-            setIsReminderMenuOpen={setIsReminderMenuOpen}
-            isTaskPickerOpen={isTaskPickerOpen}
-            setIsTaskPickerOpen={setIsTaskPickerOpen}
-            tasks={tasks}
-            addTaskAsNote={addTaskAsNote}
-            fileInputRef={fileInputRef}
-            handleImageUpload={handleImageUpload}
-            undo={undo}
-            redo={redo}
-            historyLength={history.length}
-            futureLength={future.length}
-            isMobileApp={isMobileApp}
-          />
-
+          {/* Desktop Floating Toolbar (original overlay style) */}
+          {!isMobileApp && (
+            <WhiteboardToolbar
+              isToolbarExpanded={isToolbarExpanded}
+              setIsToolbarExpanded={setIsToolbarExpanded}
+              activeTool={activeTool}
+              setActiveTool={setActiveTool}
+              handleToolChange={handleToolChange}
+              penColor={penColor}
+              setPenColor={setPenColor}
+              penThickness={penThickness}
+              setPenThickness={setPenThickness}
+              drawingsLength={drawings.length}
+              onOpenClearDrawingsModal={() => setIsClearDrawingsModalOpen(true)}
+              reminderMenuRef={reminderMenuRef}
+              isReminderMenuOpen={isReminderMenuOpen}
+              setIsReminderMenuOpen={setIsReminderMenuOpen}
+              isTaskPickerOpen={isTaskPickerOpen}
+              setIsTaskPickerOpen={setIsTaskPickerOpen}
+              tasks={tasks}
+              addTaskAsNote={addTaskAsNote}
+              fileInputRef={fileInputRef}
+              handleImageUpload={handleImageUpload}
+              undo={undo}
+              redo={redo}
+              historyLength={history.length}
+              futureLength={future.length}
+              isMobileApp={false}
+            />
+          )}
           {!isMobileApp && (
             <div className="absolute bottom-6 right-4 md:right-6 flex flex-col gap-3 z-50">
               {/* Zoom Controls */}

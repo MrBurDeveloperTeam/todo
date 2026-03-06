@@ -502,7 +502,7 @@ function ShareWhiteboardPage() {
           userId={userId}
           whiteboardId={whiteboardId}
           allowShare={false}
-          isMobileApp={typeof window !== 'undefined' ? window.innerWidth < 768 : false}
+          isMobileApp={true}
         />
       </main>
     </div>
