@@ -16,5 +16,6 @@ export function fromDbRow(row: any): WhiteboardNote {
     imageUrl: row.image_url,
     fontSize: row.font_size ?? 16,
     createdAt: new Date(row.created_at).getTime(),
+    status: row.status ?? 'idle',
   };
 }

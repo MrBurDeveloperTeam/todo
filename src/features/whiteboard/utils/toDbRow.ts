@@ -17,6 +17,7 @@ export function toDbRow(note: WhiteboardNote, whiteboardId: string, userId?: str
     title: note.title ?? '',
     image_url: note.imageUrl ?? null,
     font_size: note.fontSize ?? 16,
+    status: note.status ?? 'idle',
     updated_at: new Date().toISOString(),
   };
 }

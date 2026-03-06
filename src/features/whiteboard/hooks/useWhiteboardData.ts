@@ -33,8 +33,11 @@ export function useWhiteboardData({
   canShare,
   highestZIndex,
 }: UseWhiteboardDataParams) {
+  const NOTE_SYNC_GRACE_MS = 1800;
   const saveTimers = useRef<Record<string, number>>({});
   const drawingSaveTimers = useRef<Record<string, number>>({});
+  const localNoteEditTimestampsRef = useRef<Record<string, number>>({});
+  const localDraggingNoteIdsRef = useRef<Set<string>>(new Set());
   const [effectiveWhiteboardId, setEffectiveWhiteboardId] = useState<string>(whiteboardId ?? WHITEBOARD_ID);
   const [whiteboardReady, setWhiteboardReady] = useState(false);
   // Use null for guest users (user_id is nullable)
@@ -61,6 +64,7 @@ export function useWhiteboardData({
   const upsertNote = useCallback(async (note: WhiteboardNote) => {
     if (isOffline) return;
     if (!whiteboardReady) return;
+    localNoteEditTimestampsRef.current[note.id] = Date.now();
 
     const row = toDbRow(note, effectiveWhiteboardId, writeUserId);
     try {
@@ -73,6 +77,12 @@ export function useWhiteboardData({
     }
   }, [isOffline, writeUserId, whiteboardReady, effectiveWhiteboardId]);
 
+  const isNoteInLocalEditWindow = useCallback((noteId: string) => {
+    const ts = localNoteEditTimestampsRef.current[noteId];
+    if (!ts) return false;
+    return Date.now() - ts < NOTE_SYNC_GRACE_MS;
+  }, []);
+
   const deleteNoteFromDb = useCallback(async (id: string) => {
     if (isOffline) return;
     if (!whiteboardReady) return;
@@ -83,6 +93,29 @@ export function useWhiteboardData({
       console.error('Error deleting note:', error);
     }
   }, [isOffline, writeUserId, whiteboardReady]);
+
+  const setNoteDraggingStatus = useCallback(async (noteId: string, isDragging: boolean) => {
+    if (isDragging) localDraggingNoteIdsRef.current.add(noteId);
+    else localDraggingNoteIdsRef.current.delete(noteId);
+
+    setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, status: isDragging ? 'dragging' : 'idle' } : n)));
+
+    if (isOffline) return;
+    if (!whiteboardReady) return;
+    try {
+      const { error } = await supabase
+        .from('whiteboard_notes')
+        .update({
+          status: isDragging ? 'dragging' : 'idle',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', noteId)
+        .eq('whiteboard_id', effectiveWhiteboardId);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating note drag status:', error);
+    }
+  }, [isOffline, whiteboardReady, effectiveWhiteboardId, setNotes]);
 
   useEffect(() => {
     if (whiteboardId) {
@@ -201,7 +234,30 @@ export function useWhiteboardData({
           const mapped: WhiteboardNote[] = notesData.map(fromDbRow);
           const maxZ = Math.max(...mapped.map((n) => n.zIndex), 10);
           highestZIndex.current = maxZ;
-          setNotes(mapped);
+          setNotes((prev) => {
+            const prevById = new Map(prev.map((n) => [n.id, n] as const));
+            const remoteIds = new Set<string>();
+
+            const merged = mapped.map((remoteNote) => {
+              remoteIds.add(remoteNote.id);
+              if (isNoteInLocalEditWindow(remoteNote.id) || localDraggingNoteIdsRef.current.has(remoteNote.id)) {
+                return prevById.get(remoteNote.id) ?? remoteNote;
+              }
+              return remoteNote;
+            });
+
+            // Keep local notes briefly if they haven't appeared in remote yet.
+            prev.forEach((localNote) => {
+              if (
+                !remoteIds.has(localNote.id) &&
+                (isNoteInLocalEditWindow(localNote.id) || localDraggingNoteIdsRef.current.has(localNote.id))
+              ) {
+                merged.push(localNote);
+              }
+            });
+
+            return merged;
+          });
         }
 
         // Fetch drawings (skip if user is actively drawing)
@@ -225,10 +281,11 @@ export function useWhiteboardData({
 
     const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
-  }, [whiteboardId, whiteboardReady, isOffline, userId, effectiveWhiteboardId, setNotes, setDrawings, highestZIndex, currentDrawingIdRef]);
+  }, [whiteboardId, whiteboardReady, isOffline, userId, effectiveWhiteboardId, setNotes, setDrawings, highestZIndex, currentDrawingIdRef, isDrawing, isNoteInLocalEditWindow]);
 
   const scheduleSaveNote = useCallback((note: WhiteboardNote) => {
     const id = note.id;
+    localNoteEditTimestampsRef.current[id] = Date.now();
     if (saveTimers.current[id]) {
       window.clearTimeout(saveTimers.current[id]);
     }
@@ -275,6 +332,7 @@ export function useWhiteboardData({
         (payload) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newNote = fromDbRow(payload.new as any);
+            if (isNoteInLocalEditWindow(newNote.id) || localDraggingNoteIdsRef.current.has(newNote.id)) return;
             setNotes((prev) => {
               const idx = prev.findIndex((n) => n.id === newNote.id);
               if (idx !== -1) {
@@ -325,7 +383,7 @@ export function useWhiteboardData({
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [isOffline, effectiveWhiteboardId, whiteboardReady, currentDrawingIdRef, setNotes, setDrawings]);
+  }, [isOffline, effectiveWhiteboardId, whiteboardReady, currentDrawingIdRef, setNotes, setDrawings, isNoteInLocalEditWindow]);
 
   const saveDrawing = useCallback(async (drawing: WhiteboardDrawing) => {
     if (drawing.path_points.length < 2) return;
@@ -612,6 +670,7 @@ export function useWhiteboardData({
     upsertNote,
     deleteNoteFromDb,
     scheduleSaveNote,
+    setNoteDraggingStatus,
     saveDrawing,
     scheduleSaveDrawing,
     upsertDrawing,

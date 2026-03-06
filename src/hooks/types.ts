@@ -29,4 +29,5 @@ export interface WhiteboardNote {
   zIndex: number;
   fontSize: number;
   createdAt?: number;
+  status?: 'idle' | 'dragging';
 }
