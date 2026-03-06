@@ -37,6 +37,8 @@ export function useWhiteboardData({
   const drawingSaveTimers = useRef<Record<string, number>>({});
   const [effectiveWhiteboardId, setEffectiveWhiteboardId] = useState<string>(whiteboardId ?? WHITEBOARD_ID);
   const [whiteboardReady, setWhiteboardReady] = useState(false);
+  // Use null for guest users (user_id is nullable)
+  const writeUserId = (userId && isValidUUID(userId)) ? userId : null;
 
   const [drawings, setDrawings] = useState<WhiteboardDrawing[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -58,10 +60,9 @@ export function useWhiteboardData({
 
   const upsertNote = useCallback(async (note: WhiteboardNote) => {
     if (isOffline) return;
-    if (!userId) return;
     if (!whiteboardReady) return;
 
-    const row = toDbRow(note, effectiveWhiteboardId, userId);
+    const row = toDbRow(note, effectiveWhiteboardId, writeUserId);
     try {
       const { error } = await supabase
         .from('whiteboard_notes')
@@ -70,11 +71,10 @@ export function useWhiteboardData({
     } catch (error) {
       console.error('upsertNote error:', error, row);
     }
-  }, [isOffline, userId, whiteboardReady, effectiveWhiteboardId]);
+  }, [isOffline, writeUserId, whiteboardReady, effectiveWhiteboardId]);
 
   const deleteNoteFromDb = useCallback(async (id: string) => {
     if (isOffline) return;
-    if (!userId) return;
     if (!whiteboardReady) return;
     try {
       const { error } = await supabase.from('whiteboard_notes').delete().eq('id', id);
@@ -82,7 +82,7 @@ export function useWhiteboardData({
     } catch (error) {
       console.error('Error deleting note:', error);
     }
-  }, [isOffline, userId, whiteboardReady]);
+  }, [isOffline, writeUserId, whiteboardReady]);
 
   useEffect(() => {
     if (whiteboardId) {
@@ -183,6 +183,49 @@ export function useWhiteboardData({
 
     void fetchNotes();
   }, [userId, whiteboardReady, isOffline, setNotes, effectiveWhiteboardId, highestZIndex]);
+
+  // Polling for shared boards — refetch notes & drawings every 3s
+  // This is the reliable sync path for unauthenticated phone users
+  useEffect(() => {
+    if (!whiteboardId || !whiteboardReady || isOffline) return;
+    if (!userId || !isValidUUID(effectiveWhiteboardId)) return;
+
+    const poll = async () => {
+      try {
+        // Fetch notes
+        const { data: notesData } = await supabase
+          .from('whiteboard_notes')
+          .select('*')
+          .eq('whiteboard_id', effectiveWhiteboardId);
+        if (notesData) {
+          const mapped: WhiteboardNote[] = notesData.map(fromDbRow);
+          const maxZ = Math.max(...mapped.map((n) => n.zIndex), 10);
+          highestZIndex.current = maxZ;
+          setNotes(mapped);
+        }
+
+        // Fetch drawings (skip if user is actively drawing)
+        if (!currentDrawingIdRef.current) {
+          const { data: drawData } = await supabase
+            .from('whiteboard_drawings')
+            .select('*')
+            .eq('whiteboard_id', effectiveWhiteboardId);
+          if (drawData) {
+            const normalized: WhiteboardDrawing[] = drawData.map((d: any) => ({
+              ...d,
+              thickness: Number(d?.stroke_width ?? d?.thickness ?? 3),
+            }));
+            setDrawings(normalized);
+          }
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    };
+
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [whiteboardId, whiteboardReady, isOffline, userId, effectiveWhiteboardId, setNotes, setDrawings, highestZIndex, currentDrawingIdRef]);
 
   const scheduleSaveNote = useCallback((note: WhiteboardNote) => {
     const id = note.id;
@@ -285,11 +328,11 @@ export function useWhiteboardData({
   }, [isOffline, effectiveWhiteboardId, whiteboardReady, currentDrawingIdRef, setNotes, setDrawings]);
 
   const saveDrawing = useCallback(async (drawing: WhiteboardDrawing) => {
-    if (!userId || drawing.path_points.length < 2) return;
+    if (drawing.path_points.length < 2) return;
     const withStrokeWidth = {
       id: drawing.id,
       whiteboard_id: effectiveWhiteboardId,
-      user_id: userId,
+      user_id: writeUserId,
       path_points: drawing.path_points,
       color: drawing.color,
       stroke_width: drawing.thickness ?? 3,
@@ -297,7 +340,7 @@ export function useWhiteboardData({
     const withoutStrokeWidth = {
       id: drawing.id,
       whiteboard_id: effectiveWhiteboardId,
-      user_id: userId,
+      user_id: writeUserId,
       path_points: drawing.path_points,
       color: drawing.color,
     };
@@ -316,7 +359,7 @@ export function useWhiteboardData({
         console.error('Error saving drawing:', fallbackError);
       }
     }
-  }, [userId, effectiveWhiteboardId]);
+  }, [writeUserId, effectiveWhiteboardId]);
 
   const scheduleSaveDrawing = useCallback((drawing: WhiteboardDrawing) => {
     const id = drawing.id;

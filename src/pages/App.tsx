@@ -429,9 +429,26 @@ function ShareWhiteboardPage() {
   useEffect(() => {
     let mounted = true;
     const initSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Check for existing session first
+      let { data: { session } } = await supabase.auth.getSession();
       if (!mounted) return;
-      setUserId(session?.user?.id || getOrCreateGuestId());
+
+      if (!session) {
+        // Sign in anonymously so the phone user gets a real auth.uid()
+        // This allows writes to pass Supabase RLS policies
+        try {
+          const { data, error } = await supabase.auth.signInAnonymously();
+          if (!error && data.session) {
+            session = data.session;
+          }
+        } catch (e) {
+          console.warn('Anonymous sign-in not available, using guest ID');
+        }
+      }
+
+      if (mounted) {
+        setUserId(session?.user?.id || getOrCreateGuestId());
+      }
     };
     void initSession();
     return () => {
