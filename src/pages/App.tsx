@@ -102,7 +102,7 @@ function MainApp() {
     
     const initSession = async () => {
       if (!mounted) return;
-      checkSession();
+      await checkSession();
       setLoading(true);
 
       const { data: { session }, error } = await supabase.auth.getSession();
