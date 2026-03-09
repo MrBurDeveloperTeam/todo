@@ -200,20 +200,8 @@ function MainApp() {
   }
 
   if (!userId && !loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex-col gap-4">
-        <div className="text-center text-slate-900 dark:text-white text-xl font-bold">
-          Authentication Required
-        </div>
-        <div className="text-sm text-slate-500 mb-4">Please log in to manage your tasks and whiteboards.</div>
-        <button
-          onClick={() => window.location.href = '/login'}
-          className="w-full max-w-sm py-3 px-4 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-all shadow-md shadow-blue-500/20"
-        >
-          Go to Login
-        </button>
-      </div>
-    );
+    window.location.href = '/login';
+    return null;
   }
 
   // 3. Handlers
