@@ -359,6 +359,13 @@ function MainApp() {
           <div className="flex items-center gap-3">
             <button
               onClick={async () => {
+                if (userId) {
+                  const { data } = await supabase.from('whiteboards').select('id').eq('user_id', userId);
+                  if (data && data.length > 0) {
+                    const boardIds = data.map(b => b.id);
+                    await supabase.from('whiteboard_shares').delete().in('whiteboard_id', boardIds);
+                  }
+                }
                 await supabase.auth.signOut();
                 window.location.href = '/login';
               }}
@@ -425,6 +432,7 @@ function ShareWhiteboardPage() {
   const [notes, setNotes] = useState<WhiteboardNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hostLeft, setHostLeft] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -487,6 +495,46 @@ function ShareWhiteboardPage() {
 
     fetchShare();
   }, [shareId]);
+
+  useEffect(() => {
+    if (!shareId || !whiteboardId) return;
+
+    const interval = setInterval(async () => {
+      const { data, error } = await supabase
+        .from('whiteboard_shares')
+        .select('id')
+        .eq('id', shareId)
+        .maybeSingle();
+
+      if (error || !data) {
+        setHostLeft(true);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [shareId, whiteboardId]);
+
+  if (hostLeft) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 flex-col gap-4 px-6">
+        <div className="rounded-full bg-slate-100 dark:bg-slate-800 p-4 mb-2">
+          <span className="material-symbols-outlined text-[48px] text-slate-400">no_accounts</span>
+        </div>
+        <div className="text-center text-slate-900 dark:text-white text-2xl font-bold">
+          Session Ended
+        </div>
+        <div className="text-base text-center text-slate-500 max-w-sm mb-4">
+          The host has left the session and this shared whiteboard is no longer active.
+        </div>
+        <button
+          onClick={() => window.location.href = '/login'}
+          className="w-full max-w-xs py-3 px-4 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30"
+        >
+          Return to Home
+        </button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
