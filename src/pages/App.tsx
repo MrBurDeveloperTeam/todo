@@ -6,7 +6,7 @@ import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
 import { Task, WhiteboardNote } from '../hooks/types';
 
-import { apiFetch } from '../lib/api';
+import { apiFetch, checkSession } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -98,6 +98,7 @@ function MainApp() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    checkSession();
     let mounted = true;
 
     const initSession = async () => {
