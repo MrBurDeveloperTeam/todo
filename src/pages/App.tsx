@@ -520,6 +520,7 @@ function ShareWhiteboardPage() {
           whiteboardId={whiteboardId}
           allowShare={false}
           isMobileApp={true}
+          drawOnly={true}
         />
       </main>
     </div>

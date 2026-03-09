@@ -28,6 +28,7 @@ interface WhiteboardToolbarProps {
   historyLength: number;
   futureLength: number;
   isMobileApp?: boolean;
+  drawOnly?: boolean;
 }
 
 export default function WhiteboardToolbar({
@@ -56,6 +57,7 @@ export default function WhiteboardToolbar({
   historyLength,
   futureLength,
   isMobileApp,
+  drawOnly,
 }: WhiteboardToolbarProps) {
   const btnBase = isMobileApp ? 'p-2 rounded-lg' : 'p-3 rounded-xl';
   const [showPenOptions, setShowPenOptions] = useState(false);
@@ -98,13 +100,15 @@ export default function WhiteboardToolbar({
         ? `flex flex-none flex-col items-center justify-center gap-0 ${isToolbarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'}`
         : `flex flex-none flex-col items-center justify-center gap-3 transition-all duration-300 ${isToolbarExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none h-0 overflow-hidden'}`}>
 
-        <button
-          onClick={() => setActiveTool('select')}
-          className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'select' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-          title="Select Tool (V)"
-        >
-          <span className="material-symbols-outlined">near_me</span>
-        </button>
+        {!drawOnly && (
+          <button
+            onClick={() => setActiveTool('select')}
+            className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'select' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            title="Select Tool (V)"
+          >
+            <span className="material-symbols-outlined">near_me</span>
+          </button>
+        )}
 
         <button
           onClick={() => setActiveTool('hand')}
@@ -186,98 +190,102 @@ export default function WhiteboardToolbar({
           <span className="material-symbols-outlined">delete_sweep</span>
         </button>
 
-        <div className="w-full h-px bg-slate-100 dark:bg-slate-800"></div>
+        {!drawOnly && (
+          <>
+            <div className="w-full h-px bg-slate-100 dark:bg-slate-800"></div>
 
-        <button
-          onClick={() => setActiveTool('note')}
-          className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'note' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-          title="Sticky Note (N)"
-        >
-          <span className="material-symbols-outlined">sticky_note_2</span>
-        </button>
+            <button
+              onClick={() => setActiveTool('note')}
+              className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'note' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title="Sticky Note (N)"
+            >
+              <span className="material-symbols-outlined">sticky_note_2</span>
+            </button>
 
-        <div className="relative" ref={reminderMenuRef}>
-          <button
-            onClick={() => {
-              setIsReminderMenuOpen((prev) => !prev);
-              setIsTaskPickerOpen(false);
-            }}
-            className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'reminder' || isReminderMenuOpen ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-            title="Reminder Options"
-          >
-            <span className="material-symbols-outlined">notifications_active</span>
-          </button>
-
-          {isReminderMenuOpen && (
-            <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-full md:ml-3 md:translate-x-0 w-56 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl z-[70]">
+            <div className="relative" ref={reminderMenuRef}>
               <button
                 onClick={() => {
-                  setActiveTool('reminder');
-                  setIsReminderMenuOpen(false);
+                  setIsReminderMenuOpen((prev) => !prev);
                   setIsTaskPickerOpen(false);
                 }}
-                className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'reminder' || isReminderMenuOpen ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                title="Reminder Options"
               >
-                <span className="material-symbols-outlined text-[18px]">note_add</span>
-                Empty Reminder
+                <span className="material-symbols-outlined">notifications_active</span>
               </button>
 
-              <button
-                onClick={() => setIsTaskPickerOpen((prev) => !prev)}
-                disabled={tasks.length === 0}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-between ${tasks.length === 0 ? 'opacity-50 cursor-not-allowed text-slate-400' : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
-              >
-                <span className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">add_task</span>
-                  Add Task
-                </span>
-                <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-              </button>
+              {isReminderMenuOpen && (
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:left-full md:ml-3 md:translate-x-0 w-56 p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl z-[70]">
+                  <button
+                    onClick={() => {
+                      setActiveTool('reminder');
+                      setIsReminderMenuOpen(false);
+                      setIsTaskPickerOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">note_add</span>
+                    Empty Reminder
+                  </button>
 
-              {isTaskPickerOpen && tasks.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 max-h-56 overflow-y-auto space-y-1">
-                  {tasks.map((task) => (
-                    <button
-                      key={task.id}
-                      onClick={() => addTaskAsNote(task)}
-                      className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    >
-                      <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{task.title}</div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                        {[task.date, task.time].filter(Boolean).join(' ')}
-                      </div>
-                    </button>
-                  ))}
+                  <button
+                    onClick={() => setIsTaskPickerOpen((prev) => !prev)}
+                    disabled={tasks.length === 0}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center justify-between ${tasks.length === 0 ? 'opacity-50 cursor-not-allowed text-slate-400' : 'text-slate-700 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px]">add_task</span>
+                      Add Task
+                    </span>
+                    <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                  </button>
+
+                  {isTaskPickerOpen && tasks.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 max-h-56 overflow-y-auto space-y-1">
+                      {tasks.map((task) => (
+                        <button
+                          key={task.id}
+                          onClick={() => addTaskAsNote(task)}
+                          className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          <div className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{task.title}</div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {[task.date, task.time].filter(Boolean).join(' ')}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        <button
-          onClick={() => setActiveTool('text')}
-          className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'text' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-          title="Text Box (T)"
-        >
-          <span className="material-symbols-outlined">text_fields</span>
-        </button>
+            <button
+              onClick={() => setActiveTool('text')}
+              className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'text' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title="Text Box (T)"
+            >
+              <span className="material-symbols-outlined">text_fields</span>
+            </button>
 
-        <div className="relative">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImageUpload}
-            accept="image/*"
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'image' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-            title="Upload Image"
-          >
-            <span className="material-symbols-outlined">image</span>
-          </button>
-        </div>
+            <div className="relative">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className={`${btnBase} transition-all group relative flex items-center justify-center ${activeTool === 'image' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                title="Upload Image"
+              >
+                <span className="material-symbols-outlined">image</span>
+              </button>
+            </div>
+          </>
+        )}
 
         <div className="w-full h-px bg-slate-100 dark:bg-slate-800"></div>
 

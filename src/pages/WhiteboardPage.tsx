@@ -34,10 +34,12 @@ interface WhiteboardProps {
   whiteboardId?: string;
   allowShare?: boolean;
   isMobileApp?: boolean;
+  drawOnly?: boolean;
 }
 
 const WhiteboardPage: React.FC<WhiteboardProps> = ({
   toggleTheme,
+  isDarkMode,
   notes,
   setNotes,
   userId,
@@ -45,14 +47,15 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   isOffline,
   whiteboardId,
   allowShare,
-  isMobileApp
+  isMobileApp,
+  drawOnly
 }) => {
   const canShare = allowShare !== false;
 
   // --- State ---
   const [view, setView] = useState({ scale: 0.7 });
   const [canvasSize, setCanvasSize] = useState(LANDSCAPE_SIZE);
-  const [activeTool, setActiveTool] = useState<ToolType>(isMobileApp ? 'pen' : 'select');
+  const [activeTool, setActiveTool] = useState<ToolType>(isMobileApp || drawOnly ? 'pen' : 'select');
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
 
   // UI State
@@ -262,13 +265,13 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     saveDrawing,
     scheduleSaveDrawing,
     scheduleSaveNote,
-    setNoteDraggingStatus,
     screenToCanvas,
     checkEraserCollision,
     addNote,
     addReminderSticky,
     bringToFront,
     isMobileApp,
+    drawOnly,
   });
   const selectedNote = getSelectedNote();
   const rotatingNoteId = dragState?.type === 'rotate' ? dragState.startNote?.id ?? null : null;
@@ -366,6 +369,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
             historyLength={history.length}
             futureLength={future.length}
             isMobileApp={isMobileApp}
+            drawOnly={drawOnly}
           />
         )}
 

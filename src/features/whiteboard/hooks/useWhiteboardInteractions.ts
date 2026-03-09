@@ -35,6 +35,7 @@ interface UseWhiteboardInteractionsParams {
   addReminderSticky: (x: number, y: number) => void;
   bringToFront: (id: string) => void;
   isMobileApp?: boolean;
+  drawOnly?: boolean;
 }
 
 export function useWhiteboardInteractions({
@@ -68,6 +69,7 @@ export function useWhiteboardInteractions({
   addReminderSticky,
   bringToFront,
   isMobileApp,
+  drawOnly,
 }: UseWhiteboardInteractionsParams) {
   const activePointerIdRef = useRef<number | null>(null);
   const isDrawingRef = useRef(false);
@@ -281,7 +283,7 @@ export function useWhiteboardInteractions({
     activeTool, saveHistorySnapshot, setIsDrawing, screenToCanvas, setDrawings, userId, effectiveWhiteboardId, penColor,
     penThickness, drawingsRef, checkEraserCollision, containerRef, startInteraction, addNote, addReminderSticky,
     setSelectedNoteIds, setShowColorPicker, cancelCurrentDrawingRef, currentPathRef, currentDrawingIdRef,
-    closeDanglingStroke, setDragState,
+    closeDanglingStroke, setDragState, drawOnly, // Added drawOnly to deps
   ]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -480,6 +482,9 @@ export function useWhiteboardInteractions({
 
   const handleNotePointerDown = useCallback((e: React.PointerEvent, id: string) => {
     e.stopPropagation();
+    if (drawOnly) return;
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch (err) { }
+    activePointerIdRef.current = e.pointerId;
     if (!selectedNoteIds.has(id) && !e.shiftKey) {
       setSelectedNoteIds(new Set([id]));
     }
@@ -489,19 +494,25 @@ export function useWhiteboardInteractions({
     if (note) {
       startInteraction('move', coords, note);
     }
-  }, [selectedNoteIds, setSelectedNoteIds, bringToFront, screenToCanvas, notes, startInteraction]);
+  }, [selectedNoteIds, setSelectedNoteIds, bringToFront, screenToCanvas, notes, startInteraction, drawOnly]);
 
   const handleResizeStart = useCallback((e: React.PointerEvent, note: WhiteboardNote, handle: string) => {
     e.stopPropagation();
+    if (drawOnly) return;
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch (err) { }
+    activePointerIdRef.current = e.pointerId;
     const coords = screenToCanvas(e.clientX, e.clientY);
     startInteraction('resize', coords, note, handle);
-  }, [screenToCanvas, startInteraction]);
+  }, [screenToCanvas, startInteraction, drawOnly]);
 
   const handleRotateStart = useCallback((e: React.PointerEvent, note: WhiteboardNote) => {
     e.stopPropagation();
+    if (drawOnly) return;
+    try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch (err) { }
+    activePointerIdRef.current = e.pointerId;
     const coords = screenToCanvas(e.clientX, e.clientY);
     startInteraction('rotate', coords, note);
-  }, [screenToCanvas, startInteraction]);
+  }, [screenToCanvas, startInteraction, drawOnly]);
 
   const getCursor = useCallback(() => {
     if (dragState?.type === 'pan' || activeTool === 'hand') return 'grabbing';

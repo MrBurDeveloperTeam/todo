@@ -37,6 +37,7 @@ export function useWhiteboardData({
   const saveTimers = useRef<Record<string, number>>({});
   const drawingSaveTimers = useRef<Record<string, number>>({});
   const localNoteEditTimestampsRef = useRef<Record<string, number>>({});
+  const localDrawingEditTimestampsRef = useRef<Record<string, number>>({});
   const localDraggingNoteIdsRef = useRef<Set<string>>(new Set());
   const [effectiveWhiteboardId, setEffectiveWhiteboardId] = useState<string>(whiteboardId ?? WHITEBOARD_ID);
   const [whiteboardReady, setWhiteboardReady] = useState(false);
@@ -83,6 +84,25 @@ export function useWhiteboardData({
     return Date.now() - ts < NOTE_SYNC_GRACE_MS;
   }, []);
 
+  const isDrawingInLocalEditWindow = useCallback((drawingId: string) => {
+    const ts = localDrawingEditTimestampsRef.current[drawingId];
+    if (!ts) return false;
+    return Date.now() - ts < NOTE_SYNC_GRACE_MS * 1.5;
+  }, [NOTE_SYNC_GRACE_MS]);
+
+  const normalizeDrawing = useCallback((d: any): WhiteboardDrawing => ({
+    ...d,
+    path_points: Array.isArray(d?.path_points) ? d.path_points : [],
+    thickness: Number(d?.stroke_width ?? d?.thickness ?? 3),
+  }), []);
+
+  const toVisibleDrawings = useCallback(
+    (rows: any[] | null | undefined): WhiteboardDrawing[] =>
+      (rows ?? [])
+        .map(normalizeDrawing)
+        .filter((d) => d.status !== 'erased'),
+    [normalizeDrawing]
+  );
   const deleteNoteFromDb = useCallback(async (id: string) => {
     if (isOffline) return;
     if (!whiteboardReady) return;
@@ -267,11 +287,35 @@ export function useWhiteboardData({
             .select('*')
             .eq('whiteboard_id', effectiveWhiteboardId);
           if (drawData) {
-            const normalized: WhiteboardDrawing[] = drawData.map((d: any) => ({
-              ...d,
-              thickness: Number(d?.stroke_width ?? d?.thickness ?? 3),
-            }));
-            setDrawings(normalized);
+            const remoteVisible = toVisibleDrawings(drawData);
+            setDrawings((prev) => {
+              const prevById = new Map(prev.map((d) => [d.id, d] as const));
+              const remoteIds = new Set<string>();
+
+              const merged = remoteVisible.map((remoteD) => {
+                remoteIds.add(remoteD.id);
+                if (isDrawingInLocalEditWindow(remoteD.id)) {
+                  return prevById.get(remoteD.id) ?? remoteD;
+                }
+                const localD = prevById.get(remoteD.id);
+                // Avoid rewriting if array length & style match
+                if (localD && localD.path_points.length === remoteD.path_points.length && localD.color === remoteD.color && localD.thickness === remoteD.thickness) {
+                  return localD;
+                }
+                return remoteD;
+              });
+
+              prev.forEach((localD) => {
+                if (!remoteIds.has(localD.id) && isDrawingInLocalEditWindow(localD.id)) {
+                  merged.push(localD);
+                }
+              });
+
+              if (merged.length === prev.length && merged.every((m, i) => m === prev[i])) {
+                return prev;
+              }
+              return merged;
+            });
           }
         }
       } catch (err) {
@@ -281,7 +325,7 @@ export function useWhiteboardData({
 
     const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
-  }, [whiteboardId, whiteboardReady, isOffline, userId, effectiveWhiteboardId, setNotes, setDrawings, highestZIndex, currentDrawingIdRef, isDrawing, isNoteInLocalEditWindow]);
+  }, [whiteboardId, whiteboardReady, isOffline, userId, effectiveWhiteboardId, setNotes, setDrawings, highestZIndex, currentDrawingIdRef, isDrawing, isNoteInLocalEditWindow, isDrawingInLocalEditWindow, toVisibleDrawings]);
 
   const scheduleSaveNote = useCallback((note: WhiteboardNote) => {
     const id = note.id;
@@ -328,10 +372,11 @@ export function useWhiteboardData({
       .channel(`rt_whiteboard_${effectiveWhiteboardId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'whiteboard_notes', filter: `whiteboard_id=eq.${effectiveWhiteboardId}` },
+        { event: '*', schema: 'public', table: 'whiteboard_notes' },
         (payload) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newNote = fromDbRow(payload.new as any);
+            if ((payload.new as any).whiteboard_id !== effectiveWhiteboardId) return;
             if (isNoteInLocalEditWindow(newNote.id) || localDraggingNoteIdsRef.current.has(newNote.id)) return;
             setNotes((prev) => {
               const idx = prev.findIndex((n) => n.id === newNote.id);
@@ -351,24 +396,31 @@ export function useWhiteboardData({
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'whiteboard_drawings', filter: `whiteboard_id=eq.${effectiveWhiteboardId}` },
+        { event: '*', schema: 'public', table: 'whiteboard_drawings' },
         (payload) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const row = payload.new as any;
-            const newDrawing: WhiteboardDrawing = {
-              ...row,
-              thickness: Number(row?.stroke_width ?? row?.thickness ?? 3),
-            };
+            if (row.whiteboard_id !== effectiveWhiteboardId) return;
+            const id = String(row.id);
+            const isErased = row.status === 'erased';
+
             setDrawings((prev) => {
-              // don't overwrite the stroke the current user is actively drawing
-              if (currentDrawingIdRef.current === newDrawing.id) return prev;
-              const idx = prev.findIndex((d) => d.id === newDrawing.id);
-              if (idx !== -1) {
-                const copy = [...prev];
-                copy[idx] = newDrawing;
-                return copy;
+              if (isErased) return prev.filter((d) => String(d.id) !== id);
+              if (currentDrawingIdRef.current === id) return prev;
+              if (isDrawingInLocalEditWindow(id)) return prev;
+
+              const next = normalizeDrawing(row);
+              const idx = prev.findIndex((d) => String(d.id) === id);
+              if (idx === -1) return [...prev, next];
+
+              const localD = prev[idx];
+              if (localD.path_points.length === next.path_points.length && localD.color === next.color && localD.thickness === next.thickness) {
+                return prev;
               }
-              return [...prev, newDrawing];
+
+              const copy = [...prev];
+              copy[idx] = next;
+              return copy;
             });
           } else if (payload.eventType === 'DELETE') {
             setDrawings((prev) => {
@@ -387,6 +439,7 @@ export function useWhiteboardData({
 
   const saveDrawing = useCallback(async (drawing: WhiteboardDrawing) => {
     if (drawing.path_points.length < 2) return;
+    localDrawingEditTimestampsRef.current[drawing.id] = Date.now();
     const withStrokeWidth = {
       id: drawing.id,
       whiteboard_id: effectiveWhiteboardId,
