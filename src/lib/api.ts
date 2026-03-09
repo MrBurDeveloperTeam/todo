@@ -96,9 +96,22 @@ api.interceptors.request.use(async (config) => {
 });
 
 export const checkSession = async () => {
-  const { data: { session }, error } = await supabase.auth.getSession();
-  if (error || !session) {
+  // If a Supabase session already exists, keep using it.
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) return session;
+
+  // Otherwise, try to exchange the SSO cookie for a Supabase session via the API.
+  try {
+    const { data } = await api.get('/sso/exchange');
+    const { data: setResult, error } = await supabase.auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    });
+    if (error) throw error;
+    return setResult.session ?? null;
+  } catch (err) {
     await supabase.auth.signOut();
+    console.error('SSO exchange failed:', err);
+    return null;
   }
-  return session;
 };
