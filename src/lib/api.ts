@@ -123,8 +123,8 @@ api.interceptors.request.use((config) => {
 
 export const checkSession = async () => {
   // If a Supabase session already exists, keep using it.
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) return session;
+  // const { data: { session } } = await supabase.auth.getSession();
+  // if (session) return session;
 
   // Otherwise, try to exchange the SSO cookie for a Supabase session via the API.
   try {
