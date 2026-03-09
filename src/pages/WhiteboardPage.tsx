@@ -55,7 +55,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   // --- State ---
   const [view, setView] = useState({ scale: 0.7 });
   const [canvasSize, setCanvasSize] = useState(LANDSCAPE_SIZE);
-  const [activeTool, setActiveTool] = useState<ToolType>(isMobileApp || drawOnly ? 'pen' : 'select');
+  const [activeTool, setActiveTool] = useState<ToolType>('hand');
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
 
   // UI State
@@ -292,20 +292,6 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
 
 
 
-  useEffect(() => {
-    if (!isMobileApp) return;
-    if (!whiteboardReady) return;
-    if (!userId) return;
-
-    const timer = window.setTimeout(() => {
-      const notePromises = notes.map((note) => upsertNote(note));
-      const drawingPromises = drawings.map((drawing) => saveDrawing(drawing));
-      void Promise.all([...notePromises, ...drawingPromises]);
-    }, 1200);
-
-    return () => window.clearTimeout(timer);
-  }, [isMobileApp, whiteboardReady, userId, notes, drawings, upsertNote, saveDrawing]);
-
   // Debug: track pointer events on mobile
   const [debugInfo, setDebugInfo] = useState({ pointerDown: 0, pointerMove: 0, pointerUp: 0 });
   useEffect(() => {
@@ -429,10 +415,9 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
             </button>
           </div>
 
-          {/* SCROLL CONTAINER */}
           <div
             ref={containerRef}
-            className="absolute inset-0 w-full h-full overflow-auto flex [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            className={`absolute inset-0 w-full h-full overflow-auto flex items-center justify-center [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${isMobileApp ? 'pb-[30vh] pt-[30vh]' : ''}`}
             style={{ cursor: getCursor(), touchAction: 'none' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
@@ -442,10 +427,11 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
             <div
-              className="relative shrink-0 m-auto min-w-max min-h-max transition-all duration-75 ease-out will-change-transform"
+              className={`relative shrink-0 min-w-max min-h-max transition-all duration-75 ease-out will-change-transform`}
               style={{
                 width: canvasSize.width * view.scale,
-                height: canvasSize.height * view.scale
+                height: canvasSize.height * view.scale,
+                margin: 'auto'
               }}
             >
               <div
