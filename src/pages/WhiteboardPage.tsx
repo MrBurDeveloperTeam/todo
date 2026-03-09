@@ -64,7 +64,6 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   const [isClearDrawingsModalOpen, setIsClearDrawingsModalOpen] = useState(false);
   const [isReminderMenuOpen, setIsReminderMenuOpen] = useState(false);
   const [isTaskPickerOpen, setIsTaskPickerOpen] = useState(false);
-  const [isSavingAll, setIsSavingAll] = useState(false);
   const [editingReminderDateNoteId, setEditingReminderDateNoteId] = useState<string | null>(null);
   const [editingReminderTitleNoteId, setEditingReminderTitleNoteId] = useState<string | null>(null);
   const [editingReminderTitleValue, setEditingReminderTitleValue] = useState('');
@@ -291,18 +290,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     ));
   };
 
-  const handleSaveAll = async () => {
-    setIsSavingAll(true);
-    try {
-      const notePromises = notes.map((note) => upsertNote(note));
-      const drawingPromises = drawings.map((drawing) => saveDrawing(drawing));
-      await Promise.all([...notePromises, ...drawingPromises]);
-    } catch (e) {
-      console.error('Failed to quick-save:', e);
-    } finally {
-      setTimeout(() => setIsSavingAll(false), 500);
-    }
-  };
+
 
   useEffect(() => {
     if (!isMobileApp) return;
@@ -507,20 +495,6 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
 
           {!isMobileApp && (
             <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2">
-              {!isMobileApp && (
-                <button
-                  onClick={handleSaveAll}
-                  disabled={isSavingAll}
-                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-sm font-bold border shadow-lg transition-colors flex items-center gap-1.5 ${isSavingAll ? 'bg-green-500 text-white border-green-600' : 'bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:text-green-600 hover:border-green-200'} disabled:opacity-60 backdrop-blur-md`}
-                  title="Save All to Cloud"
-                >
-                  <span className={`material-symbols-outlined text-[18px] md:text-[20px] ${isSavingAll ? 'animate-pulse' : ''}`}>
-                    {isSavingAll ? 'cloud_sync' : 'save'}
-                  </span>
-                  <span className="hidden md:inline">{isSavingAll ? 'Saving...' : 'Save'}</span>
-                </button>
-              )}
-
               {canShare && (
                 <button
                   onClick={openShare}

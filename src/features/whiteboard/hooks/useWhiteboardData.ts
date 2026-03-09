@@ -665,17 +665,7 @@ export function useWhiteboardData({
     setShareLoading(true);
     setShareError(null);
     try {
-      let baseUrl = (import.meta as any).env?.VITE_PUBLIC_BASE_URL || window.location.origin;
-      // Strip any path component — we only need the origin (protocol + host + port)
-      try {
-        const parsed = new URL(baseUrl);
-        baseUrl = parsed.origin;
-      } catch {
-        // fallback: already just an origin
-      }
-      if (baseUrl.includes('localhost')) {
-        baseUrl = baseUrl.replace('localhost', '192.168.0.123');
-      }
+      const baseUrl = window.location.origin;
       const { data: existingData, error: existingError } = await supabase
         .from('whiteboard_shares')
         .select('id')
