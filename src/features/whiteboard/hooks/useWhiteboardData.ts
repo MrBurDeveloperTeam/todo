@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
+import { v4 as uuidv4 } from 'uuid';
 import { WhiteboardNote } from '@/src/hooks/types';
-import { apiFetch } from '@/src/lib/api';
+import { supabase } from '@/src/lib/supabaseClient';
 import { toDbRow } from '@/src/features/whiteboard/utils/toDbRow';
 import { fromDbRow } from '@/src/features/whiteboard/utils/fromDbRow';
 import { WHITEBOARD_ID } from '@/src/features/whiteboard/constants/whiteboard.constants';
@@ -11,11 +12,15 @@ interface UseWhiteboardDataParams {
   notes: WhiteboardNote[];
   setNotes: React.Dispatch<React.SetStateAction<WhiteboardNote[]>>;
   setSelectedNoteIds: React.Dispatch<React.SetStateAction<Set<string>>>;
-  userId: string;
+  userId: string | null;
   isOffline?: boolean;
   whiteboardId?: string;
   canShare: boolean;
   highestZIndex: React.MutableRefObject<number>;
+}
+
+function isValidUUID(id: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
 export function useWhiteboardData({
@@ -28,9 +33,16 @@ export function useWhiteboardData({
   canShare,
   highestZIndex,
 }: UseWhiteboardDataParams) {
+  const NOTE_SYNC_GRACE_MS = 1800;
   const saveTimers = useRef<Record<string, number>>({});
+  const drawingSaveTimers = useRef<Record<string, number>>({});
+  const localNoteEditTimestampsRef = useRef<Record<string, number>>({});
+  const localDrawingEditTimestampsRef = useRef<Record<string, number>>({});
+  const localDraggingNoteIdsRef = useRef<Set<string>>(new Set());
   const [effectiveWhiteboardId, setEffectiveWhiteboardId] = useState<string>(whiteboardId ?? WHITEBOARD_ID);
   const [whiteboardReady, setWhiteboardReady] = useState(false);
+  // Use null for guest users (user_id is nullable)
+  const writeUserId = (userId && isValidUUID(userId)) ? userId : null;
 
   const [drawings, setDrawings] = useState<WhiteboardDrawing[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -50,63 +62,133 @@ export function useWhiteboardData({
   const [history, setHistory] = useState<WhiteboardSnapshot[]>([]);
   const [future, setFuture] = useState<WhiteboardSnapshot[]>([]);
 
-  const apiFetchFn = useCallback(async (path: string, options: RequestInit = {}) => {
-    return await apiFetch(path, options);
-  }, []);
-
   const upsertNote = useCallback(async (note: WhiteboardNote) => {
     if (isOffline) return;
-    if (!userId) return;
     if (!whiteboardReady) return;
+    localNoteEditTimestampsRef.current[note.id] = Date.now();
 
-    const row = toDbRow(note, effectiveWhiteboardId);
+    const row = toDbRow(note, effectiveWhiteboardId, writeUserId);
     try {
-      await apiFetchFn(`/whiteboard-notes/${note.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(row),
-      });
+      const { error } = await supabase
+        .from('whiteboard_notes')
+        .upsert(row, { onConflict: 'id' });
+      if (error) throw error;
     } catch (error) {
       console.error('upsertNote error:', error, row);
     }
-  }, [isOffline, userId, whiteboardReady, effectiveWhiteboardId, apiFetchFn]);
+  }, [isOffline, writeUserId, whiteboardReady, effectiveWhiteboardId]);
 
+  const isNoteInLocalEditWindow = useCallback((noteId: string) => {
+    const ts = localNoteEditTimestampsRef.current[noteId];
+    if (!ts) return false;
+    return Date.now() - ts < NOTE_SYNC_GRACE_MS;
+  }, []);
+
+  const isDrawingInLocalEditWindow = useCallback((drawingId: string) => {
+    const ts = localDrawingEditTimestampsRef.current[drawingId];
+    if (!ts) return false;
+    return Date.now() - ts < NOTE_SYNC_GRACE_MS * 1.5;
+  }, [NOTE_SYNC_GRACE_MS]);
+
+  const normalizeDrawing = useCallback((d: any): WhiteboardDrawing => ({
+    ...d,
+    path_points: Array.isArray(d?.path_points) ? d.path_points : [],
+    thickness: Number(d?.stroke_width ?? d?.thickness ?? 3),
+  }), []);
+
+  const toVisibleDrawings = useCallback(
+    (rows: any[] | null | undefined): WhiteboardDrawing[] =>
+      (rows ?? [])
+        .map(normalizeDrawing)
+        .filter((d) => d.status !== 'erased'),
+    [normalizeDrawing]
+  );
   const deleteNoteFromDb = useCallback(async (id: string) => {
     if (isOffline) return;
-    if (!userId) return;
     if (!whiteboardReady) return;
     try {
-      await apiFetchFn(`/whiteboard-notes/${id}`, { method: 'DELETE' });
+      const { error } = await supabase.from('whiteboard_notes').delete().eq('id', id);
+      if (error) throw error;
     } catch (error) {
       console.error('Error deleting note:', error);
     }
-  }, [isOffline, userId, whiteboardReady, apiFetchFn]);
+  }, [isOffline, writeUserId, whiteboardReady]);
+
+  const setNoteDraggingStatus = useCallback(async (noteId: string, isDragging: boolean) => {
+    if (isDragging) localDraggingNoteIdsRef.current.add(noteId);
+    else localDraggingNoteIdsRef.current.delete(noteId);
+
+    setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, status: isDragging ? 'dragging' : 'idle' } : n)));
+
+    if (isOffline) return;
+    if (!whiteboardReady) return;
+    try {
+      const { error } = await supabase
+        .from('whiteboard_notes')
+        .update({
+          status: isDragging ? 'dragging' : 'idle',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', noteId)
+        .eq('whiteboard_id', effectiveWhiteboardId);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error updating note drag status:', error);
+    }
+  }, [isOffline, whiteboardReady, effectiveWhiteboardId, setNotes]);
 
   useEffect(() => {
     if (whiteboardId) {
       setEffectiveWhiteboardId(whiteboardId);
       return;
     }
-    if (!userId) return;
-    apiFetchFn(`/whiteboards?user_id=${userId}`, { method: 'GET' })
-      .then((result) => {
-        const first = result?.boards?.[0];
-        if (first?.id) setEffectiveWhiteboardId(first.id);
-      })
-      .catch((error) => {
+    if (!userId || !isValidUUID(userId)) return;
+
+    const fetchBoard = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('whiteboards')
+          .select('id')
+          .eq('user_id', userId)
+          .limit(1);
+
+        if (error) throw error;
+        const first = data?.[0];
+        if (first?.id) setEffectiveWhiteboardId(first.id as string);
+      } catch (error) {
         console.error('Error fetching user whiteboards:', error);
-      });
-  }, [whiteboardId, userId, apiFetchFn]);
+      }
+    };
+
+    void fetchBoard();
+  }, [whiteboardId, userId]);
 
   useEffect(() => {
     const ensureWhiteboardExists = async () => {
       if (isOffline) return;
       if (!userId) return;
+
+      // If whiteboardId was explicitly passed (shared page), the board already
+      // exists on the owner's side.  Skip the select/insert check which would
+      // fail for guest users due to RLS.
+      if (whiteboardId) {
+        setWhiteboardReady(true);
+        return;
+      }
+
+      if (!isValidUUID(userId) || !isValidUUID(effectiveWhiteboardId)) return;
+
       setWhiteboardReady(false);
 
       let board = null;
       try {
-        const result = await apiFetchFn(`/whiteboards/${effectiveWhiteboardId}`, { method: 'GET' });
-        board = result?.board ?? null;
+        const { data, error } = await supabase
+          .from('whiteboards')
+          .select('id')
+          .eq('id', effectiveWhiteboardId)
+          .maybeSingle();
+        if (error) throw error;
+        board = data ?? null;
       } catch (error) {
         console.error('whiteboards select error:', error);
         return;
@@ -114,13 +196,12 @@ export function useWhiteboardData({
 
       if (!board) {
         try {
-          await apiFetchFn('/whiteboards', {
-            method: 'POST',
-            body: JSON.stringify({
-              id: effectiveWhiteboardId,
-              title: 'My Whiteboard',
-            }),
+          const { error } = await supabase.from('whiteboards').insert({
+            id: effectiveWhiteboardId,
+            title: 'My Whiteboard',
+            user_id: userId,
           });
+          if (error) throw error;
         } catch (error) {
           console.error('Failed to create whiteboard:', error);
           return;
@@ -130,19 +211,21 @@ export function useWhiteboardData({
     };
 
     void ensureWhiteboardExists();
-  }, [userId, isOffline, apiFetchFn, effectiveWhiteboardId]);
+  }, [userId, isOffline, effectiveWhiteboardId, whiteboardId]);
 
   useEffect(() => {
     const fetchNotes = async () => {
       if (isOffline) return;
-      if (!userId || !whiteboardReady) return;
+      if (!userId || !isValidUUID(effectiveWhiteboardId) || !whiteboardReady) return;
 
       try {
-        const result = await apiFetchFn(`/whiteboard-notes?whiteboard_id=${effectiveWhiteboardId}`, {
-          method: 'GET',
-        });
-        const data = result?.notes ?? [];
-        const mappedNotes: WhiteboardNote[] = data.map(fromDbRow);
+        const { data, error } = await supabase
+          .from('whiteboard_notes')
+          .select('*')
+          .eq('whiteboard_id', effectiveWhiteboardId);
+        if (error) throw error;
+        const notesData = data ?? [];
+        const mappedNotes: WhiteboardNote[] = notesData.map(fromDbRow);
         const maxZ = Math.max(...mappedNotes.map((n) => n.zIndex), 10);
         highestZIndex.current = maxZ;
         setNotes(mappedNotes);
@@ -152,10 +235,101 @@ export function useWhiteboardData({
     };
 
     void fetchNotes();
-  }, [userId, whiteboardReady, isOffline, setNotes, effectiveWhiteboardId, apiFetchFn, highestZIndex]);
+  }, [userId, whiteboardReady, isOffline, setNotes, effectiveWhiteboardId, highestZIndex]);
+
+  // Polling for shared boards — refetch notes & drawings every 3s
+  // This is the reliable sync path for unauthenticated phone users
+  useEffect(() => {
+    if (!whiteboardId || !whiteboardReady || isOffline) return;
+    if (!userId || !isValidUUID(effectiveWhiteboardId)) return;
+
+    const poll = async () => {
+      try {
+        // Fetch notes
+        const { data: notesData } = await supabase
+          .from('whiteboard_notes')
+          .select('*')
+          .eq('whiteboard_id', effectiveWhiteboardId);
+        if (notesData) {
+          const mapped: WhiteboardNote[] = notesData.map(fromDbRow);
+          const maxZ = Math.max(...mapped.map((n) => n.zIndex), 10);
+          highestZIndex.current = maxZ;
+          setNotes((prev) => {
+            const prevById = new Map(prev.map((n) => [n.id, n] as const));
+            const remoteIds = new Set<string>();
+
+            const merged = mapped.map((remoteNote) => {
+              remoteIds.add(remoteNote.id);
+              if (isNoteInLocalEditWindow(remoteNote.id) || localDraggingNoteIdsRef.current.has(remoteNote.id)) {
+                return prevById.get(remoteNote.id) ?? remoteNote;
+              }
+              return remoteNote;
+            });
+
+            // Keep local notes briefly if they haven't appeared in remote yet.
+            prev.forEach((localNote) => {
+              if (
+                !remoteIds.has(localNote.id) &&
+                (isNoteInLocalEditWindow(localNote.id) || localDraggingNoteIdsRef.current.has(localNote.id))
+              ) {
+                merged.push(localNote);
+              }
+            });
+
+            return merged;
+          });
+        }
+
+        // Fetch drawings (skip if user is actively drawing)
+        if (!currentDrawingIdRef.current && !isDrawing) {
+          const { data: drawData } = await supabase
+            .from('whiteboard_drawings')
+            .select('*')
+            .eq('whiteboard_id', effectiveWhiteboardId);
+          if (drawData) {
+            const remoteVisible = toVisibleDrawings(drawData);
+            setDrawings((prev) => {
+              const prevById = new Map(prev.map((d) => [d.id, d] as const));
+              const remoteIds = new Set<string>();
+
+              const merged = remoteVisible.map((remoteD) => {
+                remoteIds.add(remoteD.id);
+                if (isDrawingInLocalEditWindow(remoteD.id)) {
+                  return prevById.get(remoteD.id) ?? remoteD;
+                }
+                const localD = prevById.get(remoteD.id);
+                // Avoid rewriting if array length & style match
+                if (localD && localD.path_points.length === remoteD.path_points.length && localD.color === remoteD.color && localD.thickness === remoteD.thickness) {
+                  return localD;
+                }
+                return remoteD;
+              });
+
+              prev.forEach((localD) => {
+                if (!remoteIds.has(localD.id) && isDrawingInLocalEditWindow(localD.id)) {
+                  merged.push(localD);
+                }
+              });
+
+              if (merged.length === prev.length && merged.every((m, i) => m === prev[i])) {
+                return prev;
+              }
+              return merged;
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    };
+
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [whiteboardId, whiteboardReady, isOffline, userId, effectiveWhiteboardId, setNotes, setDrawings, highestZIndex, currentDrawingIdRef, isDrawing, isNoteInLocalEditWindow, isDrawingInLocalEditWindow, toVisibleDrawings]);
 
   const scheduleSaveNote = useCallback((note: WhiteboardNote) => {
     const id = note.id;
+    localNoteEditTimestampsRef.current[id] = Date.now();
     if (saveTimers.current[id]) {
       window.clearTimeout(saveTimers.current[id]);
     }
@@ -171,13 +345,15 @@ export function useWhiteboardData({
 
   useEffect(() => {
     const fetchDrawings = async () => {
-      if (!userId) return;
+      if (!userId || !isValidUUID(effectiveWhiteboardId)) return;
       try {
-        const result = await apiFetchFn(`/whiteboard-drawings?whiteboard_id=${effectiveWhiteboardId}`, {
-          method: 'GET',
-        });
-        const data = result?.drawings ?? [];
-        const normalized: WhiteboardDrawing[] = data.map((d: any) => ({
+        const { data, error } = await supabase
+          .from('whiteboard_drawings')
+          .select('*')
+          .eq('whiteboard_id', effectiveWhiteboardId);
+        if (error) throw error;
+        const drawingsData = data ?? [];
+        const normalized: WhiteboardDrawing[] = drawingsData.map((d: any) => ({
           ...d,
           thickness: Number(d?.stroke_width ?? d?.thickness ?? 3),
         }));
@@ -187,14 +363,87 @@ export function useWhiteboardData({
       }
     };
     void fetchDrawings();
-  }, [userId, apiFetchFn, effectiveWhiteboardId]);
+  }, [userId, effectiveWhiteboardId]);
+
+  useEffect(() => {
+    if (isOffline || !isValidUUID(effectiveWhiteboardId) || !whiteboardReady) return;
+
+    const channel = supabase
+      .channel(`rt_whiteboard_${effectiveWhiteboardId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whiteboard_notes' },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const newNote = fromDbRow(payload.new as any);
+            if ((payload.new as any).whiteboard_id !== effectiveWhiteboardId) return;
+            if (isNoteInLocalEditWindow(newNote.id) || localDraggingNoteIdsRef.current.has(newNote.id)) return;
+            setNotes((prev) => {
+              const idx = prev.findIndex((n) => n.id === newNote.id);
+              if (idx !== -1) {
+                const next = [...prev];
+                // Only update if it actually changed to avoid unnecessary re-renders
+                // but for simplicity we replace it
+                next[idx] = newNote;
+                return next;
+              }
+              return [...prev, newNote];
+            });
+          } else if (payload.eventType === 'DELETE') {
+            setNotes((prev) => prev.filter((n) => n.id !== payload.old.id));
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'whiteboard_drawings' },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const row = payload.new as any;
+            if (row.whiteboard_id !== effectiveWhiteboardId) return;
+            const id = String(row.id);
+            const isErased = row.status === 'erased';
+
+            setDrawings((prev) => {
+              if (isErased) return prev.filter((d) => String(d.id) !== id);
+              if (currentDrawingIdRef.current === id) return prev;
+              if (isDrawingInLocalEditWindow(id)) return prev;
+
+              const next = normalizeDrawing(row);
+              const idx = prev.findIndex((d) => String(d.id) === id);
+              if (idx === -1) return [...prev, next];
+
+              const localD = prev[idx];
+              if (localD.path_points.length === next.path_points.length && localD.color === next.color && localD.thickness === next.thickness) {
+                return prev;
+              }
+
+              const copy = [...prev];
+              copy[idx] = next;
+              return copy;
+            });
+          } else if (payload.eventType === 'DELETE') {
+            setDrawings((prev) => {
+              if (currentDrawingIdRef.current === payload.old.id) return prev;
+              return prev.filter((d) => d.id !== payload.old.id);
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [isOffline, effectiveWhiteboardId, whiteboardReady, currentDrawingIdRef, setNotes, setDrawings, isNoteInLocalEditWindow]);
 
   const saveDrawing = useCallback(async (drawing: WhiteboardDrawing) => {
-    if (!userId || drawing.path_points.length < 2) return;
+    if (drawing.path_points.length < 2) return;
+    localDrawingEditTimestampsRef.current[drawing.id] = Date.now();
     const withStrokeWidth = {
       id: drawing.id,
       whiteboard_id: effectiveWhiteboardId,
-      user_id: userId,
+      user_id: writeUserId,
       path_points: drawing.path_points,
       color: drawing.color,
       stroke_width: drawing.thickness ?? 3,
@@ -202,35 +451,47 @@ export function useWhiteboardData({
     const withoutStrokeWidth = {
       id: drawing.id,
       whiteboard_id: effectiveWhiteboardId,
-      user_id: userId,
+      user_id: writeUserId,
       path_points: drawing.path_points,
       color: drawing.color,
     };
     try {
-      await apiFetchFn(`/whiteboard-drawings/${drawing.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(withStrokeWidth),
-      });
+      const { error } = await supabase
+        .from('whiteboard_drawings')
+        .upsert(withStrokeWidth, { onConflict: 'id' });
+      if (error) throw error;
     } catch (error) {
       try {
-        await apiFetchFn(`/whiteboard-drawings/${drawing.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(withoutStrokeWidth),
-        });
+        const { error: fallbackError } = await supabase
+          .from('whiteboard_drawings')
+          .upsert(withoutStrokeWidth, { onConflict: 'id' });
+        if (fallbackError) throw fallbackError;
       } catch (fallbackError) {
         console.error('Error saving drawing:', fallbackError);
       }
     }
-  }, [userId, effectiveWhiteboardId, apiFetchFn]);
+  }, [writeUserId, effectiveWhiteboardId]);
+
+  const scheduleSaveDrawing = useCallback((drawing: WhiteboardDrawing) => {
+    const id = drawing.id;
+    if (drawingSaveTimers.current[id]) {
+      window.clearTimeout(drawingSaveTimers.current[id]);
+    }
+    drawingSaveTimers.current[id] = window.setTimeout(() => {
+      void saveDrawing(drawing);
+      delete drawingSaveTimers.current[id];
+    }, 1000);
+  }, [saveDrawing]);
 
   const deleteDrawing = useCallback(async (id: string) => {
     setDrawings((prev) => prev.filter((d) => d.id !== id));
     try {
-      await apiFetchFn(`/whiteboard-drawings/${id}`, { method: 'DELETE' });
+      const { error } = await supabase.from('whiteboard_drawings').delete().eq('id', id);
+      if (error) throw error;
     } catch (error) {
       console.error('Error deleting drawing:', error);
     }
-  }, [apiFetchFn]);
+  }, []);
 
   const upsertDrawing = useCallback(async (drawing: WhiteboardDrawing) => {
     if (isOffline) return;
@@ -254,21 +515,21 @@ export function useWhiteboardData({
     };
 
     try {
-      await apiFetchFn(`/whiteboard-drawings/${drawing.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(withStrokeWidth),
-      });
+      const { error } = await supabase
+        .from('whiteboard_drawings')
+        .upsert(withStrokeWidth, { onConflict: 'id' });
+      if (error) throw error;
     } catch (error) {
       try {
-        await apiFetchFn(`/whiteboard-drawings/${drawing.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(withoutStrokeWidth),
-        });
+        const { error: fallbackError } = await supabase
+          .from('whiteboard_drawings')
+          .upsert(withoutStrokeWidth, { onConflict: 'id' });
+        if (fallbackError) throw fallbackError;
       } catch (fallbackError) {
         console.error('Error upserting drawing:', fallbackError);
       }
     }
-  }, [isOffline, userId, whiteboardReady, effectiveWhiteboardId, apiFetchFn]);
+  }, [isOffline, userId, whiteboardReady, effectiveWhiteboardId]);
 
   const buildSnapshot = useCallback((): WhiteboardSnapshot => ({
     notes: notes.map((n) => ({ ...n })),
@@ -305,9 +566,9 @@ export function useWhiteboardData({
       ...to.notes.map((note) => upsertNote(note)),
       ...noteIdsToDelete.map((id) => deleteNoteFromDb(id)),
       ...to.drawings.map((drawing) => upsertDrawing(drawing)),
-      ...drawingIdsToDelete.map((id) => apiFetchFn(`/whiteboard-drawings/${id}`, { method: 'DELETE' })),
+      ...drawingIdsToDelete.map((id) => supabase.from('whiteboard_drawings').delete().eq('id', id)),
     ]);
-  }, [isOffline, userId, whiteboardReady, upsertNote, deleteNoteFromDb, upsertDrawing, apiFetchFn]);
+  }, [isOffline, userId, whiteboardReady, upsertNote, deleteNoteFromDb, upsertDrawing]);
 
   const undo = useCallback(() => {
     if (history.length === 0) return;
@@ -348,12 +609,12 @@ export function useWhiteboardData({
 
     try {
       await Promise.all(
-        drawingIds.map((id) => apiFetchFn(`/whiteboard-drawings/${id}`, { method: 'DELETE' }))
+        drawingIds.map((id) => supabase.from('whiteboard_drawings').delete().eq('id', id))
       );
     } catch (error) {
       console.error('Error clearing all drawings:', error);
     }
-  }, [saveHistorySnapshot, apiFetchFn]);
+  }, [saveHistorySnapshot]);
 
   const checkEraserCollision = useCallback((x: number, y: number) => {
     const ERASER_RADIUS = 10;
@@ -404,18 +665,21 @@ export function useWhiteboardData({
     setShareLoading(true);
     setShareError(null);
     try {
-      const baseUrl = (import.meta as any).env?.VITE_PUBLIC_BASE_URL || 'http://172.26.144.1:3000/To-Do-List/';
-      const existing = await apiFetchFn(`/whiteboard-shares?whiteboard_id=${effectiveWhiteboardId}`, { method: 'GET' });
-      let shareId = existing?.shares?.[0]?.id;
+      const baseUrl = window.location.origin;
+      const { data: existingData, error: existingError } = await supabase
+        .from('whiteboard_shares')
+        .select('id')
+        .eq('whiteboard_id', effectiveWhiteboardId)
+        .limit(1);
+      if (existingError) throw existingError;
+      let shareId = existingData?.[0]?.id as string | undefined;
       if (!shareId) {
-        shareId = crypto.randomUUID();
-        await apiFetchFn('/whiteboard-shares', {
-          method: 'POST',
-          body: JSON.stringify({
-            id: shareId,
-            whiteboard_id: effectiveWhiteboardId,
-          }),
+        shareId = uuidv4();
+        const { error } = await supabase.from('whiteboard_shares').insert({
+          id: shareId,
+          whiteboard_id: effectiveWhiteboardId,
         });
+        if (error) throw error;
       }
 
       const url = `${baseUrl.replace(/\/$/, '')}/share/${shareId}`;
@@ -429,7 +693,7 @@ export function useWhiteboardData({
     } finally {
       setShareLoading(false);
     }
-  }, [canShare, apiFetchFn, effectiveWhiteboardId]);
+  }, [canShare, effectiveWhiteboardId]);
 
   return {
     effectiveWhiteboardId,
@@ -449,7 +713,9 @@ export function useWhiteboardData({
     upsertNote,
     deleteNoteFromDb,
     scheduleSaveNote,
+    setNoteDraggingStatus,
     saveDrawing,
+    scheduleSaveDrawing,
     upsertDrawing,
     clearAllDrawings,
     checkEraserCollision,

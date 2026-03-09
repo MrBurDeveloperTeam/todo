@@ -1,4 +1,4 @@
-import { WhiteboardNote } from '@/src/hooks/types';
+﻿import { WhiteboardNote } from '@/src/hooks/types';
 
 export type ToolType = 'select' | 'hand' | 'note' | 'reminder' | 'text' | 'image' | 'pen' | 'eraser';
 
@@ -9,6 +9,7 @@ export type WhiteboardDrawing = {
   path_points: { x: number; y: number }[];
   color: string;
   thickness?: number;
+  status?: string;
 };
 
 export type WhiteboardSnapshot = {
@@ -23,3 +24,4 @@ export type WhiteboardDragState = {
   handle?: string;
   startScroll?: { x: number; y: number };
 } | null;
+

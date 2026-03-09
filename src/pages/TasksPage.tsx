@@ -213,7 +213,7 @@ const TasksPage: React.FC<TasksPageProps> = ({
                   <div key={colIndex} className="flex-1 flex flex-col gap-6">
                     {colGroups.map((group) => {
                       const columnStyle = group.isOverdue
-                        ? 'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/20'
+                        ? 'bg-red-50 dark:bg-red-500/10 border-red-100 dark:border-red-500/20'
                         : getDayColumnStyle(group.index);
                       const hasOpenUrgencyInGroup = group.tasks.some((task) => task.id === openUrgencyTaskId);
 
@@ -222,9 +222,8 @@ const TasksPage: React.FC<TasksPageProps> = ({
                           key={group.id}
                           onDragOver={(e) => handleDragOver(e, group.dateStr)}
                           onDrop={(e) => handleDateDrop(e, group.dateStr)}
-                          className={`relative w-full h-fit rounded-[2rem] p-5 border ${columnStyle} transition-all shadow-sm flex flex-col ${
-                            hasOpenUrgencyInGroup ? 'z-[110]' : 'z-0'
-                          }`}
+                          className={`relative w-full h-fit rounded-[2rem] p-5 border ${columnStyle} transition-all shadow-sm flex flex-col ${hasOpenUrgencyInGroup ? 'z-[110]' : 'z-0'
+                            }`}
                         >
                           <h3 className={`text-xl font-bold mb-4 px-2 ${group.isOverdue ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-100'}`}>
                             {group.label}

@@ -28,29 +28,34 @@ interface WhiteboardProps {
   isDarkMode: boolean;
   notes: WhiteboardNote[];
   setNotes: React.Dispatch<React.SetStateAction<WhiteboardNote[]>>;
-  userId: string;
+  userId: string | null;
   tasks?: Task[];
   isOffline?: boolean;
   whiteboardId?: string;
   allowShare?: boolean;
+  isMobileApp?: boolean;
+  drawOnly?: boolean;
 }
 
 const WhiteboardPage: React.FC<WhiteboardProps> = ({
   toggleTheme,
+  isDarkMode,
   notes,
   setNotes,
   userId,
   tasks = [],
   isOffline,
   whiteboardId,
-  allowShare
+  allowShare,
+  isMobileApp,
+  drawOnly
 }) => {
   const canShare = allowShare !== false;
 
   // --- State ---
-  const [view, setView] = useState({ scale: 0.75 });
+  const [view, setView] = useState({ scale: 0.7 });
   const [canvasSize, setCanvasSize] = useState(LANDSCAPE_SIZE);
-  const [activeTool, setActiveTool] = useState<ToolType>('select');
+  const [activeTool, setActiveTool] = useState<ToolType>(isMobileApp || drawOnly ? 'pen' : 'select');
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
 
   // UI State
@@ -74,6 +79,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
 
   const {
     effectiveWhiteboardId,
+    whiteboardReady,
     drawings,
     setDrawings,
     isDrawing,
@@ -89,7 +95,9 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     upsertNote,
     deleteNoteFromDb,
     scheduleSaveNote,
+    setNoteDraggingStatus,
     saveDrawing,
+    scheduleSaveDrawing,
     clearAllDrawings,
     checkEraserCollision,
     saveHistorySnapshot,
@@ -141,6 +149,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     contentRef,
     reminderMenuRef,
     highestZIndex,
+    isMobileApp,
   });
   // ----------------------------
   // Create Note (immediate save)
@@ -225,6 +234,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   const {
     handlePointerDown,
     handlePointerMove,
+    handlePointerUp,
     handleNotePointerDown,
     handleResizeStart,
     handleRotateStart,
@@ -252,12 +262,15 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     containerRef,
     saveHistorySnapshot,
     saveDrawing,
+    scheduleSaveDrawing,
     scheduleSaveNote,
     screenToCanvas,
     checkEraserCollision,
     addNote,
     addReminderSticky,
     bringToFront,
+    isMobileApp,
+    drawOnly,
   });
   const selectedNote = getSelectedNote();
   const rotatingNoteId = dragState?.type === 'rotate' ? dragState.startNote?.id ?? null : null;
@@ -278,9 +291,77 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   };
 
 
+
+  useEffect(() => {
+    if (!isMobileApp) return;
+    if (!whiteboardReady) return;
+    if (!userId) return;
+
+    const timer = window.setTimeout(() => {
+      const notePromises = notes.map((note) => upsertNote(note));
+      const drawingPromises = drawings.map((drawing) => saveDrawing(drawing));
+      void Promise.all([...notePromises, ...drawingPromises]);
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [isMobileApp, whiteboardReady, userId, notes, drawings, upsertNote, saveDrawing]);
+
+  // Debug: track pointer events on mobile
+  const [debugInfo, setDebugInfo] = useState({ pointerDown: 0, pointerMove: 0, pointerUp: 0 });
+  useEffect(() => {
+    if (!isMobileApp) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const onDown = () => setDebugInfo(prev => ({ ...prev, pointerDown: prev.pointerDown + 1 }));
+    const onMove = () => setDebugInfo(prev => ({ ...prev, pointerMove: prev.pointerMove + 1 }));
+    const onUp = () => setDebugInfo(prev => ({ ...prev, pointerUp: prev.pointerUp + 1 }));
+    container.addEventListener('pointerdown', onDown);
+    container.addEventListener('pointermove', onMove);
+    container.addEventListener('pointerup', onUp);
+    return () => {
+      container.removeEventListener('pointerdown', onDown);
+      container.removeEventListener('pointermove', onMove);
+      container.removeEventListener('pointerup', onUp);
+    };
+  }, [isMobileApp]);
+
   return (
     <div className="flex flex-col h-full bg-slate-50/50 dark:bg-transparent overflow-hidden font-sans relative">
-      <div className="relative z-10 flex flex-col h-full overflow-hidden">
+
+      <div className={`relative z-10 flex ${isMobileApp ? 'flex-row' : 'flex-col'} h-full overflow-hidden`}>
+        {/* Toolbar Sidebar - only as sidebar on mobile */}
+        {isMobileApp && (
+          <WhiteboardToolbar
+            isToolbarExpanded={isToolbarExpanded}
+            setIsToolbarExpanded={setIsToolbarExpanded}
+            activeTool={activeTool}
+            setActiveTool={setActiveTool}
+            handleToolChange={handleToolChange}
+            penColor={penColor}
+            setPenColor={setPenColor}
+            penThickness={penThickness}
+            setPenThickness={setPenThickness}
+            drawingsLength={drawings.length}
+            onOpenClearDrawingsModal={() => setIsClearDrawingsModalOpen(true)}
+            reminderMenuRef={reminderMenuRef}
+            isReminderMenuOpen={isReminderMenuOpen}
+            setIsReminderMenuOpen={setIsReminderMenuOpen}
+            isTaskPickerOpen={isTaskPickerOpen}
+            setIsTaskPickerOpen={setIsTaskPickerOpen}
+            tasks={tasks}
+            addTaskAsNote={addTaskAsNote}
+            fileInputRef={fileInputRef}
+            handleImageUpload={handleImageUpload}
+            undo={undo}
+            redo={redo}
+            historyLength={history.length}
+            futureLength={future.length}
+            isMobileApp={isMobileApp}
+            drawOnly={drawOnly}
+          />
+        )}
+
+        {/* Canvas Area */}
         <div className="relative flex-1 bg-transparent overflow-hidden">
 
           {/* Floating Toolbar (Properties) */}
@@ -351,15 +432,17 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
           {/* SCROLL CONTAINER */}
           <div
             ref={containerRef}
-            className="absolute inset-0 w-full h-full overflow-auto flex touch-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-            style={{ cursor: getCursor() }}
+            className="absolute inset-0 w-full h-full overflow-auto flex [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            style={{ cursor: getCursor(), touchAction: 'none' }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
             <div
-              className="relative shrink-0 m-auto transition-all duration-75 ease-out will-change-transform"
+              className="relative shrink-0 m-auto min-w-max min-h-max transition-all duration-75 ease-out will-change-transform"
               style={{
                 width: canvasSize.width * view.scale,
                 height: canvasSize.height * view.scale
@@ -410,16 +493,19 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
             </div>
           </div>
 
-          {canShare && (
-            <div className="absolute top-6 right-6 z-50">
-              <button
-                onClick={openShare}
-                disabled={shareLoading}
-                className="px-4 py-2 rounded-xl text-sm font-bold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-lg hover:bg-white transition-colors disabled:opacity-60"
-                title="Share Whiteboard"
-              >
-                {shareLoading ? 'Creating...' : 'Share'}
-              </button>
+          {!isMobileApp && (
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2">
+              {canShare && (
+                <button
+                  onClick={openShare}
+                  disabled={shareLoading}
+                  className="px-3 md:px-4 py-1.5 md:py-2 rounded-xl text-sm font-bold bg-white/90 dark:bg-slate-900/90 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 shadow-lg hover:bg-white transition-colors disabled:opacity-60 backdrop-blur-md flex items-center gap-1.5"
+                  title="Share Whiteboard"
+                >
+                  <span className="hidden md:inline">{shareLoading ? 'Creating...' : 'Share'}</span>
+                  <span className="md:hidden material-symbols-outlined text-[18px]">share</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -440,47 +526,52 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
             }}
           />
 
-          <WhiteboardToolbar
-            isToolbarExpanded={isToolbarExpanded}
-            setIsToolbarExpanded={setIsToolbarExpanded}
-            activeTool={activeTool}
-            setActiveTool={setActiveTool}
-            handleToolChange={handleToolChange}
-            penColor={penColor}
-            setPenColor={setPenColor}
-            penThickness={penThickness}
-            setPenThickness={setPenThickness}
-            drawingsLength={drawings.length}
-            onOpenClearDrawingsModal={() => setIsClearDrawingsModalOpen(true)}
-            reminderMenuRef={reminderMenuRef}
-            isReminderMenuOpen={isReminderMenuOpen}
-            setIsReminderMenuOpen={setIsReminderMenuOpen}
-            isTaskPickerOpen={isTaskPickerOpen}
-            setIsTaskPickerOpen={setIsTaskPickerOpen}
-            tasks={tasks}
-            addTaskAsNote={addTaskAsNote}
-            fileInputRef={fileInputRef}
-            handleImageUpload={handleImageUpload}
-            undo={undo}
-            redo={redo}
-            historyLength={history.length}
-            futureLength={future.length}
-          />
-
-          <div className="absolute bottom-6 right-4 md:right-6 flex flex-col gap-3 z-50">
-            {/* Zoom Controls */}
-            <div className="flex flex-col bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xl rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
-              <button onClick={() => handleZoom(0.1)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
-                <span className="material-symbols-outlined text-[20px]">add</span>
-              </button>
-              <div className="px-1 py-1 text-[10px] font-black text-center text-slate-400 dark:text-slate-500 border-y border-slate-50 dark:border-slate-800 select-none bg-slate-50/50 dark:bg-slate-800/30">
-                {Math.round(view.scale * 100)}%
+          {/* Desktop Floating Toolbar (original overlay style) */}
+          {!isMobileApp && (
+            <WhiteboardToolbar
+              isToolbarExpanded={isToolbarExpanded}
+              setIsToolbarExpanded={setIsToolbarExpanded}
+              activeTool={activeTool}
+              setActiveTool={setActiveTool}
+              handleToolChange={handleToolChange}
+              penColor={penColor}
+              setPenColor={setPenColor}
+              penThickness={penThickness}
+              setPenThickness={setPenThickness}
+              drawingsLength={drawings.length}
+              onOpenClearDrawingsModal={() => setIsClearDrawingsModalOpen(true)}
+              reminderMenuRef={reminderMenuRef}
+              isReminderMenuOpen={isReminderMenuOpen}
+              setIsReminderMenuOpen={setIsReminderMenuOpen}
+              isTaskPickerOpen={isTaskPickerOpen}
+              setIsTaskPickerOpen={setIsTaskPickerOpen}
+              tasks={tasks}
+              addTaskAsNote={addTaskAsNote}
+              fileInputRef={fileInputRef}
+              handleImageUpload={handleImageUpload}
+              undo={undo}
+              redo={redo}
+              historyLength={history.length}
+              futureLength={future.length}
+              isMobileApp={false}
+            />
+          )}
+          {!isMobileApp && (
+            <div className="absolute bottom-6 right-4 md:right-6 flex flex-col gap-3 z-50">
+              {/* Zoom Controls */}
+              <div className="flex flex-col bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-xl rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                <button onClick={() => handleZoom(0.1)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
+                  <span className="material-symbols-outlined text-[20px]">add</span>
+                </button>
+                <div className="px-1 py-1 text-[10px] font-black text-center text-slate-400 dark:text-slate-500 border-y border-slate-50 dark:border-slate-800 select-none bg-slate-50/50 dark:bg-slate-800/30">
+                  {Math.round(view.scale * 100)}%
+                </div>
+                <button onClick={() => handleZoom(-0.1)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
+                  <span className="material-symbols-outlined text-[20px]">remove</span>
+                </button>
               </div>
-              <button onClick={() => handleZoom(-0.1)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors">
-                <span className="material-symbols-outlined text-[20px]">remove</span>
-              </button>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

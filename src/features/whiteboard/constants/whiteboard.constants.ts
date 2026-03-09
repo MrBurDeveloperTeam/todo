@@ -9,32 +9,32 @@ export const REMINDER_UNCHECKED_PREFIX = '[ ] ';
 
 export const COLORS = {
   yellow: {
-    bg: 'bg-yellow-100 dark:bg-yellow-900/40',
-    border: 'border-yellow-200 dark:border-yellow-700',
+    bg: 'bg-yellow-100 dark:bg-yellow-500/10',
+    border: 'border-yellow-200 dark:border-yellow-500/20',
     hex: '#fef3c7',
     accent: 'bg-yellow-400',
   },
   pink: {
-    bg: 'bg-pink-100 dark:bg-pink-900/40',
-    border: 'border-pink-200 dark:border-pink-700',
+    bg: 'bg-pink-100 dark:bg-pink-500/10',
+    border: 'border-pink-200 dark:border-pink-500/20',
     hex: '#fce7f3',
     accent: 'bg-pink-400',
   },
   blue: {
-    bg: 'bg-blue-100 dark:bg-blue-900/40',
-    border: 'border-blue-200 dark:border-blue-700',
+    bg: 'bg-blue-100 dark:bg-blue-500/10',
+    border: 'border-blue-200 dark:border-blue-500/20',
     hex: '#dbeafe',
     accent: 'bg-blue-400',
   },
   green: {
-    bg: 'bg-green-100 dark:bg-green-900/40',
-    border: 'border-green-200 dark:border-green-700',
+    bg: 'bg-green-100 dark:bg-green-500/10',
+    border: 'border-green-200 dark:border-green-500/20',
     hex: '#dcfce7',
     accent: 'bg-green-400',
   },
   transparent: {
     bg: 'bg-transparent',
-    border: 'border-transparent hover:border-slate-300/50',
+    border: 'border-transparent hover:border-slate-300/50 dark:hover:border-slate-600/50',
     hex: 'transparent',
     accent: 'bg-slate-400',
   },

@@ -2,9 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, useParams } from 'react-router-dom';
 import TasksPage from './TasksPage';
 import WhiteboardPage from './WhiteboardPage';
+import LoginPage from './LoginPage';
+import SignupPage from './SignupPage';
 import { Task, WhiteboardNote } from '../hooks/types';
-import { redirectToLogin } from '../lib/auth';
-import { apiFetch, checkSession } from '../lib/api';
+
+import { apiFetch } from '../lib/api';
+import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 // Seed data to showcase the views without a backend
@@ -82,6 +85,8 @@ const seedNotes: WhiteboardNote[] = [
 const views = ['tasks', 'whiteboard'] as const;
 type View = 'tasks' | 'whiteboard';
 
+
+
 function MainApp() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   /* const [tasks, setTasks] = useState<Task[]>(seedTasks); */
@@ -89,28 +94,38 @@ function MainApp() {
   /* const [notes, setNotes] = useState<WhiteboardNote[]>(seedNotes); */
   const [notes, setNotes] = useState<WhiteboardNote[]>([]);
   const [activeView, setActiveView] = useState<View>('tasks');
-
-  // Keep the document class in sync so Tailwind dark styles work
-  // --- Auth State ---
   const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkSession();
-    // const loadUserId = async () => {
-      // try {
-      //   const result = await apiFetch('/verify-token', { method: 'GET' });
-      //   const uid = result?.user?.profiles?.user?.user_id || null;
-      //   setUserId(uid);
-      // } catch (error) {
-      //   console.error('Failed to load user profile:', error);
-      //   setUserId(null);
-      // } finally {
-      //   setLoading(false);
-    //   }
-    // };
+    let mounted = true;
 
-    // loadUserId();
+    const initSession = async () => {
+      if (!mounted) return;
+      setLoading(true);
+
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (mounted) {
+        setUserId(session?.user?.id || null);
+        setLoading(false);
+      }
+    };
+
+    initSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (mounted) {
+          setUserId(session?.user?.id || null);
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Initialize theme from storage/system
@@ -138,8 +153,7 @@ function MainApp() {
   // Handlers moved to bottom
 
 
-  const todayStr = new Date().toLocaleDateString('en-CA');
-  const upcomingCount = useMemo(() => tasks.filter((t) => t.date >= todayStr && t.status !== 'completed').length, [tasks, todayStr]);
+  const upcomingCount = useMemo(() => tasks.filter((t) => t.status !== 'completed').length, [tasks]);
 
   // --- Task Persistence ---
   // 1. Fetch Tasks
@@ -185,13 +199,22 @@ function MainApp() {
     );
   }
 
-  // if (!userId) {
-  //   return (
-  //     <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-  //       <div className="text-sm text-red-500">VITE_APP_USER_ID is not set.</div>
-  //     </div>
-  //   );
-  // }
+  if (!userId && !loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex-col gap-4">
+        <div className="text-center text-slate-900 dark:text-white text-xl font-bold">
+          Authentication Required
+        </div>
+        <div className="text-sm text-slate-500 mb-4">Please log in to manage your tasks and whiteboards.</div>
+        <button
+          onClick={() => window.location.href = '/login'}
+          className="w-full max-w-sm py-3 px-4 rounded-xl bg-gradient-to-r from-primary to-blue-600 text-white font-medium hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-all shadow-md shadow-blue-500/20"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
 
   // 3. Handlers
   // 3. Handlers
@@ -322,9 +345,9 @@ function MainApp() {
                     <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 rounded-xl animate-in fade-in zoom-in-95 duration-300"></div>
                   )}
                   <span className="relative z-10 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">
+                    <span className="material-symbols-outlined text-[18px]">
                       {v === 'tasks' ? 'inventory' : v === 'whiteboard' ? 'dashboard_customize' : 'draw'}
-                  </span>
+                    </span>
                     {v === 'tasks' ? `Tasks (${upcomingCount})` : 'Whiteboard'}
                   </span>
                 </button>
@@ -336,11 +359,8 @@ function MainApp() {
           <div className="flex items-center gap-3">
             <button
               onClick={async () => {
-                try {
-                  await apiFetch('/logout', { method: 'POST' });
-                } finally {
-                  redirectToLogin();
-                }
+                await supabase.auth.signOut();
+                window.location.href = '/login';
               }}
               className="px-4 py-2 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
             >
@@ -388,23 +408,52 @@ function MainApp() {
   );
 }
 
+function getOrCreateGuestId(): string {
+  const GUEST_KEY = 'whiteboard_guest_id';
+  let guestId = sessionStorage.getItem(GUEST_KEY);
+  if (!guestId) {
+    guestId = `guest-${uuidv4()}`;
+    sessionStorage.setItem(GUEST_KEY, guestId);
+  }
+  return guestId;
+}
+
 function ShareWhiteboardPage() {
   const { shareId } = useParams();
-  const [guestId, setGuestId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [whiteboardId, setWhiteboardId] = useState<string | null>(null);
   const [notes, setNotes] = useState<WhiteboardNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem('whiteboard_guest_id');
-    if (stored) {
-      setGuestId(stored);
-    } else {
-      const id = crypto.randomUUID();
-      localStorage.setItem('whiteboard_guest_id', id);
-      setGuestId(id);
-    }
+    let mounted = true;
+    const initSession = async () => {
+      // Check for existing session first
+      let { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
+
+      if (!session) {
+        // Sign in anonymously so the phone user gets a real auth.uid()
+        // This allows writes to pass Supabase RLS policies
+        try {
+          const { data, error } = await supabase.auth.signInAnonymously();
+          if (!error && data.session) {
+            session = data.session;
+          }
+        } catch (e) {
+          console.warn('Anonymous sign-in not available, using guest ID');
+        }
+      }
+
+      if (mounted) {
+        setUserId(session?.user?.id || getOrCreateGuestId());
+      }
+    };
+    void initSession();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -415,8 +464,12 @@ function ShareWhiteboardPage() {
         return;
       }
       try {
-        const payload = await apiFetch(`/whiteboard-shares/${shareId}`, { method: 'GET' });
-        const share = payload?.share;
+        const { data: share, error: shareError } = await supabase
+          .from('whiteboard_shares')
+          .select('whiteboard_id')
+          .eq('id', shareId)
+          .maybeSingle();
+        if (shareError) throw shareError;
         if (!share) {
           setError('Share not found.');
           setLoading(false);
@@ -446,7 +499,7 @@ function ShareWhiteboardPage() {
     );
   }
 
-  if (error || !guestId || !whiteboardId) {
+  if (error || !whiteboardId) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
         <div className="text-sm text-red-500">{error || 'Unable to load share.'}</div>
@@ -454,17 +507,81 @@ function ShareWhiteboardPage() {
     );
   }
 
+
   return (
     <div className="h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50">
       <main className="flex-1 w-full flex flex-col">
         <WhiteboardPage
-          toggleTheme={() => {}}
+          toggleTheme={() => { }}
           isDarkMode={false}
           notes={notes}
           setNotes={setNotes}
-          userId={guestId}
+          userId={userId}
           whiteboardId={whiteboardId}
           allowShare={false}
+          isMobileApp={true}
+          drawOnly={true}
+        />
+      </main>
+    </div>
+  );
+}
+
+function PhoneWhiteboardPage() {
+  const [notes, setNotes] = useState<WhiteboardNote[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    const initSession = async () => {
+      if (!mounted) return;
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (mounted) {
+        setUserId(session?.user?.id || null);
+        setLoading(false);
+      }
+    };
+    initSession();
+    return () => { mounted = false; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 flex-col gap-4">
+        <div className="text-center text-slate-900 dark:text-white text-xl font-bold">Log in required</div>
+        <button
+          onClick={() => window.location.href = '/login'}
+          className="w-full max-w-sm py-3 px-4 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700"
+        >
+          Go to Login
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[100dvh] w-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50 overflow-hidden">
+      <main className="flex-1 w-full h-full flex flex-col relative">
+        <WhiteboardPage
+          toggleTheme={() => document.documentElement.classList.toggle('dark')}
+          isDarkMode={document.documentElement.classList.contains('dark')}
+          notes={notes}
+          setNotes={setNotes}
+          userId={userId}
+          allowShare={false}
+          isMobileApp={true}
         />
       </main>
     </div>
@@ -474,7 +591,10 @@ function ShareWhiteboardPage() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/phone" element={<PhoneWhiteboardPage />} />
       <Route path="/share/:shareId" element={<ShareWhiteboardPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route path="/*" element={<MainApp />} />
     </Routes>
   );

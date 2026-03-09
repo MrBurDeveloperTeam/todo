@@ -8,26 +8,27 @@ const REMINDER_UNCHECKED_PREFIX = '[ ] ';
 
 const COLORS = {
   yellow: {
-    bg: 'bg-yellow-100 dark:bg-yellow-900/40',
-    border: 'border-yellow-200 dark:border-yellow-700',
+    bg: 'bg-yellow-100 dark:bg-yellow-500/10',
+    border: 'border-yellow-200 dark:border-yellow-500/20',
   },
   pink: {
-    bg: 'bg-pink-100 dark:bg-pink-900/40',
-    border: 'border-pink-200 dark:border-pink-700',
+    bg: 'bg-pink-100 dark:bg-pink-500/10',
+    border: 'border-pink-200 dark:border-pink-500/20',
   },
   blue: {
-    bg: 'bg-blue-100 dark:bg-blue-900/40',
-    border: 'border-blue-200 dark:border-blue-700',
+    bg: 'bg-blue-100 dark:bg-blue-500/10',
+    border: 'border-blue-200 dark:border-blue-500/20',
   },
   green: {
-    bg: 'bg-green-100 dark:bg-green-900/40',
-    border: 'border-green-200 dark:border-green-700',
+    bg: 'bg-green-100 dark:bg-green-500/10',
+    border: 'border-green-200 dark:border-green-500/20',
   },
   transparent: {
     bg: 'bg-transparent',
-    border: 'border-transparent hover:border-slate-300/50',
+    border: 'border-transparent hover:border-slate-300/50 dark:hover:border-slate-600/50',
   },
 } as const;
+
 
 interface WhiteboardNotesLayerProps {
   notes: WhiteboardNote[];
@@ -270,7 +271,7 @@ export default function WhiteboardNotesLayer({
                     value={note.content}
                     onChange={(e) => onUpdateNoteContent(note.id, e.target.value)}
                     placeholder="Add reminder details..."
-                    className={`flex-1 w-full h-full border rounded-xl resize-none focus:ring-0 p-3 font-medium leading-relaxed transition-all [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${reminderMeta.checked ? 'bg-white/40 dark:bg-rose-950/20 border-rose-200/60 dark:border-rose-900/35 text-rose-900/75 dark:text-rose-100/80 placeholder:text-rose-800/35 dark:placeholder:text-rose-100/25' : 'bg-white/60 dark:bg-slate-900/50 border-rose-200/70 dark:border-rose-900/40 text-slate-800 dark:text-slate-100 placeholder:text-slate-500/40'} ${activeTool === 'hand' ? 'pointer-events-none' : 'cursor-text'}`}
+                    className={`flex-1 w-full h-full border rounded-xl resize-none focus:ring-0 p-3 font-medium leading-relaxed transition-all [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${reminderMeta.checked ? 'bg-white/40 dark:bg-rose-950/20 border-rose-200/60 dark:border-rose-900/35 text-rose-900/75 dark:text-rose-100/80 placeholder:text-rose-800/35 dark:placeholder:text-rose-100/25' : 'bg-white/60 dark:bg-slate-900/50 border-rose-200/70 dark:border-rose-900/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-500/40 dark:placeholder:text-slate-400/30'} ${activeTool === 'hand' ? 'pointer-events-none' : 'cursor-text'}`}
                     style={{
                       fontSize: `${note.fontSize}px`,
                       lineHeight: 1.4,
@@ -288,7 +289,7 @@ export default function WhiteboardNotesLayer({
                   value={note.content}
                   onChange={(e) => onUpdateNoteContent(note.id, e.target.value)}
                   placeholder="Write something..."
-                  className={`flex-1 w-full h-full bg-transparent border-0 resize-none focus:ring-0 p-0 text-slate-800 dark:text-slate-100 font-medium leading-relaxed placeholder:text-slate-500/30 transition-all [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${activeTool === 'hand' ? 'pointer-events-none' : 'cursor-text'}`}
+                  className={`flex-1 w-full h-full bg-transparent border-0 resize-none focus:ring-0 p-0 text-slate-800 dark:text-slate-200 font-medium leading-relaxed placeholder:text-slate-500/30 dark:placeholder:text-slate-400/30 transition-all [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${activeTool === 'hand' ? 'pointer-events-none' : 'cursor-text'}`}
                   style={{
                     fontSize: `${note.fontSize}px`,
                     lineHeight: 1.4,

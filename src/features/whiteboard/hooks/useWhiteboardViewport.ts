@@ -16,6 +16,7 @@ interface UseWhiteboardViewportParams {
   contentRef: React.RefObject<HTMLDivElement | null>;
   reminderMenuRef: React.RefObject<HTMLDivElement | null>;
   highestZIndex: React.MutableRefObject<number>;
+  isMobileApp?: boolean;
 }
 
 export function useWhiteboardViewport({
@@ -31,14 +32,15 @@ export function useWhiteboardViewport({
   contentRef,
   reminderMenuRef,
   highestZIndex,
+  isMobileApp,
 }: UseWhiteboardViewportParams) {
   const lastOrientation = useRef<'landscape' | 'portrait'>(
-    window.innerWidth < 768 ? 'portrait' : 'landscape'
+    (isMobileApp ? false : window.innerWidth < 768) ? 'portrait' : 'landscape'
   );
 
   useEffect(() => {
     const handleResize = () => {
-      const isPortrait = window.innerWidth < 768;
+      const isPortrait = isMobileApp ? false : window.innerWidth < 768;
       const newOrientation = isPortrait ? 'portrait' : 'landscape';
 
       if (newOrientation !== lastOrientation.current) {
@@ -136,6 +138,90 @@ export function useWhiteboardViewport({
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleWheel);
   }, [containerRef, handleZoom]);
+
+  // Touch Pinch-to-Zoom Support
+  const initialPinchDistance = useRef<number | null>(null);
+  const initialPinchScale = useRef<number | null>(null);
+  const initialPinchCenter = useRef<{ x: number; y: number } | null>(null);
+  const initialScroll = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        // Prevent default scrolling during pinch
+        e.preventDefault();
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        initialPinchDistance.current = dist;
+        initialPinchScale.current = view.scale;
+
+        initialPinchCenter.current = {
+          x: (touch1.clientX + touch2.clientX) / 2,
+          y: (touch1.clientY + touch2.clientY) / 2,
+        };
+        initialScroll.current = {
+          x: container.scrollLeft,
+          y: container.scrollTop,
+        };
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (
+        e.touches.length === 2 &&
+        initialPinchDistance.current !== null &&
+        initialPinchScale.current !== null &&
+        initialPinchCenter.current !== null &&
+        initialScroll.current !== null
+      ) {
+        e.preventDefault();
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+
+        // Zoom
+        const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+        const zoomRatio = dist / initialPinchDistance.current;
+        const newScale = Math.min(Math.max(initialPinchScale.current * zoomRatio, 0.2), 3);
+        setView({ scale: newScale });
+
+        // Pan
+        const currentCenter = {
+          x: (touch1.clientX + touch2.clientX) / 2,
+          y: (touch1.clientY + touch2.clientY) / 2,
+        };
+        const dx = currentCenter.x - initialPinchCenter.current.x;
+        const dy = currentCenter.y - initialPinchCenter.current.y;
+
+        container.scrollLeft = initialScroll.current.x - dx;
+        container.scrollTop = initialScroll.current.y + dy;
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        initialPinchDistance.current = null;
+        initialPinchScale.current = null;
+        initialPinchCenter.current = null;
+        initialScroll.current = null;
+      }
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [containerRef, view.scale, setView]);
 
   const bringToFront = useCallback((id: string) => {
     highestZIndex.current += 1;
