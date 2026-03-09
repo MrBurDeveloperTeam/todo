@@ -25,11 +25,34 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> | undefined),
   };
-  const ssoToken = getCookie('mrbur_sso');
-  console.log('[auth] mrbur_sso cookie found:', Boolean(ssoToken));
-  if (ssoToken) {
-    console.log('[auth] mrbur_sso token preview:', `${ssoToken.slice(0, 16)}...`);
-    headers.Authorization = `Bearer ${ssoToken}`;
+  let { data: { session } } = await supabase.auth.getSession();
+
+  // If no Supabase session yet, try to exchange SSO cookies for one.
+  if (!session) {
+    try {
+      await checkSession();
+      const refreshed = await supabase.auth.getSession();
+      session = refreshed.data.session;
+    } catch (err) {
+      console.warn('[auth] checkSession failed inside apiFetch:', err);
+    }
+  }
+
+  if (session?.access_token) {
+    headers.Authorization = `Bearer ${session.access_token}`;
+  } else {
+    const sessionId = getCookie('session_id');
+    const ssoToken = getCookie('mrbur_sso');
+    console.log('[auth] session_id cookie found:', Boolean(sessionId));
+    console.log('[auth] mrbur_sso cookie found:', Boolean(ssoToken));
+
+    if (sessionId) {
+      console.log('[auth] session_id preview:', `${sessionId.slice(0, 16)}...`);
+      headers.Authorization = `Bearer ${sessionId}`;
+    } else if (ssoToken) {
+      console.log('[auth] mrbur_sso token preview:', `${ssoToken.slice(0, 16)}...`);
+      headers.Authorization = `Bearer ${ssoToken}`;
+    }
   }
 
   const method = (options.method || 'GET').toUpperCase();
@@ -85,10 +108,14 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  // Note: apiFetch already attaches the Supabase access token when available.
+  // The interceptor is a fallback for direct api.* calls.
+  const sessionId = getCookie("session_id");
   const ssoToken = getCookie("mrbur_sso");
-  if (ssoToken) {
+  const token = sessionId || ssoToken;
+  if (token) {
     const headers = AxiosHeaders.from(config.headers);
-    headers.set("Authorization", `Bearer ${ssoToken}`);
+    headers.set("Authorization", `Bearer ${token}`);
     config.headers = headers;
   }
   return config;
