@@ -97,12 +97,12 @@ function MainApp() {
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkSession();
+  useEffect(() => { 
     let mounted = true;
-
+    
     const initSession = async () => {
       if (!mounted) return;
+      checkSession();
       setLoading(true);
 
       const { data: { session }, error } = await supabase.auth.getSession();
