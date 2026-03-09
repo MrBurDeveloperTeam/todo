@@ -129,6 +129,7 @@ export const checkSession = async () => {
   // Otherwise, try to exchange the SSO cookie for a Supabase session via the API.
   try {
     const { data } = await api.get('/sso/exchange');
+    console.log('data: ', data);
     const { data: setResult, error } = await supabase.auth.setSession({
       access_token: data.access_token,
       refresh_token: data.refresh_token,
