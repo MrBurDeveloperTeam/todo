@@ -25,11 +25,11 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> | undefined),
   };
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
+  const ssoToken = getCookie('mrbur_sso');
+  console.log('[auth] mrbur_sso cookie found:', Boolean(ssoToken));
+  if (ssoToken) {
+    console.log('[auth] mrbur_sso token preview:', `${ssoToken.slice(0, 16)}...`);
+    headers.Authorization = `Bearer ${ssoToken}`;
   }
 
   const method = (options.method || 'GET').toUpperCase();
@@ -84,12 +84,11 @@ export const api = axios.create({
   },
 });
 
-api.interceptors.request.use(async (config) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
-  if (token) {
+api.interceptors.request.use((config) => {
+  const ssoToken = getCookie("mrbur_sso");
+  if (ssoToken) {
     const headers = AxiosHeaders.from(config.headers);
-    headers.set("Authorization", `Bearer ${token}`);
+    headers.set("Authorization", `Bearer ${ssoToken}`);
     config.headers = headers;
   }
   return config;
