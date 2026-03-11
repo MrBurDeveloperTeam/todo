@@ -4,6 +4,7 @@ import TasksPage from './TasksPage';
 import WhiteboardPage from './WhiteboardPage';
 import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
+import LandingPage from './LandingPage';
 import { Task, WhiteboardNote } from '../hooks/types';
 
 import { apiFetch, checkSession } from '../lib/api';
@@ -201,8 +202,7 @@ function MainApp() {
   }
 
   if (!userId && !loading) {
-    window.location.href = '/login';
-    return null;
+    return <LandingPage />;
   }
 
   // 3. Handlers

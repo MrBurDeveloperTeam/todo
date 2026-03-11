@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Task } from '@/src/hooks/types';
-import { ToolType } from '@/src/features/whiteboard/types/whiteboard.types';
+import { ToolType, BackgroundPattern } from '@/src/features/whiteboard/types/whiteboard.types';
 
 interface WhiteboardToolbarProps {
   isToolbarExpanded: boolean;
@@ -29,6 +29,8 @@ interface WhiteboardToolbarProps {
   futureLength: number;
   isMobileApp?: boolean;
   drawOnly?: boolean;
+  backgroundPattern: BackgroundPattern;
+  setBackgroundPattern: React.Dispatch<React.SetStateAction<BackgroundPattern>>;
 }
 
 export default function WhiteboardToolbar({
@@ -58,22 +60,28 @@ export default function WhiteboardToolbar({
   futureLength,
   isMobileApp,
   drawOnly,
+  backgroundPattern,
+  setBackgroundPattern,
 }: WhiteboardToolbarProps) {
   const btnBase = isMobileApp ? 'p-2 rounded-lg' : 'p-3 rounded-xl';
   const [showPenOptions, setShowPenOptions] = useState(false);
+  const [showBgOptions, setShowBgOptions] = useState(false);
   const penPopupRef = useRef<HTMLDivElement>(null);
+  const bgPopupRef = useRef<HTMLDivElement>(null);
 
   // Close popup on outside click/touch
   useEffect(() => {
-    if (!showPenOptions) return;
     const handleOutside = (e: PointerEvent) => {
-      if (penPopupRef.current && !penPopupRef.current.contains(e.target as Node)) {
+      if (showPenOptions && penPopupRef.current && !penPopupRef.current.contains(e.target as Node)) {
         setShowPenOptions(false);
+      }
+      if (showBgOptions && bgPopupRef.current && !bgPopupRef.current.contains(e.target as Node)) {
+        setShowBgOptions(false);
       }
     };
     window.addEventListener('pointerdown', handleOutside);
     return () => window.removeEventListener('pointerdown', handleOutside);
-  }, [showPenOptions]);
+  }, [showPenOptions, showBgOptions]);
   return (
     <div
       className={isMobileApp
@@ -180,6 +188,43 @@ export default function WhiteboardToolbar({
         >
           <span className="material-symbols-outlined">ink_eraser</span>
         </button>
+
+        <div className="relative">
+          <button
+            onClick={() => setShowBgOptions(prev => !prev)}
+            className={`${btnBase} transition-all group relative flex items-center justify-center ${showBgOptions ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            title="Whiteboard Background"
+          >
+            <span className="material-symbols-outlined">wallpaper</span>
+          </button>
+
+          {showBgOptions && (
+            <div
+              className="absolute left-full ml-2 top-1/2 -translate-y-1/2 flex flex-col gap-1 p-2 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-[9999] w-36"
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+              ref={bgPopupRef}
+            >
+              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-2 py-1 uppercase tracking-wider">Background</div>
+              {[
+                { id: 'blank', icon: 'check_box_outline_blank', label: 'Blank' },
+                { id: 'dots', icon: 'blur_on', label: 'Dots' },
+                { id: 'lines', icon: 'notes', label: 'Lines' },
+                { id: 'grid', icon: 'grid_on', label: 'Grid' }
+              ].map(bg => (
+                <button
+                  key={bg.id}
+                  onClick={(e) => { e.stopPropagation(); setBackgroundPattern(bg.id as BackgroundPattern); setShowBgOptions(false); }}
+                  className={`w-full text-left px-2 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${backgroundPattern === bg.id ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 font-medium' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                >
+                  <span className="material-symbols-outlined text-[18px] opacity-70">{bg.icon}</span>
+                  {bg.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         <button
           onClick={onOpenClearDrawingsModal}
