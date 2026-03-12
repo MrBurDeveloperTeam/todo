@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
@@ -7,7 +7,17 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        setIsDarkMode(document.documentElement.classList.contains('dark'));
+        const observer = new MutationObserver(() => {
+            setIsDarkMode(document.documentElement.classList.contains('dark'));
+        });
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        return () => observer.disconnect();
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -38,9 +48,12 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
             <div className="w-full max-w-md p-8 m-4 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700/50">
                 <div className="text-center mb-8">
-                    <div className="inline-flex size-12 rounded-xl bg-gradient-to-br from-primary to-blue-600 items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
-                        <span className="text-white font-bold text-2xl">P</span>
-                    </div>
+                    <img
+                        src={isDarkMode ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png'}
+                        alt="Productivity Pro"
+                        className="h-12 w-auto mx-auto mb-3 drop-shadow-[0_2px_10px_rgba(0,0,0,0.22)] select-none"
+                        draggable={false}
+                    />
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Welcome Back</h1>
                     <p className="text-sm text-slate-500 mt-2">Sign in to your productivity suite</p>
                 </div>
