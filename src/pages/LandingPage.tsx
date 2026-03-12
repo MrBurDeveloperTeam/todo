@@ -56,13 +56,6 @@ export default function LandingPage() {
                             className="h-10 w-auto drop-shadow-[0_2px_10px_rgba(0,0,0,0.22)] select-none"
                             draggable={false}
                         />
-                        <span
-                            className={`text-xl font-bold tracking-tight drop-shadow-[0_1px_6px_rgba(0,0,0,0.25)] ${
-                                isDarkMode ? 'text-white' : 'text-primary'
-                            }`}
-                        >
-                            Productivity Pro
-                        </span>
                     </div>
                     <div className="flex items-center gap-4">
                         <Link to="/login" className="hidden sm:inline-flex px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
@@ -266,13 +259,6 @@ export default function LandingPage() {
                                 className="h-8 w-auto drop-shadow-[0_2px_10px_rgba(0,0,0,0.22)] select-none"
                                 draggable={false}
                             />
-                            <span
-                                className={`font-bold tracking-tight text-lg drop-shadow-[0_1px_6px_rgba(0,0,0,0.25)] ${
-                                    isDarkMode ? 'text-white' : 'text-primary'
-                                }`}
-                            >
-                                Productivity Pro
-                            </span>
                         </div>
                         <p className="text-slate-500 dark:text-slate-400 font-medium">
                             &copy; {new Date().getFullYear()} Productivity Pro. All rights reserved.
