@@ -50,13 +50,19 @@ export default function LandingPage() {
             <nav className="fixed top-0 w-full z-50 bg-white/70 dark:bg-[#0f172a]/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 transition-all">
                 <div className="w-full max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="relative group cursor-pointer">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
-                            <div className="relative size-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-xl font-bold shadow-sm">
-                                <span className="bg-gradient-to-br from-blue-600 to-indigo-600 bg-clip-text text-transparent">P</span>
-                            </div>
-                        </div>
-                        <span className="text-xl font-bold tracking-tight">Productivity Pro</span>
+                        <img
+                            src={isDarkMode ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png'}
+                            alt="Productivity Pro"
+                            className="h-10 w-auto drop-shadow-[0_2px_10px_rgba(0,0,0,0.22)] select-none"
+                            draggable={false}
+                        />
+                        <span
+                            className={`text-xl font-bold tracking-tight drop-shadow-[0_1px_6px_rgba(0,0,0,0.25)] ${
+                                isDarkMode ? 'text-white' : 'text-primary'
+                            }`}
+                        >
+                            Productivity Pro
+                        </span>
                     </div>
                     <div className="flex items-center gap-4">
                         <Link to="/login" className="hidden sm:inline-flex px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
@@ -254,10 +260,19 @@ export default function LandingPage() {
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
                         <div className="flex items-center gap-3">
-                            <div className="size-8 rounded-lg bg-slate-900 dark:bg-white flex items-center justify-center border border-slate-200 dark:border-slate-800 shadow-sm">
-                                <span className="text-white dark:text-slate-900 font-bold leading-none">P</span>
-                            </div>
-                            <span className="font-bold tracking-tight text-lg text-slate-900 dark:text-white">Productivity Pro</span>
+                            <img
+                                src={isDarkMode ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png'}
+                                alt="Productivity Pro"
+                                className="h-8 w-auto drop-shadow-[0_2px_10px_rgba(0,0,0,0.22)] select-none"
+                                draggable={false}
+                            />
+                            <span
+                                className={`font-bold tracking-tight text-lg drop-shadow-[0_1px_6px_rgba(0,0,0,0.25)] ${
+                                    isDarkMode ? 'text-white' : 'text-primary'
+                                }`}
+                            >
+                                Productivity Pro
+                            </span>
                         </div>
                         <p className="text-slate-500 dark:text-slate-400 font-medium">
                             &copy; {new Date().getFullYear()} Productivity Pro. All rights reserved.

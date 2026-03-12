@@ -300,19 +300,27 @@ function MainApp() {
       <header className="sticky top-0 z-20 bg-white/70 dark:bg-[#0f172a]/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 transition-all duration-300">
         <div className="mx-auto w-full max-w-[1440px] px-6 h-20 flex items-center justify-between gap-8">
           {/* Logo & Branding */}
-          <div className="flex items-center gap-4 group cursor-default min-w-0">
-            <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-500 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
-              <div className="relative size-11 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-xl font-bold shadow-sm">
-                <span className="bg-gradient-to-br from-primary to-blue-600 bg-clip-text text-transparent text-[24px]">P</span>
-              </div>
-            </div>
+          <a
+            href="https://app.snabbb.com/"
+            className="flex items-center gap-3 cursor-pointer min-w-0"
+            aria-label="Go to Productivity Pro app"
+          >
+            <img
+              src={isDarkMode ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png'}
+              alt="Productivity Pro"
+              className="h-10 w-auto select-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.22)]"
+              draggable={false}
+            />
             <div className="hidden sm:block overflow-hidden">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white leading-none mb-1">
-                To-do List
+              <h1
+                className={`text-2xl font-bold tracking-tight leading-none mb-1 drop-shadow-[0_1px_6px_rgba(0,0,0,0.25)] ${
+                  isDarkMode ? 'text-white' : 'text-primary'
+                }`}
+              >
+                Productivity Pro
               </h1>
             </div>
-          </div>
+          </a>
 
           {/* Center Navigation - Pill View Switcher */}
           <nav className="flex items-center bg-slate-100/80 dark:bg-slate-800/50 p-1 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-inner">
