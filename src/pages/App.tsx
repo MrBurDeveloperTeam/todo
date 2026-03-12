@@ -311,15 +311,6 @@ function MainApp() {
               className="h-10 w-auto select-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.22)]"
               draggable={false}
             />
-            <div className="hidden sm:block overflow-hidden">
-              <h1
-                className={`text-2xl font-bold tracking-tight leading-none mb-1 drop-shadow-[0_1px_6px_rgba(0,0,0,0.25)] ${
-                  isDarkMode ? 'text-white' : 'text-primary'
-                }`}
-              >
-                Productivity Pro
-              </h1>
-            </div>
           </a>
 
           {/* Center Navigation - Pill View Switcher */}
