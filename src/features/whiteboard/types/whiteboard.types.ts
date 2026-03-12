@@ -12,6 +12,12 @@ export type WhiteboardDrawing = {
   status?: string;
 };
 
+export type WhiteboardMetadata = {
+  id: string;
+  title: string;
+  user_id: string;
+};
+
 export type WhiteboardSnapshot = {
   notes: WhiteboardNote[];
   drawings: WhiteboardDrawing[];
@@ -25,3 +31,4 @@ export type WhiteboardDragState = {
   startScroll?: { x: number; y: number };
 } | null;
 
+export type BackgroundPattern = 'blank' | 'dots' | 'lines' | 'grid';

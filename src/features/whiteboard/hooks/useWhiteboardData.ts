@@ -6,7 +6,7 @@ import { supabase } from '@/src/lib/supabaseClient';
 import { toDbRow } from '@/src/features/whiteboard/utils/toDbRow';
 import { fromDbRow } from '@/src/features/whiteboard/utils/fromDbRow';
 import { WHITEBOARD_ID } from '@/src/features/whiteboard/constants/whiteboard.constants';
-import { WhiteboardDrawing, WhiteboardSnapshot } from '@/src/features/whiteboard/types/whiteboard.types';
+import { WhiteboardDrawing, WhiteboardSnapshot, WhiteboardMetadata } from '@/src/features/whiteboard/types/whiteboard.types';
 
 interface UseWhiteboardDataParams {
   notes: WhiteboardNote[];
@@ -41,8 +41,8 @@ export function useWhiteboardData({
   const localDraggingNoteIdsRef = useRef<Set<string>>(new Set());
   const [effectiveWhiteboardId, setEffectiveWhiteboardId] = useState<string>(whiteboardId ?? WHITEBOARD_ID);
   const [whiteboardReady, setWhiteboardReady] = useState(false);
-  // Use null for guest users (user_id is nullable)
   const writeUserId = (userId && isValidUUID(userId)) ? userId : null;
+  const [whiteboards, setWhiteboards] = useState<WhiteboardMetadata[]>([]);
 
   const [drawings, setDrawings] = useState<WhiteboardDrawing[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -148,13 +148,28 @@ export function useWhiteboardData({
       try {
         const { data, error } = await supabase
           .from('whiteboards')
-          .select('id')
+          .select('id, title, user_id')
           .eq('user_id', userId)
-          .limit(1);
+          .order('created_at', { ascending: true });
 
         if (error) throw error;
-        const first = data?.[0];
-        if (first?.id) setEffectiveWhiteboardId(first.id as string);
+
+        const userBoards = data as WhiteboardMetadata[];
+        setWhiteboards(userBoards);
+
+        if (userBoards.length > 0) {
+          setEffectiveWhiteboardId(userBoards[userBoards.length - 1].id);
+        } else {
+          // If they somehow have no whiteboards at all, create one
+          const newId = uuidv4();
+          await supabase.from('whiteboards').insert({
+            id: newId,
+            title: 'My Whiteboard',
+            user_id: userId,
+          });
+          setWhiteboards([{ id: newId, title: 'My Whiteboard', user_id: userId }]);
+          setEffectiveWhiteboardId(newId);
+        }
       } catch (error) {
         console.error('Error fetching user whiteboards:', error);
       }
@@ -202,10 +217,20 @@ export function useWhiteboardData({
             user_id: userId,
           });
           if (error) throw error;
+
+          setWhiteboards(prev => {
+            if (prev.find(b => b.id === effectiveWhiteboardId)) return prev;
+            return [...prev, { id: effectiveWhiteboardId, title: 'My Whiteboard', user_id: userId }];
+          });
         } catch (error) {
           console.error('Failed to create whiteboard:', error);
           return;
         }
+      } else {
+        setWhiteboards(prev => {
+          if (prev.find(b => b.id === effectiveWhiteboardId)) return prev;
+          return [...prev, { id: effectiveWhiteboardId, title: board.title || 'Shared Whiteboard', user_id: board.user_id }];
+        });
       }
       setWhiteboardReady(true);
     };
@@ -695,8 +720,67 @@ export function useWhiteboardData({
     }
   }, [canShare, effectiveWhiteboardId]);
 
+  const switchWhiteboard = useCallback((id: string) => {
+    setEffectiveWhiteboardId(id);
+    setNotes([]);
+    setDrawings([]);
+    setHistory([]);
+    setFuture([]);
+    setSelectedNoteIds(new Set());
+    highestZIndex.current = 10;
+  }, [setSelectedNoteIds, highestZIndex]);
+
+  const createWhiteboard = useCallback(async (title: string) => {
+    if (!userId) return;
+    const newId = uuidv4();
+    const newBoard = {
+      id: newId,
+      title: title || 'New Whiteboard',
+      user_id: userId,
+    };
+
+    // Optistic UI Update
+    setWhiteboards(prev => [...prev, newBoard]);
+    switchWhiteboard(newId);
+
+    try {
+      const { error } = await supabase.from('whiteboards').insert(newBoard);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Failed to create new whiteboard:', error);
+    }
+  }, [userId, switchWhiteboard]);
+
+  const deleteWhiteboard = useCallback(async (id: string) => {
+    if (!userId) return;
+
+    // Don't delete if it's the last one
+    if (whiteboards.length <= 1) return;
+
+    const remainingBoards = whiteboards.filter(b => b.id !== id);
+    setWhiteboards(remainingBoards);
+
+    // Switch to another board if deleting the current one
+    if (effectiveWhiteboardId === id) {
+      switchWhiteboard(remainingBoards[remainingBoards.length - 1].id);
+    }
+
+    try {
+      // Supabase cascade deletes should handle notes and drawings
+      const { error } = await supabase.from('whiteboards').delete().eq('id', id);
+      if (error) throw error;
+    } catch (error) {
+      console.error('Failed to delete whiteboard:', error);
+    }
+  }, [userId, whiteboards, effectiveWhiteboardId, switchWhiteboard]);
+
+
   return {
     effectiveWhiteboardId,
+    whiteboards,
+    switchWhiteboard,
+    createWhiteboard,
+    deleteWhiteboard,
     whiteboardReady,
     drawings,
     setDrawings,

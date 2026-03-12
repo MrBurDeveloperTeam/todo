@@ -4,9 +4,11 @@ import ShareWhiteboardModal from '@/src/features/whiteboard/components/ShareWhit
 import ClearDrawingsModal from '@/src/features/whiteboard/components/ClearDrawingsModal';
 import WhiteboardToolbar from '@/src/features/whiteboard/components/WhiteboardToolbar';
 import WhiteboardNotesLayer from '@/src/features/whiteboard/components/WhiteboardNotesLayer';
+import WhiteboardSelector from '@/src/features/whiteboard/components/WhiteboardSelector';
 import {
   ToolType,
   WhiteboardDragState,
+  BackgroundPattern
 } from '@/src/features/whiteboard/types/whiteboard.types';
 import { useWhiteboardInteractions } from '@/src/features/whiteboard/hooks/useWhiteboardInteractions';
 import { useWhiteboardNoteActions } from '@/src/features/whiteboard/hooks/useWhiteboardNoteActions';
@@ -57,6 +59,7 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   const [canvasSize, setCanvasSize] = useState(LANDSCAPE_SIZE);
   const [activeTool, setActiveTool] = useState<ToolType>('hand');
   const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
+  const [backgroundPattern, setBackgroundPattern] = useState<BackgroundPattern>('blank');
 
   // UI State
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -79,6 +82,10 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
 
   const {
     effectiveWhiteboardId,
+    whiteboards = [],
+    switchWhiteboard,
+    createWhiteboard,
+    deleteWhiteboard,
     whiteboardReady,
     drawings,
     setDrawings,
@@ -197,7 +204,8 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
   // --- Event Handlers ---
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (document.activeElement?.tagName === 'TEXTAREA') return;
+    const activeTagName = document.activeElement?.tagName;
+    if (activeTagName === 'TEXTAREA' || activeTagName === 'INPUT') return;
 
     // History Shortcuts
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
@@ -290,7 +298,28 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
     ));
   };
 
-
+  const getBackgroundStyles = () => {
+    switch (backgroundPattern) {
+      case 'dots':
+        return {
+          backgroundImage: `radial-gradient(${isDarkMode ? '#334155' : '#cbd5e1'} 2px, transparent 2px)`,
+          backgroundSize: '32px 32px'
+        };
+      case 'lines':
+        return {
+          backgroundImage: `linear-gradient(transparent 95%, ${isDarkMode ? '#334155' : '#cbd5e1'} 5%)`,
+          backgroundSize: '100% 32px'
+        };
+      case 'grid':
+        return {
+          backgroundImage: `linear-gradient(${isDarkMode ? '#334155' : '#cbd5e1'} 1px, transparent 1px), linear-gradient(90deg, ${isDarkMode ? '#334155' : '#cbd5e1'} 1px, transparent 1px)`,
+          backgroundSize: '32px 32px'
+        };
+      case 'blank':
+      default:
+        return {};
+    }
+  };
 
   // Debug: track pointer events on mobile
   const [debugInfo, setDebugInfo] = useState({ pointerDown: 0, pointerMove: 0, pointerUp: 0 });
@@ -344,6 +373,8 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
             futureLength={future.length}
             isMobileApp={isMobileApp}
             drawOnly={drawOnly}
+            backgroundPattern={backgroundPattern}
+            setBackgroundPattern={setBackgroundPattern}
           />
         )}
 
@@ -440,7 +471,8 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
                 style={{
                   width: canvasSize.width,
                   height: canvasSize.height,
-                  transform: `scale(${view.scale})`
+                  transform: `scale(${view.scale})`,
+                  ...getBackgroundStyles()
                 }}
               >
                 {/* Drawings Layer */}
@@ -481,6 +513,13 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
 
           {!isMobileApp && (
             <div className="absolute top-4 right-4 md:top-6 md:right-6 z-50 flex items-center gap-2">
+              <WhiteboardSelector
+                whiteboards={whiteboards}
+                activeId={effectiveWhiteboardId}
+                onSelect={switchWhiteboard}
+                onCreate={createWhiteboard}
+                onDelete={deleteWhiteboard}
+              />
               {canShare && (
                 <button
                   onClick={openShare}
@@ -540,6 +579,8 @@ const WhiteboardPage: React.FC<WhiteboardProps> = ({
               historyLength={history.length}
               futureLength={future.length}
               isMobileApp={false}
+              backgroundPattern={backgroundPattern}
+              setBackgroundPattern={setBackgroundPattern}
             />
           )}
           {!isMobileApp && (
