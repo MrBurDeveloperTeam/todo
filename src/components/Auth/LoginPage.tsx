@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 
 interface LoginPageProps {
-    onLoginSuccess: () => void;
+    onLoginSuccess?: () => void;
 }
 
-export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
+export default function LoginPage({ onLoginSuccess = () => {} }: LoginPageProps) {
     const [token, setToken] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);

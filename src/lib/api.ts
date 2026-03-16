@@ -137,8 +137,14 @@ export const checkSession = async () => {
     if (error) throw error;
     return setResult.session ?? null;
   } catch (err) {
-    await supabase.auth.signOut();
-    console.error('SSO exchange failed:', err);
+    const status = (err as any)?.response?.status ?? (err as any)?.status;
+    // 401 is expected when no cookie is present; treat it as "not logged in" without noise.
+    if (status !== 401) {
+      await supabase.auth.signOut();
+      console.error('SSO exchange failed:', err);
+    } else {
+      console.info('[auth] SSO exchange skipped (no cookie present)');
+    }
     return null;
   }
 };
