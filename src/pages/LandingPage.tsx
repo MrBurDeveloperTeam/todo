@@ -252,14 +252,6 @@ export default function LandingPage() {
             <footer className="py-12 border-t border-slate-200 dark:border-slate-800 text-center relative z-10 bg-white/50 dark:bg-[#0f172a]/50">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                        <div className="flex items-center gap-3">
-                            <img
-                                src={isDarkMode ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png'}
-                                alt="Productivity Pro"
-                                className="h-8 w-auto drop-shadow-[0_2px_10px_rgba(0,0,0,0.22)] select-none"
-                                draggable={false}
-                            />
-                        </div>
                         <p className="text-slate-500 dark:text-slate-400 font-medium">
                             &copy; {new Date().getFullYear()} Productivity Pro. All rights reserved.
                         </p>

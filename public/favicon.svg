@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <defs>
-    <clipPath id="rounded">
-      <rect width="512" height="512" rx="96" ry="96" />
-    </clipPath>
-  </defs>
-  <image href="/Icon.png" width="512" height="512" clip-path="url(#rounded)" preserveAspectRatio="xMidYMid slice" />
-</svg>

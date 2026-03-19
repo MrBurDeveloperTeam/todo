@@ -126,6 +126,14 @@ export const checkSession = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   if (session) return session;
 
+  // No Supabase session; only attempt SSO exchange if a cookie/token exists.
+  const ssoToken = getCookie('mrbur_sso');
+  const sessionId = getCookie('session_id');
+  if (!ssoToken && !sessionId) {
+    console.info('[auth] SSO exchange skipped (no cookie present)');
+    return null;
+  }
+
   // Otherwise, try to exchange the SSO cookie for a Supabase session via the API.
   try {
     const { data } = await api.get('/sso/exchange');

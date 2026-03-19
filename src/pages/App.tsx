@@ -1,15 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Routes, Route, useParams } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import TasksPage from './TasksPage';
-import WhiteboardPage from './WhiteboardPage';
+import DayTasksPage from './DayTasksPage';
 import LoginPage from './LoginPage';
 import SignupPage from './SignupPage';
 import LandingPage from './LandingPage';
-import { Task, WhiteboardNote } from '../hooks/types';
+import PwaQrPage from './PwaQr';
+import { Task } from '../hooks/types';
 
 import { apiFetch, checkSession } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
-import { v4 as uuidv4 } from 'uuid';
 
 // Seed data to showcase the views without a backend
 const seedTasks: Task[] = [
@@ -50,53 +50,22 @@ const seedTasks: Task[] = [
   },
 ];
 
-const seedNotes: WhiteboardNote[] = [
-  {
-    id: 'b3e8a4d4-2c5e-4b2a-9f8c-1d3e5a7b9c0d',
-    type: 'sticky',
-    x: 200,
-    y: 180,
-    width: 260,
-    height: 260,
-    content: 'Welcome to the whiteboard!\nDrag, resize, and rotate me.',
-    title: 'Welcome',
-    color: 'yellow',
-    rotation: -1.5,
-    zIndex: 1,
-    fontSize: 16,
-    createdAt: Date.now(),
-  },
-  {
-    id: 'c4f9b5e5-3d6f-5c3b-0a9d-2e4f6b8c0d1e',
-    type: 'text',
-    x: 640,
-    y: 320,
-    width: 420,
-    height: 120,
-    content: 'Try the text tool, or drop images in.',
-    title: 'Tips',
-    color: 'transparent',
-    rotation: 0,
-    zIndex: 2,
-    fontSize: 18,
-    createdAt: Date.now(),
-  },
-];
-
-const views = ['tasks', 'whiteboard'] as const;
-type View = 'tasks' | 'whiteboard';
-
-
-
 function MainApp() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   /* const [tasks, setTasks] = useState<Task[]>(seedTasks); */
   const [tasks, setTasks] = useState<Task[]>([]);
-  /* const [notes, setNotes] = useState<WhiteboardNote[]>(seedNotes); */
-  const [notes, setNotes] = useState<WhiteboardNote[]>([]);
-  const [activeView, setActiveView] = useState<View>('tasks');
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profileName, setProfileName] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
+  const [isQrOpen, setIsQrOpen] = useState(false);
+  const [qrUrl, setQrUrl] = useState('');
+  const [isProfileClosing, setIsProfileClosing] = useState(false);
+  const [isQrClosing, setIsQrClosing] = useState(false);
+  const [countryCode, setCountryCode] = useState<'US' | 'UK' | 'MY'>('US');
+  const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
+  const countryMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     checkSession();
@@ -130,6 +99,41 @@ function MainApp() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setQrUrl(window.location.href);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (countryMenuRef.current && !countryMenuRef.current.contains(e.target as Node)) {
+        setIsCountryMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!userId) return;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('name,email,country')
+        .eq('user_id', userId)
+        .single();
+      if (!error && data) {
+        setProfileName(data.name || '');
+        setProfileEmail(data.email || '');
+        if (data.country && ['US', 'UK', 'MY'].includes(data.country)) {
+          // sync country selector with profile
+          setCountryCode(data.country as 'US' | 'UK' | 'MY');
+        }
+      }
+    };
+    fetchProfile();
+  }, [userId]);
+
   // Initialize theme from storage/system
   useEffect(() => {
     const stored = localStorage.getItem('theme');
@@ -148,12 +152,43 @@ function MainApp() {
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
+  const saveProfile = async () => {
+    if (typeof window === 'undefined') return;
+    if (userId) {
+      await supabase.from('profiles').upsert(
+        {
+          user_id: userId,
+          name: profileName.trim() || null,
+          email: profileEmail.trim() || null,
+        },
+        { onConflict: 'user_id' }
+      );
+    }
+    setIsProfileOpen(false);
+    setIsProfileClosing(false);
+  };
+
+  const closeProfile = () => {
+    setIsProfileClosing(true);
+    setTimeout(() => {
+      setIsProfileOpen(false);
+      setIsProfileClosing(false);
+    }, 250);
+  };
+
+  const closeQr = () => {
+    setIsQrClosing(true);
+    setTimeout(() => {
+      setIsQrOpen(false);
+      setIsQrClosing(false);
+    }, 250);
+  };
+
   const toggleTheme = () => setIsDarkMode((v) => !v);
 
   // apiFetch is shared in src/lib/api.ts
 
   // Handlers moved to bottom
-
 
   const upcomingCount = useMemo(() => tasks.filter((t) => t.status !== 'completed').length, [tasks]);
 
@@ -296,78 +331,37 @@ function MainApp() {
   };
 
   return (
-    <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50`}>
+    <div className={`min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50`}>
       <header className="sticky top-0 z-20 bg-white/70 dark:bg-[#0f172a]/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 transition-all duration-300">
-        <div className="mx-auto w-full max-w-[1440px] px-6 h-20 flex items-center justify-between gap-8">
-          {/* Logo & Branding */}
-          <a
-            href="https://app.snabbb.com/"
-            className="flex items-center gap-3 cursor-pointer min-w-0"
-            aria-label="Go to Productivity Pro app"
-          >
-            <img
-              src={isDarkMode ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png'}
-              alt="Productivity Pro"
-              className="h-10 w-auto select-none drop-shadow-[0_2px_10px_rgba(0,0,0,0.22)]"
-              draggable={false}
-            />
-          </a>
+        <div className="mx-auto w-full max-w-5xl px-4 h-16 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <img
+                src="/Logo/todo_tiffany.png"
+                alt="Logo"
+                className="h-10 w-10 shadow-lg shadow-blue-500/20 object-contain"
+              />
+            <div className="flex flex-col">
+              <span className="text-base font-black text-slate-900 dark:text-white leading-tight">Personal Calendar</span>
+            </div>
+          </div>
 
-          {/* Center Navigation - Pill View Switcher */}
-          <nav className="flex items-center bg-slate-100/80 dark:bg-slate-800/50 p-1 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-inner">
-            {views.map((v) => {
-              const isActive = activeView === v;
-              return (
-                <button
-                  key={v}
-                  onClick={() => setActiveView(v)}
-                  className={`
-                    relative px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2
-                    ${isActive
-                      ? 'text-white shadow-lg scale-[1.02]'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                    }
-                  `}
-                >
-                  {isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary to-blue-600 rounded-xl animate-in fade-in zoom-in-95 duration-300"></div>
-                  )}
-                  <span className="relative z-10 flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">
-                      {v === 'tasks' ? 'inventory' : v === 'whiteboard' ? 'dashboard_customize' : 'draw'}
-                    </span>
-                    {v === 'tasks' ? `Tasks (${upcomingCount})` : 'Whiteboard'}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Right Actions */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={async () => {
-                if (userId) {
-                  const { data } = await supabase.from('whiteboards').select('id').eq('user_id', userId);
-                  if (data && data.length > 0) {
-                    const boardIds = data.map(b => b.id);
-                    await supabase.from('whiteboard_shares').delete().in('whiteboard_id', boardIds);
-                  }
-                }
-                await supabase.auth.signOut();
-                window.location.href = '/login';
-              }}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-            >
-              Sign Out
-            </button>
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={toggleTheme}
-              className="size-11 rounded-xl flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition-all duration-300"
+              className="size-10 rounded-xl flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent hover:border-slate-200 dark:hover:border-slate-800 transition-all duration-300"
               title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             >
               <span className="material-symbols-outlined text-[22px]">
                 {isDarkMode ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+            <button
+              onClick={() => setIsProfileOpen(true)}
+              className="px-2 py-2 rounded-xl flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-white/5 transition"
+              title="Profile & settings"
+            >
+              <span className="h-9 w-9 rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white font-black flex items-center justify-center shadow-md shadow-blue-500/30">
+                {(profileName || 'U').slice(0, 1).toUpperCase()}
               </span>
             </button>
           </div>
@@ -375,251 +369,199 @@ function MainApp() {
       </header>
 
       <main className="flex-1 w-full flex flex-col">
-        {activeView === 'tasks' ? (
-          <div className="mx-auto max-w-6xl w-full px-4 pb-12 pt-4">
-            <TasksPage
-              toggleTheme={toggleTheme}
-              isDarkMode={isDarkMode}
-              tasks={tasks}
-              onToggleTaskStatus={handleToggleTaskStatus}
-              onAddTask={handleAddTask}
-              onEditTask={handleEditTask}
-              onDeleteTask={handleDeleteTask}
-              userId={userId || ''}
-            />
-          </div>
-        ) : (
-          <WhiteboardPage
-            toggleTheme={toggleTheme}
-            isDarkMode={isDarkMode}
-            notes={notes}
-            setNotes={setNotes}
-            userId={userId}
-            tasks={tasks}
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <div className="mx-auto max-w-5xl w-full px-3 pb-8 pt-3">
+                <TasksPage
+                  toggleTheme={toggleTheme}
+                  isDarkMode={isDarkMode}
+                  tasks={tasks}
+                  onToggleTaskStatus={handleToggleTaskStatus}
+                  onAddTask={handleAddTask}
+                  onEditTask={handleEditTask}
+                  onDeleteTask={handleDeleteTask}
+                  userId={userId || ''}
+                  upcomingCount={upcomingCount}
+                  countryCode={countryCode}
+                />
+              </div>
+            }
           />
-        )}
+          <Route
+            path="/day/:date"
+            element={
+              <div className="mx-auto max-w-6xl w-full px-4 pb-12 pt-4">
+                <DayTasksPage
+                  tasks={tasks}
+                  onToggleTaskStatus={handleToggleTaskStatus}
+                  onDeleteTask={handleDeleteTask}
+                />
+              </div>
+            }
+          />
+        </Routes>
       </main>
-    </div>
-  );
-}
 
-function getOrCreateGuestId(): string {
-  const GUEST_KEY = 'whiteboard_guest_id';
-  let guestId = sessionStorage.getItem(GUEST_KEY);
-  if (!guestId) {
-    guestId = `guest-${uuidv4()}`;
-    sessionStorage.setItem(GUEST_KEY, guestId);
-  }
-  return guestId;
-}
+      {isProfileOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={closeProfile}
+          />
+          <div
+            className={`relative h-full w-full max-w-sm rounded-l-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-6 space-y-4 overflow-y-auto will-change-transform ${
+              isProfileClosing
+                ? 'animate-[slideOutSide_0.25s_ease_forwards]'
+                : 'animate-[slideInSide_0.3s_ease_forwards]'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-[0.3em] text-slate-500 font-semibold">
+                  Profile
+                </div>
+                <div className="text-xl font-black text-slate-900 dark:text-white">
+                  Your settings
+                </div>
+              </div>
+              <button
+                onClick={closeProfile}
+                className="size-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                aria-label="Close profile"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
 
-function ShareWhiteboardPage() {
-  const { shareId } = useParams();
-  const [userId, setUserId] = useState<string | null>(null);
-  const [whiteboardId, setWhiteboardId] = useState<string | null>(null);
-  const [notes, setNotes] = useState<WhiteboardNote[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [hostLeft, setHostLeft] = useState(false);
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-[0.2em]">
+                    Holidays region
+                  </div>
+                <div ref={countryMenuRef} className="relative">
+                  <button
+                    onClick={() => setIsCountryMenuOpen((v) => !v)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-bold text-slate-800 dark:text-slate-100 cursor-pointer flex items-center justify-between hover:border-blue-300 dark:hover:border-blue-500/60 transition"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-[18px] text-blue-500">public</span>
+                      {countryCode === 'US' ? 'United States' : countryCode === 'UK' ? 'United Kingdom' : 'Malaysia'}
+                    </span>
+                    <span className="material-symbols-outlined text-[18px] text-slate-400">
+                      {isCountryMenuOpen ? 'expand_less' : 'expand_more'}
+                    </span>
+                  </button>
+                  {isCountryMenuOpen && (
+                    <div className="absolute left-0 right-0 mt-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg overflow-hidden z-20">
+                      {[
+                        { code: 'US', label: 'United States' },
+                        { code: 'UK', label: 'United Kingdom' },
+                        { code: 'MY', label: 'Malaysia' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.code}
+                          onClick={() => {
+                            setCountryCode(opt.code as 'US' | 'UK' | 'MY');
+                            setIsCountryMenuOpen(false);
+                          }}
+                          className={`w-full px-4 py-3 text-left flex items-center gap-3 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${
+                            countryCode === opt.code
+                              ? 'bg-blue-50 dark:bg-blue-500/10 font-bold text-blue-700 dark:text-blue-100'
+                              : 'text-slate-800 dark:text-slate-100'
+                          }`}
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            {countryCode === opt.code ? 'check_circle' : 'language'}
+                          </span>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Used to show public holiday markers in your calendar.
+                </div>
+              </div>
+              <button
+                onClick={() => setIsQrOpen(true)}
+                className="w-full py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 font-bold flex items-center justify-center gap-2 hover:-translate-y-[1px] transition"
+              >
+                <span className="material-symbols-outlined text-[18px]">qr_code_2</span>
+                Phone QR
+              </button>
+            </div>
 
-  useEffect(() => {
-    let mounted = true;
-    const initSession = async () => {
-      // Check for existing session first
-      let { data: { session } } = await supabase.auth.getSession();
-      if (!mounted) return;
-
-      if (!session) {
-        // Sign in anonymously so the phone user gets a real auth.uid()
-        // This allows writes to pass Supabase RLS policies
-        try {
-          const { data, error } = await supabase.auth.signInAnonymously();
-          if (!error && data.session) {
-            session = data.session;
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.href = '/login';
+              }}
+              className="w-full py-3 rounded-xl border border-red-200 dark:border-red-700 text-red-600 dark:text-red-300 bg-white dark:bg-slate-900 font-bold flex items-center justify-center gap-2 hover:-translate-y-[1px] transition"
+            >
+              <span className="material-symbols-outlined text-[18px]">logout</span>
+              Sign Out
+            </button>
+          </div>
+        </div>
+      )}
+      {isQrOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            onClick={closeQr}
+          />
+          <div
+            className={`relative h-full w-full max-w-sm rounded-l-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl p-6 space-y-4 overflow-y-auto will-change-transform ${
+              isQrClosing
+                ? 'animate-[slideOutSide_0.25s_ease_forwards]'
+                : 'animate-[slideInSide_0.3s_ease_forwards]'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs uppercase tracking-[0.3em] text-slate-500 font-semibold">
+                  Open on phone
+                </div>
+                <div className="text-xl font-black text-slate-900 dark:text-white">
+                  Scan this QR code
+                </div>
+              </div>
+              <button
+                onClick={closeQr}
+                className="size-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition"
+                aria-label="Close QR code"
+              >
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+            <div className="flex justify-center">
+              <img
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrUrl || '')}`}
+                alt="QR code to open this page on your phone"
+                className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white p-3"
+              />
+            </div>
+            <div className="text-[12px] text-slate-500 dark:text-slate-400 text-center">
+              Point your phone camera at the code to open this page.
+            </div>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes slideInSide {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
           }
-        } catch (e) {
-          console.warn('Anonymous sign-in not available, using guest ID');
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
         }
-      }
-
-      if (mounted) {
-        setUserId(session?.user?.id || getOrCreateGuestId());
-      }
-    };
-    void initSession();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const fetchShare = async () => {
-      if (!shareId) {
-        setError('Invalid share link.');
-        setLoading(false);
-        return;
-      }
-      try {
-        const { data: share, error: shareError } = await supabase
-          .from('whiteboard_shares')
-          .select('whiteboard_id')
-          .eq('id', shareId)
-          .maybeSingle();
-        if (shareError) throw shareError;
-        if (!share) {
-          setError('Share not found.');
-          setLoading(false);
-          return;
-        }
-
-        setWhiteboardId(share.whiteboard_id);
-        setLoading(false);
-      } catch (e) {
-        setError('Failed to load share.');
-        setLoading(false);
-        return;
-      }
-    };
-
-    fetchShare();
-  }, [shareId]);
-
-  useEffect(() => {
-    if (!shareId || !whiteboardId) return;
-
-    const interval = setInterval(async () => {
-      const { data, error } = await supabase
-        .from('whiteboard_shares')
-        .select('id')
-        .eq('id', shareId)
-        .maybeSingle();
-
-      if (error || !data) {
-        setHostLeft(true);
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [shareId, whiteboardId]);
-
-  if (hostLeft) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 flex-col gap-4 px-6">
-        <div className="rounded-full bg-slate-100 dark:bg-slate-800 p-4 mb-2">
-          <span className="material-symbols-outlined text-[48px] text-slate-400">no_accounts</span>
-        </div>
-        <div className="text-center text-slate-900 dark:text-white text-2xl font-bold">
-          Session Ended
-        </div>
-        <div className="text-base text-center text-slate-500 max-w-sm mb-4">
-          The host has left the session and this shared whiteboard is no longer active.
-        </div>
-        <button
-          onClick={() => window.location.href = '/login'}
-          className="w-full max-w-xs py-3 px-4 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/30"
-        >
-          Return to Home
-        </button>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-sm text-slate-500">Loading shared whiteboard...</div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !whiteboardId) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="text-sm text-red-500">{error || 'Unable to load share.'}</div>
-      </div>
-    );
-  }
-
-
-  return (
-    <div className="h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50">
-      <main className="flex-1 w-full flex flex-col">
-        <WhiteboardPage
-          toggleTheme={() => { }}
-          isDarkMode={false}
-          notes={notes}
-          setNotes={setNotes}
-          userId={userId}
-          whiteboardId={whiteboardId}
-          allowShare={false}
-          isMobileApp={true}
-          drawOnly={true}
-        />
-      </main>
-    </div>
-  );
-}
-
-function PhoneWhiteboardPage() {
-  const [notes, setNotes] = useState<WhiteboardNote[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-    const initSession = async () => {
-      if (!mounted) return;
-      setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      if (mounted) {
-        setUserId(session?.user?.id || null);
-        setLoading(false);
-      }
-    };
-    initSession();
-    return () => { mounted = false; };
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userId) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900 flex-col gap-4">
-        <div className="text-center text-slate-900 dark:text-white text-xl font-bold">Log in required</div>
-        <button
-          onClick={() => window.location.href = '/login'}
-          className="w-full max-w-sm py-3 px-4 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700"
-        >
-          Go to Login
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-[100dvh] w-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50 overflow-hidden">
-      <main className="flex-1 w-full h-full flex flex-col relative">
-        <WhiteboardPage
-          toggleTheme={() => document.documentElement.classList.toggle('dark')}
-          isDarkMode={document.documentElement.classList.contains('dark')}
-          notes={notes}
-          setNotes={setNotes}
-          userId={userId}
-          allowShare={false}
-          isMobileApp={true}
-        />
-      </main>
+      `}</style>
     </div>
   );
 }
@@ -627,10 +569,9 @@ function PhoneWhiteboardPage() {
 export default function App() {
   return (
     <Routes>
-      <Route path="/phone" element={<PhoneWhiteboardPage />} />
-      <Route path="/share/:shareId" element={<ShareWhiteboardPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+      <Route path="/pwa-qr" element={<PwaQrPage />} />
       <Route path="/*" element={<MainApp />} />
     </Routes>
   );
