@@ -1,83 +1,194 @@
 @import "tailwindcss";
-@config "../tailwind.config.cjs";
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+
+:root {
+  --accent: #0078d4;
+  --accent-light: #e8f3fc;
+  --accent-hover: #106ebe;
+  --accent-subtle: rgba(0, 120, 212, 0.12);
+  --sidebar-w: 240px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --font: 'Geist', system-ui, sans-serif;
+  --mono: 'Geist Mono', monospace;
+  --transition: 0.18s ease;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.14), 0 4px 16px rgba(0, 0, 0, 0.08);
+
+  /* Light Theme */
+  --bg: #f5f5f5;
+  --bg2: #ffffff;
+  --bg3: #f0f0f0;
+  --bg4: #e8e8e8;
+  --surface: #ffffff;
+  --surface2: #fafafa;
+  --border: #e0e0e0;
+  --border2: #d0d0d0;
+  --text: #1a1a1a;
+  --text2: #444;
+  --text3: #777;
+  --text4: #aaa;
+  --sidebar-bg: #f3f3f3;
+  --sidebar-text: #333;
+  --sidebar-hover: #e5e5e5;
+  --sidebar-active: #dce7f7;
+  --sidebar-active-text: #0078d4;
+  --header-bg: #ffffff;
+  --cal-today: #0078d4;
+  --cal-today-text: #fff;
+  --cal-other-month: #bbb;
+  --task-done: #888;
+  --priority-high: #d13438;
+  --priority-med: #e67e22;
+  --priority-low: #27ae60;
+  --tag-bg: #eee;
+  --tag-text: #555;
+  --modal-overlay: rgba(0, 0, 0, 0.35);
+  --input-bg: #fff;
+  --input-border: #d0d0d0;
+  --input-focus: #0078d4;
+  --scrollbar: #ccc;
+  --scrollbar-hover: #aaa;
+}
+
+[data-theme="dark"] {
+  --bg: #1a1a1a;
+  --bg2: #222;
+  --bg3: #2a2a2a;
+  --bg4: #333;
+  --surface: #242424;
+  --surface2: #2c2c2c;
+  --border: #383838;
+  --border2: #444;
+  --text: #f0f0f0;
+  --text2: #ccc;
+  --text3: #888;
+  --text4: #555;
+  --sidebar-bg: #1e1e1e;
+  --sidebar-text: #d0d0d0;
+  --sidebar-hover: #2d2d2d;
+  --sidebar-active: #1e3a5c;
+  --sidebar-active-text: #60b3f5;
+  --header-bg: #1e1e1e;
+  --cal-today: var(--accent);
+  --cal-today-text: #fff;
+  --cal-other-month: #555;
+  --task-done: #555;
+  --priority-high: #e85555;
+  --priority-med: #f0932b;
+  --priority-low: #6ab04c;
+  --tag-bg: #333;
+  --tag-text: #bbb;
+  --modal-overlay: rgba(0, 0, 0, 0.6);
+  --input-bg: #2a2a2a;
+  --input-border: #444;
+  --input-focus: #60b3f5;
+  --scrollbar: #444;
+  --scrollbar-hover: #555;
+}
 
 @theme {
-  --color-primary: #017a6c;
-  --color-primary-dark: #015c51;
-  --color-background-light: #f9fafa;
-  --color-background-dark: #1c1c1c;
-  --color-surface-light: #ffffff;
-  --color-surface-dark: #262626;
-  --color-border-light: #e5e7eb;
-  --color-border-dark: #404040;
-  --color-deep-work: #4A5A70;
-  --color-admin: #7F9A8E;
-  --color-light-task: #D98E56;
-  --color-personal: #8E7BB0;
-  --color-note-yellow: #fff9c4;
-  --color-note-yellow-dark: #423e18;
-  --color-note-pink: #fce4ec;
-  --color-note-pink-dark: #4a1b26;
-  --color-note-blue: #e3f2fd;
-  --color-note-blue-dark: #153352;
-  --color-note-green: #e8f5e9;
-  --color-note-green-dark: #1b3e20;
-
-  --font-display: "Manrope", sans-serif;
-  --font-handwriting: "Spline Sans", sans-serif;
-  --font-brand: "Comic Neue", cursive;
-
-  --shadow-soft: 0 2px 10px rgba(0, 0, 0, 0.03);
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
-  --shadow-paper: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  --shadow-paper-lifted: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-paper: var(--landing-paper, #f7efe2);
+  --color-paper2: var(--landing-paper2, #efe3d1);
+  --color-paper3: var(--landing-paper3, #d3c2aa);
+  --color-ink: var(--landing-ink, #13212f);
+  --color-ink2: var(--landing-ink2, #314255);
+  --color-ink3: var(--landing-ink3, #5c6d80);
+  --color-ink4: var(--landing-ink4, #8492a3);
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+@layer base {
+  body {
+    @apply bg-[var(--bg)] text-[var(--text)] font-sans text-sm transition-colors duration-200;
+    font-family: var(--font);
+  }
+
+  button, [role="button"], select, label, input[type="checkbox"], input[type="radio"] {
+    cursor: pointer;
+    font-family: var(--font);
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* Custom Utilities from the provided HTML */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
-}
-
-.material-symbols-outlined.filled {
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
-.grid-lines {
-  background-size: 100% 60px;
-  background-image: linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
-}
-
-.dark .grid-lines {
-  background-image: linear-gradient(to bottom, #333 1px, transparent 1px);
-}
-
-/* Utility to hide scrollbar but allow scrolling */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.mini-scrollbar::-webkit-scrollbar {
+  height: 3px;
 }
 
-button {
-  cursor: pointer;
+.mini-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 10px;
 }
 
-button:disabled {
-  cursor: not-allowed;
+.mini-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.select-left-arrow {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: left 0.75rem center;
+  background-size: 1rem;
+}
+
+/* Animations & Reveal */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: all 0.8s cubic-bezier(0.16,1,0.3,1);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--accent);
+  transform-origin: 0%;
+  z-index: 1000;
+  transition: transform 0.1s linear;
+}
+
+@keyframes animate-reveal {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-reveal {
+  animation: animate-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
 }
