@@ -132,6 +132,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     localStorage.setItem('tf_accent', accent);
     localStorage.setItem('tf_show_completed', String(showCompleted));
     updateThemeIcon(theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
     
     // Update CSS variables for accent
     const accentData = (ACCENTS as any)[accent] || { main: accent, light: `${accent}15`, hover: accent };
@@ -343,6 +345,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             setCurrentView={setCurrentView}
             showCompleted={showCompleted}
             handleQuickAddTask={handleQuickAddTask}
+            userLists={userLists}
+            theme={theme}
           />
         );
       case 'calendar':
@@ -356,6 +360,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             setSelectedTaskId={setSelectedTaskId}
             setCurrentView={setCurrentView}
             openAddModal={openAddModal}
+            theme={theme}
           />
         );
       case 'settings':

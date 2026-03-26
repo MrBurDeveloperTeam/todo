@@ -16,6 +16,7 @@ interface CalendarViewProps {
   setSelectedTaskId: (id: string | null) => void;
   setCurrentView: (view: any) => void;
   openAddModal: (type?: any) => void;
+  theme: string;
 }
 
 export function CalendarView({
@@ -26,10 +27,29 @@ export function CalendarView({
   setCalView,
   setSelectedTaskId,
   setCurrentView,
-  openAddModal
+  openAddModal,
+  theme
 }: CalendarViewProps) {
   const y = calDate.getFullYear();
   const m = calDate.getMonth();
+
+  const getTypeBadgeClass = (type: TaskItem['type']) => {
+    if (type === 'task') {
+      return 'bg-[#eff6ff] text-[#2563eb] border-[#bfdbfe]';
+    }
+    if (type === 'event') {
+      return 'bg-[#fee2e2] text-[#b42318] border-[#fca5a5]';
+    }
+    return theme === 'dark'
+      ? 'bg-amber-900/20 text-amber-400 border-amber-500/20'
+      : 'bg-white text-[#92400e] border-[#fcd34d]';
+  };
+
+  const getTypeAccentBarClass = (type: TaskItem['type']) => {
+    if (type === 'task') return 'bg-[#1d4ed8]';
+    if (type === 'event') return 'bg-[#b42318]';
+    return 'bg-[#a16207]';
+  };
   
   const renderMonth = () => {
     const firstDay = new Date(y, m, 1).getDay();
@@ -70,11 +90,7 @@ export function CalendarView({
               <div className={`text-[12px] font-black mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-accent text-white' : 'text-[var(--text2)]'}`}>{cell.day}</div>
               <div className="space-y-1">
                 {hasTasks.slice(0, 3).map(t => (
-                  <div key={t.id} className={`text-[9px] px-1.5 py-0.5 rounded truncate font-bold ${
-                    t.type === 'task' ? 'bg-[#e8f0fe] text-[#1a73e8]' :
-                    t.type === 'event' ? 'bg-[#fce8e6] text-[#d93025]' :
-                    'bg-[#fef9e7] text-[#f39c14]'
-                  }`}>
+                  <div key={t.id} className={`text-[9px] px-1.5 py-0.5 rounded truncate font-bold border ${getTypeBadgeClass(t.type)}`}>
                     {t.time && formatTime(t.time)} {t.title}
                   </div>
                 ))}
@@ -129,11 +145,7 @@ export function CalendarView({
                     return (
                       <div 
                         key={t.id}
-                        className={`absolute left-1 right-1 p-1 rounded border shadow-sm cursor-pointer hover:brightness-105 transition overflow-hidden ${
-                          t.type === 'task' ? 'bg-[#e8f0fe] text-[#1a73e8] border-[#c0d8ff]' :
-                          t.type === 'event' ? 'bg-[#fce8e6] text-[#d93025] border-[#fbc4c4]' :
-                          'bg-[#fef9e7] text-[#f39c14] border-[#fbe9a7]'
-                        }`}
+                        className={`absolute left-1 right-1 p-1 rounded border shadow-sm cursor-pointer hover:brightness-105 transition overflow-hidden ${getTypeBadgeClass(t.type)}`}
                         style={{ top: `${top}px`, height: '40px', fontSize: '9px', fontWeight: 'bold' }}
                         onClick={(e) => { e.stopPropagation(); setSelectedTaskId(t.id); setCurrentView('todo'); }}
                       >
@@ -172,11 +184,7 @@ export function CalendarView({
             items.sort((a,b) => (a.time || '23:59').localeCompare(b.time || '23:59')).map(t => (
               <div key={t.id} className="flex items-center gap-4 p-4 rounded-xl border border-[var(--border)] hover:border-accent group cursor-pointer transition" onClick={() => { setSelectedTaskId(t.id); setCurrentView('todo'); }}>
                  <div className="text-xs font-black text-[var(--text3)] min-w-[60px]">{t.time ? formatTime(t.time) : 'All-day'}</div>
-                 <div className={`w-1 h-10 rounded-full ${
-                   t.type === 'task' ? 'bg-[#1a73e8]' :
-                   t.type === 'event' ? 'bg-[#d93025]' :
-                   'bg-[#f39c14]'
-                 }`}></div>
+                 <div className={`w-1 h-10 rounded-full ${getTypeAccentBarClass(t.type)}`}></div>
                  <div className="flex-1">
                    <div className="text-[15px] font-bold">{t.title}</div>
                    <div className="text-xs text-[var(--text3)]">{t.list} {t.location && `· 📍 ${t.location}`}</div>

@@ -30,6 +30,8 @@ interface TodoViewProps {
   setCurrentView: (view: any) => void;
   showCompleted: boolean;
   handleQuickAddTask: (title: string, list: string) => void;
+  userLists: { id: string; name: string; color: string }[];
+  theme: string;
 }
 
 export function TodoView({
@@ -45,10 +47,24 @@ export function TodoView({
   currentView,
   setCurrentView,
   showCompleted,
-  handleQuickAddTask
+  handleQuickAddTask,
+  userLists,
+  theme
 }: TodoViewProps) {
   const [isCompletedCollapsed, setIsCompletedCollapsed] = useState(true);
   const [isOverdueCollapsed, setIsOverdueCollapsed] = useState(true);
+
+  const getTypeBadgeClass = (type: TaskItem['type']) => {
+    if (type === 'task') {
+      return 'bg-[#eff6ff] text-[#2563eb] border border-[#bfdbfe] dark:bg-[var(--accent-light)] dark:text-accent dark:border-accent/10';
+    }
+    if (type === 'event') {
+      return 'bg-[#fee2e2] text-[#b42318] border border-[#fca5a5] dark:bg-red-900/20 dark:text-red-400 dark:border-red-500/20';
+    }
+    return theme === 'dark'
+      ? 'bg-amber-900/20 text-amber-400 border border-amber-500/20'
+      : 'bg-white text-[#92400e] border border-[#fcd34d]';
+  };
   
   const filteredTasks = tasks.filter(t => {
     if (currentFilter === 'all') return true;
@@ -71,7 +87,16 @@ export function TodoView({
     return b.created - a.created;
   });
 
+  const hexToRgb = (hex: string) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '0, 120, 212';
+  };
+
   const taskItemHTML = (t: TaskItem) => {
+    const category = userLists.find(l => l.id === t.list);
+    const categoryColor = category ? category.color : '#3b82f6';
+    const rgb = hexToRgb(categoryColor);
+
     const isOverdue = t.date && t.date < todayStr() && !t.done;
     const priColor = { high: 'var(--priority-high)', med: 'var(--priority-med)', low: 'var(--priority-low)', none: 'transparent' }[t.priority];
     
@@ -100,16 +125,23 @@ export function TodoView({
                 {t.time && ` · ${formatTime(t.time)}`}
               </span>
             )}
-            {t.list && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--tag-bg)] text-[var(--tag-text)]">{t.list}</span>}
+            {t.list && (
+              <span 
+                className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                style={{ 
+                  backgroundColor: `rgba(${rgb}, 0.1)`, 
+                  color: categoryColor,
+                  border: `1px solid rgba(${rgb}, 0.15)`
+                }}
+              >
+                {t.list}
+              </span>
+            )}
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-            t.type === 'task' ? 'bg-[#e8f0fe] text-[#1a73e8] dark:bg-[#1a2744] dark:text-[#7ab3f5]' :
-            t.type === 'event' ? 'bg-[#fce8e6] text-[#d93025] dark:bg-[#3a1a1a] dark:text-[#f08080]' :
-            'bg-[#fef9e7] text-[#f39c14] dark:bg-[#3a3010] dark:text-[#f5c842]'
-          }`}>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${getTypeBadgeClass(t.type)}`}>
             {t.type}
           </span>
           {t.priority !== 'none' && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: priColor }}></div>}
@@ -213,11 +245,7 @@ export function TodoView({
               <div className="space-y-4">
                 <div>
                   <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Type</label>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
-                    selectedTask.type === 'task' ? 'bg-[#e8f0fe] text-[#1a73e8]' :
-                    selectedTask.type === 'event' ? 'bg-[#fce8e6] text-[#d93025]' :
-                    'bg-[#fef9e7] text-[#f39c14]'
-                  }`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${getTypeBadgeClass(selectedTask.type)}`}>
                     {selectedTask.type}
                   </span>
                 </div>
