@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, Sun, Moon, LayoutGrid, Check, Loader2 } from 'lucide-react';
-import { supabase } from '../../supabase';
+import { supabase } from '../../lib/supabase';
 import { AppUser } from '../../types';
 import { ACCENTS } from '../../utils';
 import { ConfirmModal } from '../ConfirmModal';
@@ -298,13 +298,6 @@ export function SettingsView({
                 ];
                 setTasks([]);
                 setUserLists(DEFAULT_CATEGORIES);
-
-                // 3. Selective LocalStorage Clear (only app keys, don't touch auth)
-                const keysToClear = [
-                  'tf_tasks', 'tf_user_lists', 'tf_pinned_lists',
-                  'tf_default_list', 'tf_show_completed'
-                ];
-                keysToClear.forEach(key => localStorage.removeItem(key));
 
                 setShowClearConfirm(false);
               }}

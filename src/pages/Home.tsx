@@ -22,7 +22,7 @@ import { SettingsView } from '../components/views/SettingsView';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { todayStr, ACCENTS, updateThemeIcon } from '../utils';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 
 const DEFAULT_CATEGORIES = [
   { id: 'work', name: 'Work', color: '#3b82f6' },
@@ -66,19 +66,16 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   });
   
   // Theme state
-  const [theme, setTheme] = useState(() => localStorage.getItem('tf_theme') || 'light');
-  const [accent, setAccent] = useState(() => localStorage.getItem('tf_accent') || 'tiffany');
-  const [showCompleted, setShowCompleted] = useState(() => localStorage.getItem('tf_show_completed') === 'true');
-  const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || localStorage.getItem('tf_default_list') || 'personal');
+  const [theme, setTheme] = useState('light');
+  const [accent, setAccent] = useState('tiffany');
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || 'personal');
 
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListColor, setNewListColor] = useState('#3b82f6');
   const [userLists, setUserLists] = useState<UserList[]>([]);
-  const [pinnedListIds, setPinnedListIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('tf_pinned_lists');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [pinnedListIds, setPinnedListIds] = useState<string[]>([]);
 
 
   useEffect(() => {
@@ -98,15 +95,6 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             combined.push(cat);
           }
         });
-      } else {
-        const saved = localStorage.getItem('tf_user_lists');
-        if (saved) {
-          JSON.parse(saved).forEach((cat: any) => {
-            if (!DEFAULT_CATEGORY_IDS.includes(cat.id)) {
-              combined.push(cat);
-            }
-          });
-        }
       }
       setUserLists(combined);
     };
@@ -144,13 +132,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     await supabase.from('task-categories').delete().eq('user_id', user.user_id).eq('id', id);
   };
 
-  useEffect(() => {
-    localStorage.setItem('tf_user_lists', JSON.stringify(userLists));
-  }, [userLists]);
-
-  useEffect(() => {
-    localStorage.setItem('tf_pinned_lists', JSON.stringify(pinnedListIds));
-  }, [pinnedListIds]);
+  // Persistence removed (no localStorage)
 
   // Calendar state
   const [calDate, setCalDate] = useState(new Date());
@@ -178,10 +160,6 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     };
 
   useEffect(() => {
-    localStorage.setItem('tf_theme', theme);
-    localStorage.setItem('tf_accent', accent);
-    localStorage.setItem('tf_show_completed', String(showCompleted));
-    localStorage.setItem('tf_default_list', defaultListId);
     updateThemeIcon(theme);
     document.documentElement.classList.toggle('dark', theme === 'dark');
     document.documentElement.setAttribute('data-theme', theme);

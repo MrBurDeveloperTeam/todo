@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TaskItem, AppUser } from './types';
 import { toLocalDateStr, todayStr, updateThemeIcon } from './utils';
-import { supabase } from './supabase';
+import { supabase } from './lib/supabase';
 import { LandingPage } from './pages/LandingPage';
 import { Home } from './pages/Home';
 
@@ -61,33 +61,22 @@ const DEFAULT_USER: AppUser = {
 
 export default function App() {
   // State
-  const [tasks, setTasks] = useState<TaskItem[]>(() => {
-    const saved = localStorage.getItem('tf_tasks');
-    return saved ? JSON.parse(saved) : SEED_DATA;
-  });
-  const [user, setUser] = useState<AppUser>(() => {
-    const saved = localStorage.getItem('tf_user');
-    return saved ? JSON.parse(saved) : DEFAULT_USER;
-  });
+  const [tasks, setTasks] = useState<TaskItem[]>(SEED_DATA);
+  const [user, setUser] = useState<AppUser>(DEFAULT_USER);
   
   const [session, setSession] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const hasBootstrappedAuth = useRef(false);
 
-  useEffect(() => {
-    updateThemeIcon(localStorage.getItem('tf_theme') || 'light');
-  }, []);
-
-  // Persistence
-  useEffect(() => {
-    localStorage.setItem('tf_tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
-  useEffect(() => {
-    localStorage.setItem('tf_user', JSON.stringify(user));
-  }, [user]);
+  // Persistence removed (no localStorage)
 
   // Auth Sync
   useEffect(() => {
+    if (hasBootstrappedAuth.current) {
+      return;
+    }
+    hasBootstrappedAuth.current = true;
+
     const client = supabase;
     if (!client) {
       setIsAuthChecking(false);
@@ -97,13 +86,16 @@ export default function App() {
     let isMounted = true;
 
     const syncUserAndDataFromDatabase = async () => {
-      const { data, error } = await client.auth.getSession();
-      if (error || !data.session) {
+      // Use the SSO exchange from api.ts
+      const { checkSession } = await import('./lib/api');
+      const session = await checkSession();
+      
+      if (!session) {
         if (isMounted) setIsAuthChecking(false);
         return;
       }
 
-      const authUser = data.session.user;
+      const authUser = session.user;
       const fallbackName =
         authUser.user_metadata?.name ||
         authUser.user_metadata?.full_name ||
@@ -168,7 +160,7 @@ export default function App() {
 
       if (isMounted) {
         setUser(nextUser);
-        setSession(data.session.user);
+        setSession(session);
         setIsAuthChecking(false);
       }
     };
@@ -177,15 +169,14 @@ export default function App() {
 
     const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
-      setSession(session?.user ?? null);
-      if (!session?.user) {
+      setSession(session);
+      if (!session) {
         setUser(DEFAULT_USER);
         setIsAuthChecking(false);
         return;
       }
-        syncUserAndDataFromDatabase();
-      }
-    );
+      syncUserAndDataFromDatabase();
+    });
 
     return () => {
       isMounted = false;
@@ -199,9 +190,9 @@ export default function App() {
     }
     setSession(null);
     setUser(DEFAULT_USER);
-    localStorage.removeItem('tf_user');
-    localStorage.removeItem('tf_tasks');
     setTasks(SEED_DATA);
+    // Remove session_id cookie on logout
+    document.cookie = "session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
   };
 
   if (isAuthChecking) {
