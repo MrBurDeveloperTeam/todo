@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, RefreshCw } from 'lucide-react';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 import { apiBaseUrl } from '../utils';
 
 export function AuthForm({
