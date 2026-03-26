@@ -16,6 +16,7 @@ interface SettingsViewProps {
   setShowCompleted: (show: boolean) => void;
   handleLogout: () => void;
   setTasks: (tasks: any[]) => void;
+  setUserLists: React.Dispatch<React.SetStateAction<any[]>>;
   defaultListId: string;
   setDefaultListId: (id: string) => void;
   userLists: { id: string; name: string; color: string }[];
@@ -32,6 +33,7 @@ export function SettingsView({
   setShowCompleted,
   handleLogout,
   setTasks,
+  setUserLists,
   defaultListId,
   setDefaultListId,
   userLists
@@ -84,40 +86,40 @@ export function SettingsView({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Full Name</label>
-                <input 
-                  type="text" 
-                  value={user.name} 
-                  onChange={(e) => setUser({...user, name: e.target.value})}
+                <input
+                  type="text"
+                  value={user.name}
+                  onChange={(e) => setUser({ ...user, name: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[12px] outline-none focus:border-accent"
                 />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Email</label>
-                <input 
-                  type="email" 
-                  value={user.email} 
+                <input
+                  type="email"
+                  value={user.email}
                   readOnly
                   className="w-full px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--bg3)] text-[12px] opacity-70 cursor-not-allowed outline-none focus:border-accent"
                 />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Position</label>
-                <input 
-                  type="text" 
-                  value={user.position || ''} 
-                  onChange={(e) => setUser({...user, position: e.target.value})}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[12px] outline-none focus:border-accent"
+                <input
+                  type="text"
+                  value={user.position || ''}
+                  readOnly
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--bg3)] text-[12px] opacity-70 cursor-not-allowed outline-none focus:border-accent"
                 />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Company</label>
-                <input 
-                  type="text" 
-                  value={user.company_name || ''} 
-                  onChange={(e) => setUser({...user, company_name: e.target.value})}
+                <input
+                  type="text"
+                  value={user.company_name || ''}
+                  onChange={(e) => setUser({ ...user, company_name: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[12px] outline-none focus:border-accent"
                 />
               </div>
@@ -126,18 +128,18 @@ export function SettingsView({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Phone</label>
-                <input 
-                  type="text" 
-                  value={user.phone || ''} 
-                  onChange={(e) => setUser({...user, phone: e.target.value})}
+                <input
+                  type="text"
+                  value={user.phone || ''}
+                  onChange={(e) => setUser({ ...user, phone: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[12px] outline-none focus:border-accent"
                 />
               </div>
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Account Type</label>
-                <select 
-                  value={user.account_type || 'individual'} 
-                  onChange={(e) => setUser({...user, account_type: e.target.value})}
+                <select
+                  value={user.account_type || 'individual'}
+                  onChange={(e) => setUser({ ...user, account_type: e.target.value })}
                   className="w-full px-3 pr-8 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[12px] outline-none focus:border-accent select-custom-arrow"
                 >
                   <option value="individual">Individual</option>
@@ -149,13 +151,12 @@ export function SettingsView({
               <button
                 onClick={handleSaveProfile}
                 disabled={isSaving}
-                className={`w-full py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2 ${
-                  saveStatus === 'success' 
-                    ? 'bg-green-500 text-white' 
+                className={`w-full py-2 rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2 ${saveStatus === 'success'
+                    ? 'bg-green-500 text-white'
                     : saveStatus === 'error'
                       ? 'bg-red-500 text-white'
                       : 'bg-accent text-white hover:opacity-90 active:scale-[0.98]'
-                } disabled:opacity-50`}
+                  } disabled:opacity-50`}
               >
                 {isSaving ? (
                   <>
@@ -179,7 +180,7 @@ export function SettingsView({
 
         <div className="bg-[var(--surface)] p-6 rounded-xl border border-[var(--border)]">
           <h3 className="text-sm font-bold mb-4 flex items-center gap-2">🎨 Appearance</h3>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -187,14 +188,14 @@ export function SettingsView({
                 <div className="text-[11px] text-[var(--text3)]">Choose your preferred color scheme</div>
               </div>
               <div className="flex gap-2">
-                <button 
+                <button
                   className={`p-2 rounded-lg border transition ${theme === 'light' ? 'border-accent bg-[var(--accent-light)] text-accent' : 'border-[var(--border)]'}`}
                   onClick={() => setTheme('light')}
                   aria-label="Use light mode"
                 >
                   <Sun size={16} />
                 </button>
-                <button 
+                <button
                   className={`p-2 rounded-lg border transition ${theme === 'dark' ? 'border-accent bg-accent text-white' : 'border-[var(--border)]'}`}
                   onClick={() => setTheme('dark')}
                   aria-label="Use dark mode"
@@ -218,8 +219,8 @@ export function SettingsView({
                 ))}
                 <div className="flex items-center gap-2 pl-2 border-l border-[var(--border)]">
                   <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-[var(--border)] hover:scale-110 transition-transform shadow-sm">
-                    <input 
-                      type="color" 
+                    <input
+                      type="color"
                       value={accent.startsWith('#') ? accent : (ACCENTS as any)[accent]?.main || '#0078d4'}
                       onChange={(e) => setAccent(e.target.value)}
                       className="absolute inset-0 w-[200%] h-[200%] -translate-x-1/4 -translate-y-1/4 cursor-pointer"
@@ -240,7 +241,7 @@ export function SettingsView({
                 <div className="text-xs font-bold text-[var(--text2)]">Show Completed</div>
                 <div className="text-[11px] text-[var(--text3)]">Display finished tasks in list</div>
               </div>
-              <div 
+              <div
                 className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${showCompleted ? 'bg-accent' : 'bg-gray-300'}`}
                 onClick={() => setShowCompleted(!showCompleted)}
               >
@@ -253,8 +254,8 @@ export function SettingsView({
                 <div className="text-xs font-bold text-[var(--text2)]">Default Save Location</div>
                 <div className="text-[11px] text-[var(--text3)]">Where new tasks go by default</div>
               </div>
-              <select 
-                value={defaultListId} 
+              <select
+                value={defaultListId}
                 onChange={(e) => setDefaultListId(e.target.value)}
                 className="pl-3 pr-8 py-1.5 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[11px] font-bold outline-none focus:border-accent select-custom-arrow"
               >
@@ -263,15 +264,15 @@ export function SettingsView({
                 ))}
               </select>
             </div>
-            
+
             <div className="pt-4 border-t border-[var(--border)] flex gap-2">
-              <button 
+              <button
                 className="flex-1 py-2 rounded-lg border border-red-200 text-red-600 font-bold text-xs hover:bg-red-50 transition"
                 onClick={() => setShowClearConfirm(true)}
               >
                 Clear Data
               </button>
-              <button 
+              <button
                 className="flex-1 py-2 rounded-lg bg-red-600 text-white font-bold text-xs hover:bg-red-700 transition"
                 onClick={handleLogout}
               >
@@ -279,13 +280,33 @@ export function SettingsView({
               </button>
             </div>
 
-            <ConfirmModal 
+            <ConfirmModal
               show={showClearConfirm}
               onClose={() => setShowClearConfirm(false)}
-              onConfirm={() => {
+              onConfirm={async () => {
+                if (supabase) {
+                  // 1. Delete from DB
+                  await supabase.from('tasks').delete().eq('user_id', user.user_id);
+                  await supabase.from('task-categories').delete().eq('user_id', user.user_id);
+                }
+
+                // 2. Clear local state
+                const DEFAULT_CATEGORIES = [
+                  { id: 'personal', name: 'Personal', color: '#3b82f6' },
+                  { id: 'work', name: 'Work', color: '#a855f7' },
+                  { id: 'events', name: 'Events', color: '#ef4444' }
+                ];
                 setTasks([]);
-                localStorage.clear();
-                window.location.reload();
+                setUserLists(DEFAULT_CATEGORIES);
+
+                // 3. Selective LocalStorage Clear (only app keys, don't touch auth)
+                const keysToClear = [
+                  'tf_tasks', 'tf_user_lists', 'tf_pinned_lists',
+                  'tf_default_list', 'tf_show_completed'
+                ];
+                keysToClear.forEach(key => localStorage.removeItem(key));
+
+                setShowClearConfirm(false);
               }}
               title="Clear All Data?"
               message="This will permanently delete all your tasks, categories, and settings from this browser. This action cannot be undone."
@@ -304,8 +325,8 @@ export function SettingsView({
       </div>
 
       <div className="pt-4 text-[10px] font-black uppercase tracking-widest text-[var(--text4)] flex items-center justify-between">
-         <span>© 2026 To-do manager Systems</span>
-         <span>Designed by MrBur Studio</span>
+        <span>© 2026 To-do manager Systems</span>
+        <span>Designed by Hei</span>
       </div>
     </div>
   );

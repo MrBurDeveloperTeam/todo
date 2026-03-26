@@ -11,7 +11,8 @@ import {
   Trash2, 
   RefreshCw, 
   CheckCircle2, 
-  ChevronRight 
+  ChevronRight,
+  Info 
 } from 'lucide-react';
 import { TaskItem, ItemType, Priority, ListType } from '../../types';
 import { todayStr, formatDate, formatTime } from '../../utils';
@@ -29,7 +30,7 @@ interface TodoViewProps {
   currentView: string;
   setCurrentView: (view: any) => void;
   showCompleted: boolean;
-  handleQuickAddTask: (title: string, list: string) => void;
+  handleQuickAddTask: (title: string, list: string, type?: ItemType) => void;
   userLists: { id: string; name: string; color: string }[];
   defaultListId: string;
 }
@@ -153,30 +154,43 @@ export function TodoView({
   return (
     <div className="flex flex-col md:flex-row gap-5 h-full overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex gap-2 mb-3">
-          <input 
-            id="quick-task-input"
-            name="quickTask"
-            type="text" 
-            placeholder="Add a task… press Enter to save" 
-            className="flex-1 px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--surface)] text-[13.5px] outline-none focus:border-accent focus:ring-2 focus:ring-[var(--accent-subtle)]"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
-                const listCategory = !standardFilters.includes(currentFilter) ? currentFilter : defaultListId;
-                
-                handleQuickAddTask(e.currentTarget.value.trim(), listCategory);
-                e.currentTarget.value = '';
-              }
-            }}
-          />
+        <div className="flex flex-col mb-4">
+          <div className="flex gap-2">
+            <input 
+              id="quick-task-input"
+              name="quickTask"
+              type="text" 
+              placeholder="Add a task… press Enter to save" 
+              className="flex-1 px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--surface)] text-[13.5px] outline-none focus:border-accent focus:ring-2 focus:ring-[var(--accent-subtle)]"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                  const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
+                  const listCategory = !standardFilters.includes(currentFilter) ? currentFilter : defaultListId;
+                  
+                  let type: ItemType = 'task';
+                  if (currentFilter === 'event') type = 'event';
+                  if (currentFilter === 'reminder') type = 'reminder';
+
+                  handleQuickAddTask(e.currentTarget.value.trim(), listCategory, type);
+                  e.currentTarget.value = '';
+                }
+              }}
+            />
+          </div>
+          <div className="mt-1 px-2 text-[10px] text-[var(--text4)] flex items-center gap-1 opacity-80">
+            <Info size={10} className="text-accent" />
+            <span>Tasks created here are automatically assigned to the <strong className="text-[var(--text3)] uppercase">{currentFilter === 'all' ? 'Unclassified' : currentFilter}</strong> filter</span>
+          </div>
         </div>
 
         <div className="flex gap-2 mb-4 overflow-x-auto pb-2 mini-scrollbar">
           {['all', 'task', 'event', 'reminder', 'today', 'upcoming', 'overdue'].map(f => (
             <button
               key={f}
-              onClick={() => setCurrentFilter(f)}
+              onClick={() => {
+                setCurrentFilter(f);
+                if (currentView !== 'todo') setCurrentView('todo');
+              }}
               className={`px-3 py-1 rounded-full text-[12.5px] font-medium border border-[var(--border)] whitespace-nowrap transition-all ${currentFilter === f ? 'bg-accent text-white border-accent' : 'bg-[var(--surface)] text-[var(--text2)] hover:border-accent hover:text-accent'}`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}

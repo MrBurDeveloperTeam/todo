@@ -333,12 +333,12 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     setIsModalOpen(false);
   };
 
-  const handleQuickAddTask = async (title: string, list: string) => {
+  const handleQuickAddTask = async (title: string, list: string, type: ItemType = 'task') => {
     if (!title || !supabase) return;
     const id = crypto.randomUUID();
     const item: TaskItem = {
       id,
-      type: 'task',
+      type,
       title,
       desc: '',
       date: todayStr(),
@@ -430,6 +430,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             defaultListId={defaultListId}
             setDefaultListId={handleSetDefaultList}
             userLists={userLists}
+            setUserLists={setUserLists}
           />
         );
       default:
@@ -573,16 +574,30 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
                        <button 
                          onClick={(e) => {
                            e.stopPropagation();
+                           const tasksInList = tasks.filter(t => t.list === list.id);
+                           const taskCount = tasksInList.length;
+
                            setConfirmState({
                              show: true,
                              title: 'Delete List?',
-                             message: `Delete "${list.name}" list? Your tasks will be moved to 'Unclassified'.`,
+                             message: taskCount > 0 
+                               ? `Delete "${list.name}" list? This will also permanently delete ${taskCount} task${taskCount > 1 ? 's' : ''} inside it.`
+                               : `Delete "${list.name}" list? This action cannot be undone.`,
                              onConfirm: async () => {
-                             setUserLists(prev => prev.filter(l => l.id !== list.id));
-                             setPinnedListIds(prev => prev.filter(id => id !== list.id));
-                             deleteCategoryDB(list.id);
-                               setTasks(prev => prev.map(t => t.list === list.id ? { ...t, list: '' } : t));
-                               if (currentFilter === list.id) setCurrentFilter('all');
+                               setUserLists(prev => prev.filter(l => l.id !== list.id));
+                               setPinnedListIds(prev => prev.filter(id => id !== list.id));
+                               setTasks(prev => prev.filter(t => t.list !== list.id && t.list !== list.name));
+
+                               if (supabase) {
+                                 // Deleting by both ID and Name to be absolutely sure
+                                 await supabase.from('tasks').delete().eq('user_id', user.user_id).or(`list_id_text.eq."${list.id}",list_id_text.eq."${list.name}"`);
+                                 deleteCategoryDB(list.id);
+                               }
+                               
+                               if (currentFilter === list.id) {
+                                 setCurrentView('todo');
+                                 setCurrentFilter('all');
+                               }
                              }
                            });
                          }}
