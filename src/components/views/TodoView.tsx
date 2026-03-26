@@ -31,7 +31,7 @@ interface TodoViewProps {
   showCompleted: boolean;
   handleQuickAddTask: (title: string, list: string) => void;
   userLists: { id: string; name: string; color: string }[];
-  theme: string;
+  defaultListId: string;
 }
 
 export function TodoView({
@@ -49,7 +49,7 @@ export function TodoView({
   showCompleted,
   handleQuickAddTask,
   userLists,
-  theme
+  defaultListId
 }: TodoViewProps) {
   const [isCompletedCollapsed, setIsCompletedCollapsed] = useState(true);
   const [isOverdueCollapsed, setIsOverdueCollapsed] = useState(true);
@@ -61,9 +61,7 @@ export function TodoView({
     if (type === 'event') {
       return 'bg-[#fee2e2] text-[#b42318] border border-[#fca5a5] dark:bg-red-900/20 dark:text-red-400 dark:border-red-500/20';
     }
-    return theme === 'dark'
-      ? 'bg-amber-900/20 text-amber-400 border border-amber-500/20'
-      : 'bg-white text-[#92400e] border border-[#fcd34d]';
+    return 'text-[#92400e] border border-[#fcd34d] dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-500/20';
   };
   
   const filteredTasks = tasks.filter(t => {
@@ -165,7 +163,7 @@ export function TodoView({
             onKeyDown={(e) => {
               if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                 const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
-                const listCategory = !standardFilters.includes(currentFilter) ? currentFilter : 'personal';
+                const listCategory = !standardFilters.includes(currentFilter) ? currentFilter : defaultListId;
                 
                 handleQuickAddTask(e.currentTarget.value.trim(), listCategory);
                 e.currentTarget.value = '';

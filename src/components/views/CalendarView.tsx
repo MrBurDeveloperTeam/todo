@@ -32,6 +32,7 @@ export function CalendarView({
 }: CalendarViewProps) {
   const y = calDate.getFullYear();
   const m = calDate.getMonth();
+  const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(calDate);
 
   const getTypeBadgeClass = (type: TaskItem['type']) => {
     if (type === 'task') {
@@ -50,6 +51,19 @@ export function CalendarView({
     if (type === 'event') return 'bg-[#b42318]';
     return 'bg-[#a16207]';
   };
+
+  const getEventRange = (item: TaskItem) => {
+    const start = item.date;
+    const end = item.type === 'event' && item.enddate ? item.enddate : item.date;
+    return start <= end ? { start, end } : { start: end, end: start };
+  };
+
+  const occursOnDate = (item: TaskItem, dateS: string) => {
+    const { start, end } = getEventRange(item);
+    return dateS >= start && dateS <= end;
+  };
+
+  const isMultiDayEvent = (item: TaskItem) => item.type === 'event' && !!item.enddate && item.enddate !== item.date;
   
   const renderMonth = () => {
     const firstDay = new Date(y, m, 1).getDay();
@@ -68,37 +82,99 @@ export function CalendarView({
       cells.push({ day: i, current: false, date: new Date(y, m + 1, i) });
     }
 
+    const weeks = Array.from({ length: 6 }, (_, weekIndex) => cells.slice(weekIndex * 7, (weekIndex + 1) * 7));
+
     return (
-      <div className="grid grid-cols-7 gap-px bg-[var(--border)] border border-[var(--border)] rounded-lg overflow-hidden">
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-          <div key={d} className="bg-[var(--surface2)] text-center py-2 text-[10px] font-black text-[var(--text4)] uppercase tracking-widest">{d}</div>
-        ))}
-        {cells.map((cell, i) => {
-          const dateS = toLocalDateStr(cell.date);
-          const hasTasks = tasks.filter(t => t.date === dateS);
-          const isToday = dateS === todayStr();
-          
-          return (
-            <div 
-              key={i} 
-              className={`bg-[var(--surface)] min-h-[100px] p-2 hover:bg-[var(--surface2)] cursor-pointer transition ${!cell.current ? 'opacity-40 bg-[var(--bg)]' : ''} ${isToday ? 'bg-[var(--accent-light)]/30' : ''}`}
-              onClick={() => {
-                if (hasTasks.length > 0) { setSelectedTaskId(hasTasks[0].id); setCurrentView('todo'); }
-                else { setCalDate(cell.date); setCalView('day'); }
-              }}
-            >
-              <div className={`text-[12px] font-black mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-accent text-white' : 'text-[var(--text2)]'}`}>{cell.day}</div>
-              <div className="space-y-1">
-                {hasTasks.slice(0, 3).map(t => (
-                  <div key={t.id} className={`text-[9px] px-1.5 py-0.5 rounded truncate font-bold border ${getTypeBadgeClass(t.type)}`}>
-                    {t.time && formatTime(t.time)} {t.title}
+      <div className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--border)]">
+        <div className="grid grid-cols-7 gap-px">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+            <div key={d} className="bg-[var(--surface2)] text-center py-2 text-[10px] font-black text-[var(--text4)] uppercase tracking-widest">{d}</div>
+          ))}
+        </div>
+
+        <div className="space-y-px bg-[var(--border)]">
+          {weeks.map((week, weekIndex) => {
+            const weekStart = toLocalDateStr(week[0].date);
+            const weekEnd = toLocalDateStr(week[6].date);
+
+            const spanningEvents = tasks
+              .filter((task) => task.type === 'event' && isMultiDayEvent(task))
+              .filter((task) => {
+                const { start, end } = getEventRange(task);
+                return start <= weekEnd && end >= weekStart;
+              })
+              .map((task) => {
+                const { start, end } = getEventRange(task);
+                const startIndex = week.findIndex((cell) => toLocalDateStr(cell.date) >= start);
+                const rawEndIndex = [...week].reverse().findIndex((cell) => toLocalDateStr(cell.date) <= end);
+                const endIndex = rawEndIndex === -1 ? 6 : 6 - rawEndIndex;
+                return {
+                  task,
+                  startIndex: startIndex === -1 ? 0 : startIndex,
+                  endIndex,
+                };
+              })
+              .sort((a, b) => a.startIndex - b.startIndex || a.task.title.localeCompare(b.task.title));
+
+            return (
+              <div key={weekIndex} className="bg-[var(--surface)]">
+                {spanningEvents.length > 0 && (
+                  <div className="grid grid-cols-7 gap-px bg-[var(--border)] border-b border-[var(--border)]">
+                    <div className="col-span-7 bg-[var(--surface)] px-1.5 py-1.5 space-y-1">
+                      {spanningEvents.slice(0, 3).map(({ task, startIndex, endIndex }) => (
+                        <button
+                          key={`${task.id}-${weekIndex}`}
+                          className={`grid w-full grid-cols-7 gap-1 text-left`}
+                          onClick={() => { setSelectedTaskId(task.id); setCurrentView('todo'); }}
+                        >
+                          <span
+                            className={`text-[9px] px-2 py-1 rounded font-bold border truncate ${getTypeBadgeClass(task.type)}`}
+                            style={{ gridColumn: `${startIndex + 1} / ${endIndex + 2}` }}
+                            title={`${task.title} (${task.date}${task.enddate ? ` to ${task.enddate}` : ''})`}
+                          >
+                            {task.title}
+                          </span>
+                        </button>
+                      ))}
+                      {spanningEvents.length > 3 && <div className="text-[9px] text-accent font-black pl-1">+{spanningEvents.length - 3} more spanning events</div>}
+                    </div>
                   </div>
-                ))}
-                {hasTasks.length > 3 && <div className="text-[9px] text-accent font-black pl-1">+{hasTasks.length - 3} more</div>}
+                )}
+
+                <div className="grid grid-cols-7 gap-px bg-[var(--border)]">
+                  {week.map((cell, dayIndex) => {
+                    const dateS = toLocalDateStr(cell.date);
+                    const hasTasks = tasks.filter((t) => occursOnDate(t, dateS));
+                    const cellItems = hasTasks.filter((t) => !isMultiDayEvent(t)).slice(0, 2);
+                    const hiddenCount = hasTasks.length - cellItems.length;
+                    const isToday = dateS === todayStr();
+
+                    return (
+                      <div
+                        key={`${weekIndex}-${dayIndex}`}
+                        className={`bg-[var(--surface)] min-h-[108px] p-2 hover:bg-[var(--surface2)] cursor-pointer transition ${!cell.current ? 'opacity-40 bg-[var(--bg)]' : ''} ${isToday ? 'bg-[var(--accent-light)]/30' : ''}`}
+                        onClick={() => {
+                          if (hasTasks.length > 0) { setSelectedTaskId(hasTasks[0].id); setCurrentView('todo'); }
+                          else { setCalDate(cell.date); setCalView('day'); }
+                        }}
+                      >
+                        <div className={`text-[12px] font-black mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-accent text-white' : 'text-[var(--text2)]'}`}>{cell.day}</div>
+                        <div className="space-y-1">
+                          {cellItems.map((t) => (
+                            <div key={t.id} className={`text-[9px] px-1.5 py-0.5 rounded truncate font-bold border ${getTypeBadgeClass(t.type)}`}>
+                              {t.time && formatTime(t.time)} {t.title}
+                            </div>
+                          ))}
+                          {hiddenCount > 0 && <div className="text-[9px] text-accent font-black pl-1">+{hiddenCount} more</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -126,7 +202,7 @@ export function CalendarView({
           {days.map((day, di) => {
             const ds = toLocalDateStr(day);
             const isToday = ds === todayStr();
-            const dayTasks = tasks.filter(t => t.date === ds && t.time);
+            const dayTasks = tasks.filter(t => occursOnDate(t, ds) && t.time);
             
             return (
               <div key={di} className="flex-1 min-w-[120px] border-r border-[var(--border)] last:border-r-0">
@@ -164,7 +240,7 @@ export function CalendarView({
 
   const renderDay = () => {
     const ds = toLocalDateStr(calDate);
-    const items = tasks.filter(t => t.date === ds);
+    const items = tasks.filter(t => occursOnDate(t, ds));
     const isToday = ds === todayStr();
     
     return (
@@ -219,7 +295,7 @@ export function CalendarView({
         </div>
         <button className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs font-black hover:bg-accent hover:text-white transition active:scale-95" onClick={() => setCalDate(new Date())}>Today</button>
         <h2 className="text-[17px] font-black ml-2 text-[var(--text)]">
-          {calView === 'month' ? new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(calDate) : 
+          {calView === 'month' ? monthLabel : 
            calView === 'week' ? `Week of ${calDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` :
            calDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
         </h2>

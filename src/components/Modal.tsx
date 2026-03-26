@@ -113,16 +113,6 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
              </div>
           )}
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text4)] flex items-center gap-1.5"><MapPin size={12} /> Location</label>
-            <input 
-              className="w-full bg-[var(--bg3)] p-3 rounded-xl outline-none border border-[var(--border)] focus:border-accent text-sm font-medium"
-              placeholder="Add physical or virtual location"
-              value={newTask.location || ''}
-              onChange={e => setNewTask({...newTask, location: e.target.value})}
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-4 pt-2">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text4)]">Priority</label>
@@ -181,6 +171,16 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text4)] flex items-center gap-1.5"><MapPin size={12} /> Location</label>
+            <input 
+              className="w-full bg-[var(--bg3)] p-3 rounded-xl outline-none border border-[var(--border)] focus:border-accent text-sm font-medium"
+              placeholder="Add physical or virtual location"
+              value={newTask.location || ''}
+              onChange={e => setNewTask({...newTask, location: e.target.value})}
+            />
           </div>
         </div>
 

@@ -31,4 +31,5 @@ export interface AppUser {
   background_url?: string | null;
   status?: string;
   plan?: string;
+  default_list_id?: string;
 }

@@ -8,6 +8,7 @@ import {
   Menu, 
   X, 
   Plus, 
+  Pin,
   LayoutGrid, 
   PanelLeftClose, 
   PanelLeftOpen, 
@@ -29,6 +30,7 @@ const DEFAULT_CATEGORIES = [
   { id: 'events', name: 'Events', color: '#ef4444' }
 ];
 const DEFAULT_CATEGORY_IDS = DEFAULT_CATEGORIES.map(c => c.id);
+type UserList = { id: string; name: string; color: string; pinned?: boolean };
 
 
 interface HomeProps {
@@ -67,11 +69,16 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   const [theme, setTheme] = useState(() => localStorage.getItem('tf_theme') || 'light');
   const [accent, setAccent] = useState(() => localStorage.getItem('tf_accent') || 'tiffany');
   const [showCompleted, setShowCompleted] = useState(() => localStorage.getItem('tf_show_completed') === 'true');
+  const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || localStorage.getItem('tf_default_list') || 'personal');
 
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListColor, setNewListColor] = useState('#3b82f6');
-  const [userLists, setUserLists] = useState<{id: string, name: string, color: string}[]>([]);
+  const [userLists, setUserLists] = useState<UserList[]>([]);
+  const [pinnedListIds, setPinnedListIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('tf_pinned_lists');
+    return saved ? JSON.parse(saved) : [];
+  });
 
 
   useEffect(() => {
@@ -85,6 +92,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       
       const combined = [...DEFAULT_CATEGORIES];
       if (catData && !catError) {
+        setPinnedListIds(catData.filter((cat: any) => !!cat.pinned).map((cat: any) => cat.id));
         catData.forEach((cat: any) => {
           if (!DEFAULT_CATEGORY_IDS.includes(cat.id)) {
             combined.push(cat);
@@ -105,32 +113,75 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     fetchCategories();
   }, [user.user_id]);
 
-  const saveCategory = async (cat: {id: string, name: string, color: string}) => {
+  const saveCategory = async (cat: UserList) => {
     if (!supabase) return;
-    await supabase.from('task-categories').upsert({
+    const payload = {
       ...cat,
       user_id: user.user_id
-    });
+    };
+
+    const { data: existing } = await supabase
+      .from('task-categories')
+      .select('id')
+      .eq('user_id', user.user_id)
+      .eq('id', cat.id)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from('task-categories')
+        .update(payload)
+        .eq('user_id', user.user_id)
+        .eq('id', cat.id);
+      return;
+    }
+
+    await supabase.from('task-categories').insert(payload);
   };
 
   const deleteCategoryDB = async (id: string) => {
     if (!supabase) return;
-    await supabase.from('task-categories').delete().eq('id', id);
+    await supabase.from('task-categories').delete().eq('user_id', user.user_id).eq('id', id);
   };
 
   useEffect(() => {
     localStorage.setItem('tf_user_lists', JSON.stringify(userLists));
   }, [userLists]);
 
+  useEffect(() => {
+    localStorage.setItem('tf_pinned_lists', JSON.stringify(pinnedListIds));
+  }, [pinnedListIds]);
+
   // Calendar state
   const [calDate, setCalDate] = useState(new Date());
   const [calView, setCalView] = useState('month');
   const brandLogo = theme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
+  const sortedLists = [...userLists].sort((a, b) => {
+    const aPinned = pinnedListIds.includes(a.id) ? 1 : 0;
+    const bPinned = pinnedListIds.includes(b.id) ? 1 : 0;
+    if (aPinned !== bPinned) return bPinned - aPinned;
+    return a.name.localeCompare(b.name);
+  });
+    const updateDefaultListDB = async (listId: string) => {
+      if (!supabase) return;
+      await supabase
+        .from('profiles')
+        .update({ default_list_id: listId, updated_at: new Date().toISOString() })
+        .eq('user_id', user.user_id);
+      
+      setUser({ ...user, default_list_id: listId });
+    };
+
+    const handleSetDefaultList = (listId: string) => {
+      setDefaultListId(listId);
+      updateDefaultListDB(listId);
+    };
 
   useEffect(() => {
     localStorage.setItem('tf_theme', theme);
     localStorage.setItem('tf_accent', accent);
     localStorage.setItem('tf_show_completed', String(showCompleted));
+    localStorage.setItem('tf_default_list', defaultListId);
     updateThemeIcon(theme);
     document.documentElement.classList.toggle('dark', theme === 'dark');
     document.documentElement.setAttribute('data-theme', theme);
@@ -198,13 +249,13 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
 
   const openAddModal = (type: ItemType = 'task') => {
     const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
-    const initialList = !standardFilters.includes(currentFilter) ? currentFilter : 'personal';
-
+    const listCategory = !standardFilters.includes(currentFilter) ? currentFilter : defaultListId;
+    
     setEditingTask(null);
     setNewTask({
       type,
       priority: 'none',
-      list: initialList,
+      list: listCategory,
       date: todayStr(),
     });
     setIsModalOpen(true);
@@ -346,7 +397,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             showCompleted={showCompleted}
             handleQuickAddTask={handleQuickAddTask}
             userLists={userLists}
-            theme={theme}
+            defaultListId={defaultListId}
           />
         );
       case 'calendar':
@@ -376,6 +427,9 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             setShowCompleted={setShowCompleted}
             handleLogout={handleLogout}
             setTasks={setTasks}
+            defaultListId={defaultListId}
+            setDefaultListId={handleSetDefaultList}
+            userLists={userLists}
           />
         );
       default:
@@ -403,16 +457,18 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-2 space-y-2 no-scrollbar">
-          <div className="px-1.5 space-y-0.5">
+        <div className="px-1.5 py-2 border-b border-[var(--border)]">
+          <div className="space-y-0.5">
             {!isSidebarCollapsed && <div className="px-2 text-[10px] font-semibold uppercase tracking-[0.8px] text-[var(--text4)] mb-1 mt-2">Menu</div>}
             <NavItem icon={<CheckCircle2 size={16} />} label="My Tasks" active={currentView === 'todo'} onClick={() => { setCurrentView('todo'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} badge={tasks.filter(t => !t.done && t.type === 'task').length} />
             <NavItem icon={<CalendarIcon size={16} />} label="Calendar" active={currentView === 'calendar'} onClick={() => { setCurrentView('calendar'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
             <NavItem icon={<Clock size={16} />} label="Today" active={currentView === 'today'} onClick={() => { setCurrentView('today'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
             <NavItem icon={<Activity size={16} />} label="Upcoming" active={currentView === 'upcoming'} onClick={() => { setCurrentView('upcoming'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
           </div>
+        </div>
 
-          <div className="px-1.5 space-y-0.5 pt-4">
+        <div className="flex-1 overflow-y-auto px-1.5 py-2 no-scrollbar">
+          <div className="space-y-0.5 pt-2">
              {!isSidebarCollapsed && (
                <div className="px-2 text-[10px] font-semibold uppercase tracking-[0.8px] text-[var(--text4)] mb-2 flex items-center justify-between group">
                  <span>Lists</span>
@@ -437,7 +493,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
                      onChange={e => setNewListName(e.target.value)}
                      onKeyDown={e => {
                        if (e.key === 'Enter' && newListName.trim()) {
-                         const newList = { 
+                         const newList: UserList = { 
                            id: newListName.toLowerCase().replace(/\s+/g, '-'), 
                            name: newListName, 
                            color: newListColor 
@@ -464,7 +520,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
                        className="text-[9px] font-bold text-accent uppercase hover:opacity-70"
                        onClick={() => {
                          if (newListName.trim()) {
-                           const newList = { 
+                           const newList: UserList = { 
                              id: newListName.toLowerCase().replace(/\s+/g, '-'), 
                              name: newListName, 
                              color: newListColor 
@@ -483,35 +539,59 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
                </div>
              )}
 
-             {userLists.map(list => (
+             {sortedLists.map(list => (
                <div key={list.id} className="group/list relative pr-1 flex items-center">
                  <NavItem 
-                   icon={<div className="w-2 h-2 rounded-full" style={{ backgroundColor: list.color }} />} 
+                   icon={
+                     <div className="flex items-center gap-1.5">
+                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: list.color }} />
+                       {!isSidebarCollapsed && pinnedListIds.includes(list.id) && <Pin size={10} className="text-accent" fill="currentColor" />}
+                     </div>
+                   } 
                    label={list.name} 
                    active={currentView === 'todo' && currentFilter === list.id} 
                    onClick={() => { setCurrentView('todo'); setCurrentFilter(list.id); setIsMobileMenuOpen(false); }} 
                    collapsed={isSidebarCollapsed} 
                  />
-                 {!isSidebarCollapsed && !DEFAULT_CATEGORY_IDS.includes(list.id) && (
-                   <button 
-                     onClick={(e) => {
-                       e.stopPropagation();
-                       setConfirmState({
-                         show: true,
-                         title: 'Delete List?',
-                         message: `Delete "${list.name}" list? Your tasks will be moved to 'Unclassified'.`,
-                         onConfirm: async () => {
-                           setUserLists(prev => prev.filter(l => l.id !== list.id));
-                           deleteCategoryDB(list.id);
-                           setTasks(prev => prev.map(t => t.list === list.id ? { ...t, list: '' } : t));
-                           if (currentFilter === list.id) setCurrentFilter('all');
-                         }
-                       });
-                     }}
-                     className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/list:opacity-100 p-1 hover:bg-red-500/10 hover:text-red-500 rounded transition-all text-[var(--text4)]"
-                   >
-                     <X size={10} strokeWidth={3} />
-                   </button>
+                 {!isSidebarCollapsed && (
+                   <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/list:opacity-100 transition-all">
+                     <button
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         const nextPinned = !pinnedListIds.includes(list.id);
+                         setPinnedListIds((prev) =>
+                           nextPinned ? [list.id, ...prev] : prev.filter((id) => id !== list.id)
+                         );
+                         void saveCategory({ id: list.id, name: list.name, color: list.color, pinned: nextPinned });
+                       }}
+                       className={`p-1 rounded transition-all ${pinnedListIds.includes(list.id) ? 'text-accent bg-accent/10' : 'text-[var(--text4)] hover:bg-[var(--sidebar-hover)] hover:text-accent'}`}
+                       title={pinnedListIds.includes(list.id) ? 'Unpin list' : 'Pin list'}
+                     >
+                       <Pin size={10} strokeWidth={2.5} fill={pinnedListIds.includes(list.id) ? 'currentColor' : 'none'} />
+                     </button>
+                     {!DEFAULT_CATEGORY_IDS.includes(list.id) && (
+                       <button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setConfirmState({
+                             show: true,
+                             title: 'Delete List?',
+                             message: `Delete "${list.name}" list? Your tasks will be moved to 'Unclassified'.`,
+                             onConfirm: async () => {
+                             setUserLists(prev => prev.filter(l => l.id !== list.id));
+                             setPinnedListIds(prev => prev.filter(id => id !== list.id));
+                             deleteCategoryDB(list.id);
+                               setTasks(prev => prev.map(t => t.list === list.id ? { ...t, list: '' } : t));
+                               if (currentFilter === list.id) setCurrentFilter('all');
+                             }
+                           });
+                         }}
+                         className="p-1 hover:bg-red-500/10 hover:text-red-500 rounded transition-all text-[var(--text4)]"
+                       >
+                         <X size={10} strokeWidth={3} />
+                       </button>
+                     )}
+                   </div>
                  )}
                </div>
              ))}

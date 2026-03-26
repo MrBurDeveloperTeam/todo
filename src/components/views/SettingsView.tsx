@@ -16,6 +16,9 @@ interface SettingsViewProps {
   setShowCompleted: (show: boolean) => void;
   handleLogout: () => void;
   setTasks: (tasks: any[]) => void;
+  defaultListId: string;
+  setDefaultListId: (id: string) => void;
+  userLists: { id: string; name: string; color: string }[];
 }
 
 export function SettingsView({
@@ -28,7 +31,10 @@ export function SettingsView({
   showCompleted,
   setShowCompleted,
   handleLogout,
-  setTasks
+  setTasks,
+  defaultListId,
+  setDefaultListId,
+  userLists
 }: SettingsViewProps) {
   const [showClearConfirm, setShowClearConfirm] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
@@ -132,7 +138,7 @@ export function SettingsView({
                 <select 
                   value={user.account_type || 'individual'} 
                   onChange={(e) => setUser({...user, account_type: e.target.value})}
-                  className="w-full pl-8 pr-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[12px] outline-none focus:border-accent select-left-arrow"
+                  className="w-full px-3 pr-8 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[12px] outline-none focus:border-accent select-custom-arrow"
                 >
                   <option value="individual">Individual</option>
                   <option value="company">Company</option>
@@ -240,6 +246,22 @@ export function SettingsView({
               >
                 <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${showCompleted ? 'translate-x-5' : ''}`}></div>
               </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
+              <div>
+                <div className="text-xs font-bold text-[var(--text2)]">Default Save Location</div>
+                <div className="text-[11px] text-[var(--text3)]">Where new tasks go by default</div>
+              </div>
+              <select 
+                value={defaultListId} 
+                onChange={(e) => setDefaultListId(e.target.value)}
+                className="pl-3 pr-8 py-1.5 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[11px] font-bold outline-none focus:border-accent select-custom-arrow"
+              >
+                {userLists.map(l => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
             </div>
             
             <div className="pt-4 border-t border-[var(--border)] flex gap-2">

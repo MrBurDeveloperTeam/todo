@@ -119,7 +119,7 @@ export default function App() {
 
       const { data: profile } = await client
         .from('profiles')
-        .select('name,email,phone,position,company_name,account_type,avatar_url,background_url,status,plan')
+        .select('name,email,phone,position,company_name,account_type,avatar_url,background_url,status,plan,default_list_id')
         .eq('user_id', authUser.id)
         .maybeSingle();
 
@@ -136,6 +136,7 @@ export default function App() {
           background_url: profile.background_url ?? nextUser.background_url,
           status: profile.status || nextUser.status,
           plan: profile.plan || nextUser.plan,
+          default_list_id: profile.default_list_id || nextUser.default_list_id,
         };
       }
 
