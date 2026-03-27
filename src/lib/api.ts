@@ -16,13 +16,9 @@ function getCookie(name: string): string | null {
   return value ? decodeURIComponent(value) : null;
 }
 
-function getSsoCookieToken(): string | null {
-  return getCookie('mrbur_sso') || getCookie('session_id');
-}
-
 export async function apiFetch(path: string, options: RequestInit = {}) {
   const envBase =
-    (import.meta.env.DEV ? '/api' : (((import.meta as any).env?.VITE_API_BASE_URL as string) || '')) ||
+    ((import.meta as any).env?.VITE_API_BASE_URL as string) ||
     ((import.meta as any).env?.VITE_PUBLIC_BASE_URL as string) ||
     '';
   const apiBase = envBase.startsWith('/')
@@ -32,11 +28,36 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> | undefined),
   };
+  
   if (supabase) {
-    const { data } = await supabase.auth.getSession();
-    const session = data.session;
+    let { data: { session } } = await supabase.auth.getSession();
+
+    // If no Supabase session yet, try to exchange SSO cookies for one.
+    if (!session) {
+      try {
+        await checkSession();
+        const refreshed = await supabase.auth.getSession();
+        session = refreshed.data.session;
+      } catch (err) {
+        console.warn('[auth] checkSession failed inside apiFetch:', err);
+      }
+    }
+
     if (session?.access_token) {
       headers.Authorization = `Bearer ${session.access_token}`;
+    } else {
+      const sessionId = getCookie('session_id');
+      const ssoToken = getCookie('mrbur_sso');
+      console.log('[auth] session_id cookie found:', Boolean(sessionId));
+      console.log('[auth] mrbur_sso cookie found:', Boolean(ssoToken));
+
+      if (sessionId) {
+        console.log('[auth] session_id preview:', `${sessionId.slice(0, 16)}...`);
+        headers.Authorization = `Bearer ${sessionId}`;
+      } else if (ssoToken) {
+        console.log('[auth] mrbur_sso token preview:', `${ssoToken.slice(0, 16)}...`);
+        headers.Authorization = `Bearer ${ssoToken}`;
+      }
     }
   }
 
@@ -71,7 +92,6 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   } catch (err: any) {
     const status = err?.status ?? err?.response?.status;
     if (status === 401) {
-
       return null;
     }
     // Only try local proxy as a network fallback, not for HTTP status errors.
@@ -85,23 +105,24 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
 }
 
 export const api = axios.create({
-  baseURL: apiBaseUrl,
+  baseURL: import.meta.env.VITE_API_BASE_URL || apiBaseUrl,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-api.interceptors.request.use(async (config) => {
+api.interceptors.request.use((config) => {
   // If this is the SSO exchange, just let it through with cookies (withCredentials: true)
   if (config.url === '/sso/exchange' || config.url?.endsWith('/sso/exchange')) {
     return config;
   }
 
-  // For everything else, use the Supabase session token
-  if (!supabase) return config;
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+  // Note: apiFetch already attaches the Supabase access token when available.
+  // The interceptor is a fallback for direct api.* calls.
+  const sessionId = getCookie("session_id");
+  const ssoToken = getCookie("mrbur_sso");
+  const token = sessionId || ssoToken;
   if (token) {
     const headers = AxiosHeaders.from(config.headers);
     headers.set("Authorization", `Bearer ${token}`);
@@ -113,36 +134,29 @@ api.interceptors.request.use(async (config) => {
 export const checkSession = async () => {
   if (!supabase) return null;
 
-  // 1. If a Supabase session already exists, we are already logged in
+  // If a Supabase session already exists, keep using it.
   const { data: { session } } = await supabase.auth.getSession();
   if (session) return session;
 
-  // 2. Try to exchange cookies for a session.
-  // We don't check document.cookie because HttpOnly cookies are invisible to JS.
+  // Otherwise, try to exchange the SSO cookie for a Supabase session via the API.
   try {
-    console.log('[auth] Attempting SSO auto-login...');
-    const { data } = await api.get('/sso/exchange');
-    
-    if (!data.access_token) {
-       console.info('[auth] No SSO session returned');
-       return null;
-    }
-
+    const { data } = await api.get('/sso/exchange', { timeout: 3000 });
     const { data: setResult, error } = await supabase.auth.setSession({
       access_token: data.access_token,
       refresh_token: data.refresh_token,
     });
-
     if (error) throw error;
-    console.log('[auth] SSO auto-login successful!');
     return setResult.session ?? null;
   } catch (err) {
     const status = (err as any)?.response?.status ?? (err as any)?.status;
+    // 401 is expected when no cookie is present; treat it as "not logged in" without noise.
     if (status !== 401) {
-      console.error('[auth] SSO exchange encountered an error:', err);
+      await supabase.auth.signOut();
+      console.error('SSO exchange failed:', err);
     } else {
-      console.info('[auth] No SSO session found (401)');
+      console.info('[auth] SSO exchange skipped (no cookie present)');
     }
     return null;
   }
 };
+
