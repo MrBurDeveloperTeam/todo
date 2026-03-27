@@ -208,42 +208,45 @@ export default function App() {
 
     try {
       // 2. Send logout request to backend just in case we need to clear HTTP-only sessions
-      await api.post('/logout');
-
-      // 3. Clear local Supabase session
-      if (supabase) {
-        // Supabase signOut might throw a 400 Invalid Refresh Token error if the session is already revoked.
-        // This is normal and harmless, as it still clears local storage tokens.
-        await supabase.auth.signOut().catch(() => { });
-      }
-
-      setSession(null);
-      setUser(DEFAULT_USER);
-      setTasks(SEED_DATA);
-    };
-
-    if (isAuthChecking) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm font-bold text-slate-500 animate-pulse">Initializing Workspace...</p>
-          </div>
-        </div>
-      );
+      await api.post('/logout').catch(() => { });
+    } catch (err) {
+      console.warn('[auth] Error logging out from backend:', err);
     }
 
-    if (!session) {
-      return <LandingPage onStart={() => { }} />;
+    // 3. Clear local Supabase session
+    if (supabase) {
+      // Supabase signOut might throw a 400 Invalid Refresh Token error if the session is already revoked.
+      // This is normal and harmless, as it still clears local storage tokens.
+      await supabase.auth.signOut().catch(() => { });
     }
 
+    setSession(null);
+    setUser(DEFAULT_USER);
+    setTasks(SEED_DATA);
+  };
+
+  if (isAuthChecking) {
     return (
-      <Home
-        tasks={tasks}
-        setTasks={setTasks}
-        user={user}
-        setUser={setUser}
-        handleLogout={handleLogout}
-      />
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-bold text-slate-500 animate-pulse">Initializing Workspace...</p>
+        </div>
+      </div>
     );
   }
+
+  if (!session) {
+    return <LandingPage onStart={() => { }} />;
+  }
+
+  return (
+    <Home
+      tasks={tasks}
+      setTasks={setTasks}
+      user={user}
+      setUser={setUser}
+      handleLogout={handleLogout}
+    />
+  );
+}
