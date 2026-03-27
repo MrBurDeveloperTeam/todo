@@ -12,7 +12,8 @@ import {
   LayoutGrid, 
   PanelLeftClose, 
   PanelLeftOpen, 
-  Activity
+  Activity,
+  LogOut
 } from 'lucide-react';
 import { TaskItem, AppUser, ViewType, ItemType } from '../types';
 import { NavItem } from '../components/NavItem';
@@ -57,19 +58,41 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     show: boolean;
     title: string;
     message: string;
+    confirmText?: string;
     onConfirm: () => void;
   }>({
     show: false,
     title: '',
     message: '',
+    confirmText: 'Confirm Delete',
     onConfirm: () => {}
   });
-  
   // Theme state
-  const [theme, setTheme] = useState('light');
-  const [accent, setAccent] = useState('tiffany');
+  const [theme, setTheme] = useState(user.task_theme || 'light');
+  const [accent, setAccent] = useState(user.accent || 'tiffany');
   const [showCompleted, setShowCompleted] = useState(false);
   const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || 'personal');
+
+  useEffect(() => {
+    if (user.task_theme) setTheme(user.task_theme);
+    if (user.accent) setAccent(user.accent);
+  }, [user.task_theme, user.accent]);
+
+  const updateThemeDB = async (t: string) => {
+    setTheme(t);
+    setUser(prev => ({ ...prev, task_theme: t }));
+    if (supabase) {
+      await supabase.from('profiles').update({ task_theme: t, updated_at: new Date().toISOString() }).eq('user_id', user.user_id);
+    }
+  };
+
+  const updateAccentDB = async (a: string) => {
+    setAccent(a);
+    setUser(prev => ({ ...prev, accent: a }));
+    if (supabase) {
+      await supabase.from('profiles').update({ accent: a, updated_at: new Date().toISOString() }).eq('user_id', user.user_id);
+    }
+  };
 
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -398,9 +421,9 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             user={user}
             setUser={setUser}
             theme={theme}
-            setTheme={setTheme}
+            setTheme={updateThemeDB}
             accent={accent}
-            setAccent={setAccent}
+            setAccent={updateAccentDB}
             showCompleted={showCompleted}
             setShowCompleted={setShowCompleted}
             handleLogout={handleLogout}
@@ -424,8 +447,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       )}
 
       {/* SIDEBAR */}
-      <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--border)] transition-all lg:static ${isSidebarCollapsed ? 'w-[52px]' : 'w-[240px]'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <div className="flex h-[52px] items-center px-3.5 border-b border-[var(--border)] cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => { setCurrentView('todo'); setCurrentFilter('all'); }}>
+      <aside className={`fixed inset-y-0 left-0 z-[70] flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--border)] transition-all lg:static ${isSidebarCollapsed ? 'w-[52px]' : 'w-[240px]'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        <a href="https://app.snabbb.com/" className="flex h-[52px] items-center px-3.5 border-b border-[var(--border)] cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors">
           <div className="flex items-center gap-2.5 overflow-hidden">
             <img src={brandLogo} alt="To-do manager" className="h-7 w-auto flex-shrink-0 object-contain" />
             {!isSidebarCollapsed && (
@@ -434,7 +457,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
               </span>
             )}
           </div>
-        </div>
+        </a>
 
         <div className="px-1.5 py-2 border-b border-[var(--border)]">
           <div className="space-y-0.5">
@@ -599,12 +622,32 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
               {user.name.charAt(0)}
             </div>
             {!isSidebarCollapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold text-[var(--text)] truncate">{user.name}</p>
-                <div className="flex items-center gap-1 opacity-60">
-                   <p className="text-[10px] truncate">{user.plan || 'Free Plan'}</p>
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-[var(--text)] truncate">{user.name}</p>
+                  <div className="flex items-center gap-1 opacity-60">
+                     <p className="text-[10px] truncate">{user.plan || 'Free Plan'}</p>
+                  </div>
                 </div>
-              </div>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmState({
+                      show: true,
+                      title: 'Log Out',
+                      message: 'Are you sure you want to log out from your account?',
+                      confirmText: 'Log Out',
+                      onConfirm: () => {
+                        handleLogout();
+                      }
+                    });
+                  }}
+                  className="flex-shrink-0 h-7 w-7 flex items-center justify-center text-[var(--text4)] hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all"
+                  title="Log out"
+                >
+                  <LogOut size={15} />
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -613,7 +656,17 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col min-w-0 relative h-full">
         <header className="h-[52px] flex-shrink-0 flex items-center gap-3 px-5 border-b border-[var(--border)] bg-[var(--header-bg)] sticky top-0 z-40">
-          <button id="toggle-sidebar" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="h-8 w-8 items-center justify-center flex hover:bg-[var(--bg3)] text-[var(--text3)] hover:text-[var(--text)] rounded-md transition-all">
+          <button 
+            id="toggle-sidebar" 
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                setIsMobileMenuOpen(true);
+              } else {
+                setIsSidebarCollapsed(!isSidebarCollapsed);
+              }
+            }} 
+            className="h-8 w-8 items-center justify-center flex hover:bg-[var(--bg3)] text-[var(--text3)] hover:text-[var(--text)] rounded-md transition-all"
+          >
             <Menu size={16} />
           </button>
           
@@ -660,7 +713,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         onConfirm={confirmState.onConfirm}
         title={confirmState.title}
         message={confirmState.message}
-        confirmText="Confirm Delete"
+        confirmText={confirmState.confirmText || "Confirm Delete"}
       />
     </div>
   );

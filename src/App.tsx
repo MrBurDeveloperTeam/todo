@@ -106,7 +106,7 @@ export default function App() {
 
         const { data: profile } = await client
           .from('profiles')
-          .select('name,email,phone,position,company_name,account_type,avatar_url,background_url,status,plan,default_list_id')
+          .select('name,email,phone,position,company_name,account_type,avatar_url,background_url,status,plan,default_list_id,task_theme,accent')
           .eq('user_id', authUser.id)
           .maybeSingle();
 
@@ -124,6 +124,8 @@ export default function App() {
             status: profile.status || nextUser.status,
             plan: profile.plan || nextUser.plan,
             default_list_id: profile.default_list_id || nextUser.default_list_id,
+            task_theme: profile.task_theme || nextUser.task_theme,
+            accent: profile.accent || nextUser.accent,
           };
         }
 
