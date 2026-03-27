@@ -4,6 +4,7 @@ import { toLocalDateStr, todayStr, updateThemeIcon } from './utils';
 import { supabase } from './lib/supabase';
 import { LandingPage } from './pages/LandingPage';
 import { Home } from './pages/Home';
+import { api, checkSession } from './lib/api';
 
 const SEED_DATA: TaskItem[] = [
   {
@@ -63,20 +64,14 @@ export default function App() {
   // State
   const [tasks, setTasks] = useState<TaskItem[]>(SEED_DATA);
   const [user, setUser] = useState<AppUser>(DEFAULT_USER);
-  
+
   const [session, setSession] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const hasBootstrappedAuth = useRef(false);
 
   // Persistence removed (no localStorage)
 
   // Auth Sync
   useEffect(() => {
-    if (hasBootstrappedAuth.current) {
-      return;
-    }
-    hasBootstrappedAuth.current = true;
-
     const client = supabase;
     if (!client) {
       setIsAuthChecking(false);
@@ -88,9 +83,8 @@ export default function App() {
     const syncUserAndDataFromDatabase = async () => {
       try {
         // Use the SSO exchange from api.ts
-        const { checkSession } = await import('./lib/api');
         const session = await checkSession();
-        
+
         if (!session) {
           if (isMounted) setIsAuthChecking(false);
           return;
@@ -112,7 +106,7 @@ export default function App() {
 
         const { data: profile } = await client
           .from('profiles')
-          .select('name,email,phone,position,company_name,account_type,avatar_url,background_url,status,plan,default_list_id')
+          .select('name,email,phone,position,company_name,account_type,avatar_url,background_url,status,plan,default_list_id,task_theme,accent')
           .eq('user_id', authUser.id)
           .maybeSingle();
 
@@ -130,6 +124,8 @@ export default function App() {
             status: profile.status || nextUser.status,
             plan: profile.plan || nextUser.plan,
             default_list_id: profile.default_list_id || nextUser.default_list_id,
+            task_theme: profile.task_theme || nextUser.task_theme,
+            accent: profile.accent || nextUser.accent,
           };
         }
 
@@ -192,37 +188,16 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      // 1. Send logout request to backend just in case we need to clear HTTP-only sessions
-      const { api } = await import('./lib/api');
-      await api.get('/sso/logout').catch(() => api.get('/auth/logout').catch(() => {}));
-    } catch (err) {
-      console.warn('[auth] Error logging out from backend:', err);
-    }
-
-    // 2. Clear local Supabase session
-    if (supabase) {
-      await supabase.auth.signOut().catch(() => {});
-    }
-    
-    setSession(null);
-    setUser(DEFAULT_USER);
-    setTasks(SEED_DATA);
-    
-    // 3. Annihilate all shared cookies across main site and current site
+    // 1. Annihilate all shared cookies across main site and current site immediately
     const host = window.location.hostname.replace(/^www\./, '');
     const isLocal = host === 'localhost' || host === '127.0.0.1';
-    
+
     const cookiesToClear = ['session_id', 'mrbur_sso'];
     cookiesToClear.forEach(cookie => {
-      // Standard path
       document.cookie = `${cookie}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
       if (!isLocal && host) {
-        // Root domain (e.g. .mrbur.com)
         document.cookie = `${cookie}=; path=/; domain=.${host}; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
-        // Exact domain (e.g. app.mrbur.com)
         document.cookie = `${cookie}=; path=/; domain=${host}; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
-        // If it's a subdomain, try clearing the root domain as well
         const domainParts = host.split('.');
         if (domainParts.length > 2) {
           const rootDomain = domainParts.slice(-2).join('.');
@@ -230,30 +205,45 @@ export default function App() {
         }
       }
     });
-  };
 
-  if (isAuthChecking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm font-bold text-slate-500 animate-pulse">Initializing Workspace...</p>
+    try {
+      // 2. Send logout request to backend just in case we need to clear HTTP-only sessions
+      await api.post('/logout');
+
+      // 3. Clear local Supabase session
+      if (supabase) {
+        // Supabase signOut might throw a 400 Invalid Refresh Token error if the session is already revoked.
+        // This is normal and harmless, as it still clears local storage tokens.
+        await supabase.auth.signOut().catch(() => { });
+      }
+
+      setSession(null);
+      setUser(DEFAULT_USER);
+      setTasks(SEED_DATA);
+    };
+
+    if (isAuthChecking) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm font-bold text-slate-500 animate-pulse">Initializing Workspace...</p>
+          </div>
         </div>
-      </div>
+      );
+    }
+
+    if (!session) {
+      return <LandingPage onStart={() => { }} />;
+    }
+
+    return (
+      <Home
+        tasks={tasks}
+        setTasks={setTasks}
+        user={user}
+        setUser={setUser}
+        handleLogout={handleLogout}
+      />
     );
   }
-
-  if (!session) {
-    return <LandingPage onStart={() => {}} />;
-  }
-
-  return (
-    <Home 
-      tasks={tasks} 
-      setTasks={setTasks} 
-      user={user} 
-      setUser={setUser} 
-      handleLogout={handleLogout} 
-    />
-  );
-}
