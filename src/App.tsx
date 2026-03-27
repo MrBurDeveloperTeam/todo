@@ -86,82 +86,89 @@ export default function App() {
     let isMounted = true;
 
     const syncUserAndDataFromDatabase = async () => {
-      // Use the SSO exchange from api.ts
-      const { checkSession } = await import('./lib/api');
-      const session = await checkSession();
-      
-      if (!session) {
-        if (isMounted) setIsAuthChecking(false);
-        return;
-      }
+      try {
+        // Use the SSO exchange from api.ts
+        const { checkSession } = await import('./lib/api');
+        const session = await checkSession();
+        
+        if (!session) {
+          if (isMounted) setIsAuthChecking(false);
+          return;
+        }
 
-      const authUser = session.user;
-      const fallbackName =
-        authUser.user_metadata?.name ||
-        authUser.user_metadata?.full_name ||
-        authUser.email?.split('@')[0] ||
-        DEFAULT_USER.name;
+        const authUser = session.user;
+        const fallbackName =
+          authUser.user_metadata?.name ||
+          authUser.user_metadata?.full_name ||
+          authUser.email?.split('@')[0] ||
+          DEFAULT_USER.name;
 
-      let nextUser: AppUser = {
-        ...DEFAULT_USER,
-        user_id: authUser.id,
-        email: authUser.email || DEFAULT_USER.email,
-        name: fallbackName,
-      };
-
-      const { data: profile } = await client
-        .from('profiles')
-        .select('name,email,phone,position,company_name,account_type,avatar_url,background_url,status,plan,default_list_id')
-        .eq('user_id', authUser.id)
-        .maybeSingle();
-
-      if (profile) {
-        nextUser = {
-          ...nextUser,
-          name: profile.name || nextUser.name,
-          email: profile.email || nextUser.email,
-          phone: profile.phone || nextUser.phone,
-          position: profile.position || nextUser.position,
-          company_name: profile.company_name || nextUser.company_name,
-          account_type: profile.account_type || nextUser.account_type,
-          avatar_url: profile.avatar_url ?? nextUser.avatar_url,
-          background_url: profile.background_url ?? nextUser.background_url,
-          status: profile.status || nextUser.status,
-          plan: profile.plan || nextUser.plan,
-          default_list_id: profile.default_list_id || nextUser.default_list_id,
+        let nextUser: AppUser = {
+          ...DEFAULT_USER,
+          user_id: authUser.id,
+          email: authUser.email || DEFAULT_USER.email,
+          name: fallbackName,
         };
-      }
 
-      // FETCH TASKS
-      const { data: taskData, error: taskError } = await client
-        .from('tasks')
-        .select('*')
-        .eq('user_id', authUser.id)
-        .order('created_at', { ascending: false });
+        const { data: profile } = await client
+          .from('profiles')
+          .select('name,email,phone,position,company_name,account_type,avatar_url,background_url,status,plan,default_list_id')
+          .eq('user_id', authUser.id)
+          .maybeSingle();
 
-      if (taskData && !taskError) {
-        const mappedTasks = taskData.map((t: any) => ({
-          id: t.id,
-          type: t.type || 'task',
-          title: t.title,
-          desc: t.description || '',
-          date: t.date,
-          time: t.time || '',
-          enddate: t.enddate,
-          endtime: t.endtime,
-          location: t.location,
-          priority: (t.urgency?.toLowerCase() as any) || 'none',
-          list: t.list_id_text || 'personal',
-          done: t.status === 'done' || t.is_completed === true,
-          created: new Date(t.created_at).getTime(),
-        }));
-        setTasks(mappedTasks);
-      }
+        if (profile) {
+          nextUser = {
+            ...nextUser,
+            name: profile.name || nextUser.name,
+            email: profile.email || nextUser.email,
+            phone: profile.phone || nextUser.phone,
+            position: profile.position || nextUser.position,
+            company_name: profile.company_name || nextUser.company_name,
+            account_type: profile.account_type || nextUser.account_type,
+            avatar_url: profile.avatar_url ?? nextUser.avatar_url,
+            background_url: profile.background_url ?? nextUser.background_url,
+            status: profile.status || nextUser.status,
+            plan: profile.plan || nextUser.plan,
+            default_list_id: profile.default_list_id || nextUser.default_list_id,
+          };
+        }
 
-      if (isMounted) {
-        setUser(nextUser);
-        setSession(session);
-        setIsAuthChecking(false);
+        // FETCH TASKS
+        const { data: taskData, error: taskError } = await client
+          .from('tasks')
+          .select('*')
+          .eq('user_id', authUser.id)
+          .order('created_at', { ascending: false });
+
+        if (taskData && !taskError) {
+          const mappedTasks = taskData.map((t: any) => ({
+            id: t.id,
+            type: t.type || 'task',
+            title: t.title,
+            desc: t.description || '',
+            date: t.date,
+            time: t.time || '',
+            enddate: t.enddate,
+            endtime: t.endtime,
+            location: t.location,
+            priority: (t.urgency?.toLowerCase() as any) || 'none',
+            list: t.list_id_text || 'personal',
+            done: t.status === 'done' || t.is_completed === true,
+            created: new Date(t.created_at).getTime(),
+          }));
+          if (isMounted) setTasks(mappedTasks);
+        }
+
+        if (isMounted) {
+          setUser(nextUser);
+          setSession(session);
+        }
+      } catch (err) {
+        console.error('[auth] Error in syncUserAndDataFromDatabase:', err);
+      } finally {
+        if (isMounted) {
+          setIsAuthChecking(false);
+        }
       }
     };
 
@@ -185,14 +192,44 @@ export default function App() {
   }, []);
 
   const handleLogout = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
+    try {
+      // 1. Send logout request to backend just in case we need to clear HTTP-only sessions
+      const { api } = await import('./lib/api');
+      await api.get('/sso/logout').catch(() => api.get('/auth/logout').catch(() => {}));
+    } catch (err) {
+      console.warn('[auth] Error logging out from backend:', err);
     }
+
+    // 2. Clear local Supabase session
+    if (supabase) {
+      await supabase.auth.signOut().catch(() => {});
+    }
+    
     setSession(null);
     setUser(DEFAULT_USER);
     setTasks(SEED_DATA);
-    // Remove session_id cookie on logout
-    document.cookie = "session_id=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+    
+    // 3. Annihilate all shared cookies across main site and current site
+    const host = window.location.hostname.replace(/^www\./, '');
+    const isLocal = host === 'localhost' || host === '127.0.0.1';
+    
+    const cookiesToClear = ['session_id', 'mrbur_sso'];
+    cookiesToClear.forEach(cookie => {
+      // Standard path
+      document.cookie = `${cookie}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+      if (!isLocal && host) {
+        // Root domain (e.g. .mrbur.com)
+        document.cookie = `${cookie}=; path=/; domain=.${host}; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+        // Exact domain (e.g. app.mrbur.com)
+        document.cookie = `${cookie}=; path=/; domain=${host}; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+        // If it's a subdomain, try clearing the root domain as well
+        const domainParts = host.split('.');
+        if (domainParts.length > 2) {
+          const rootDomain = domainParts.slice(-2).join('.');
+          document.cookie = `${cookie}=; path=/; domain=.${rootDomain}; expires=Thu, 01 Jan 1970 00:00:01 GMT;`;
+        }
+      }
+    });
   };
 
   if (isAuthChecking) {
