@@ -138,6 +138,15 @@ export const checkSession = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   if (session) return session;
 
+  const sessionId = getCookie('session_id');
+  const ssoToken = getCookie('mrbur_sso');
+  
+  // If we don't have cookies, don't even try to exchange, preventing a 401 console error.
+  if (!sessionId && !ssoToken) {
+    console.info('[auth] SSO exchange skipped (no cookie present)');
+    return null;
+  }
+
   // Otherwise, try to exchange the SSO cookie for a Supabase session via the API.
   try {
     const { data } = await api.get('/sso/exchange', { timeout: 3000 });
@@ -149,7 +158,6 @@ export const checkSession = async () => {
     return setResult.session ?? null;
   } catch (err) {
     const status = (err as any)?.response?.status ?? (err as any)?.status;
-    // 401 is expected when no cookie is present; treat it as "not logged in" without noise.
     if (status !== 401) {
       await supabase.auth.signOut();
       console.error('SSO exchange failed:', err);
