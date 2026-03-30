@@ -79,11 +79,13 @@ export default function App() {
     }
 
     let isMounted = true;
+    let initialCheckDone = false;
 
     const syncUserAndDataFromDatabase = async () => {
       try {
         // Use the SSO exchange from api.ts
-        const session = await checkSession();
+        const session = await checkSession(!initialCheckDone);
+        initialCheckDone = true;
 
         if (!session) {
           if (isMounted) setIsAuthChecking(false);

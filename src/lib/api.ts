@@ -131,47 +131,46 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export const checkSession = async () => {
+export const checkSession = async (forceCheck: boolean = false) => {
   if (!supabase) return null;
 
-  // If a Supabase session already exists, keep using it.
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session) return session;
+  // If a Supabase session already exists, keep using it (unless we force a check).
+  if (!forceCheck) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) return session;
+  }
 
-  // Otherwise, try to exchange the SSO cookie for a Supabase session via the API.
   try {
-    // let data;
+    // let exchangeData;
     try {
       const { data } = await api.get('/sso/exchange', { timeout: 3000 });
-      // data = res.data;
+      // exchangeData = res.data;
+      // Now securely set the fetched session tokens
       const { data: setResult, error } = await supabase.auth.setSession({
         access_token: data.access_token,
         refresh_token: data.refresh_token,
       });
       if (error) throw error;
       return setResult.session ?? null;
-    } catch (err) {
-      const status = (err as any)?.response?.status ?? (err as any)?.status;
-      // 401 is expected when no cookie is present; treat it as "not logged in" without noise.
-      if (status !== 401) {
-        await supabase.auth.signOut();
-        console.error('SSO exchange failed:', err);
+    } catch (err: any) {
+      // If 401 (cookies stripped by cross-origin SameSite=Lax tracking rules), try hitting the local vite proxy
+      if (err?.response?.status === 401 || err?.status === 401) {
+        const { data: exchangeData } = await axios.get(`${window.location.origin}/api/sso/exchange`, { withCredentials: true, timeout: 3000 });
+        // exchangeData = proxyRes.data;
       } else {
-        console.info('[auth] SSO exchange skipped (no cookie present)');
+        throw err;
       }
-      return null;
     }
-  } catch (err: any) {
-    // If 401 (cookies stripped by cross-origin SameSite=Lax rules), hit local proxy
-    if (err?.response?.status === 401 || err?.status === 401) {
-      const { data } = await axios.get(`${window.location.origin}/api/sso/exchange`, { withCredentials: true, timeout: 3000 });
-
+  } catch (err) {
+    const status = (err as any)?.response?.status ?? (err as any)?.status;
+    // We treat 401 as legitimately "not logged in" for our flow once all fallbacks fail
+    if (status !== 401) {
+      await supabase.auth.signOut().catch(() => { });
+      console.error('SSO exchange failed:', err);
     } else {
-      throw err;
+      console.info('[auth] SSO exchange skipped (no valid cookies found)');
     }
+    return null;
   }
-
-
-
 };
 
