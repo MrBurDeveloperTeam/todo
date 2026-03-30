@@ -168,7 +168,8 @@ export const checkSession = async (forceCheck: boolean = false) => {
       await supabase.auth.signOut().catch(() => { });
       console.error('SSO exchange failed:', err);
     } else {
-      console.info('[auth] SSO exchange skipped (no valid cookies found)');
+      console.info('[auth] SSO exchange skipped (no valid cookies found) - signing out local session');
+      await supabase.auth.signOut().catch(() => { });
     }
     return null;
   }
