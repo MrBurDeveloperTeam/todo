@@ -156,7 +156,12 @@ export const checkSession = async (forceCheck: boolean = false) => {
       // If 401 (cookies stripped by cross-origin SameSite=Lax tracking rules), try hitting the local vite proxy
       if (err?.response?.status === 401 || err?.status === 401) {
         const { data: exchangeData } = await axios.get(`${window.location.origin}/api/sso/exchange`, { withCredentials: true, timeout: 3000 });
-        // exchangeData = proxyRes.data;
+        const { data: setResult, error } = await supabase.auth.setSession({
+          access_token: exchangeData.access_token,
+          refresh_token: exchangeData.refresh_token,
+        });
+        if (error) throw error;
+        return setResult.session ?? null;
       } else {
         throw err;
       }

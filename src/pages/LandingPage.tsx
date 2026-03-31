@@ -96,6 +96,27 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
     paper: '#0e0e0f',
     paper2: '#18181b',
     paper3: '#27272a',
+    nav: 'rgba(18, 23, 30, 0.92)',
+    navBorder: 'rgba(255, 255, 255, 0.08)',
+    navText: '#f5f7fa',
+    navMuted: '#b8c2cf',
+    howBg: '#14181f',
+    howCard: '#1b222c',
+    howBorder: 'rgba(255, 255, 255, 0.08)',
+    howText: '#f3f6fa',
+    howMuted: '#aab5c2',
+    themesBg: '#10161d',
+    themesCard: '#1a212b',
+    themesBorder: 'rgba(255, 255, 255, 0.08)',
+    themesText: '#f3f6fa',
+    themesMuted: '#aab5c2',
+    themesLabel: '#d9e1ea',
+    themesRing: '#f3f6fa',
+    themesRingOffset: '#10161d',
+    footerBg: '#0d1319',
+    footerBorder: 'rgba(255, 255, 255, 0.08)',
+    footerText: '#f3f6fa',
+    footerMuted: '#aab5c2',
     ink: '#fafafa',
     ink2: '#e4e4e7',
     ink3: '#a1a1aa',
@@ -104,6 +125,27 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
     paper: '#f4ead7',
     paper2: '#eadcc4',
     paper3: '#cdb89a',
+    nav: 'rgba(244, 234, 215, 0.9)',
+    navBorder: '#cdb89a',
+    navText: '#142331',
+    navMuted: '#55697c',
+    howBg: '#eadcc4',
+    howCard: '#f4ead7',
+    howBorder: '#cdb89a',
+    howText: '#142331',
+    howMuted: '#55697c',
+    themesBg: '#eadcc4',
+    themesCard: '#f4ead7',
+    themesBorder: '#cdb89a',
+    themesText: '#142331',
+    themesMuted: '#55697c',
+    themesLabel: '#2c4256',
+    themesRing: '#142331',
+    themesRingOffset: '#eadcc4',
+    footerBg: '#f1e4cf',
+    footerBorder: '#cdb89a',
+    footerText: '#142331',
+    footerMuted: '#55697c',
     ink: '#142331',
     ink2: '#2c4256',
     ink3: '#55697c',
@@ -120,6 +162,27 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
         ['--landing-paper' as string]: THEME_VARS.paper,
         ['--landing-paper2' as string]: THEME_VARS.paper2,
         ['--landing-paper3' as string]: THEME_VARS.paper3,
+        ['--landing-nav' as string]: THEME_VARS.nav,
+        ['--landing-nav-border' as string]: THEME_VARS.navBorder,
+        ['--landing-nav-text' as string]: THEME_VARS.navText,
+        ['--landing-nav-muted' as string]: THEME_VARS.navMuted,
+        ['--landing-how-bg' as string]: THEME_VARS.howBg,
+        ['--landing-how-card' as string]: THEME_VARS.howCard,
+        ['--landing-how-border' as string]: THEME_VARS.howBorder,
+        ['--landing-how-text' as string]: THEME_VARS.howText,
+        ['--landing-how-muted' as string]: THEME_VARS.howMuted,
+        ['--landing-themes-bg' as string]: THEME_VARS.themesBg,
+        ['--landing-themes-card' as string]: THEME_VARS.themesCard,
+        ['--landing-themes-border' as string]: THEME_VARS.themesBorder,
+        ['--landing-themes-text' as string]: THEME_VARS.themesText,
+        ['--landing-themes-muted' as string]: THEME_VARS.themesMuted,
+        ['--landing-themes-label' as string]: THEME_VARS.themesLabel,
+        ['--landing-themes-ring' as string]: THEME_VARS.themesRing,
+        ['--landing-themes-ring-offset' as string]: THEME_VARS.themesRingOffset,
+        ['--landing-footer-bg' as string]: THEME_VARS.footerBg,
+        ['--landing-footer-border' as string]: THEME_VARS.footerBorder,
+        ['--landing-footer-text' as string]: THEME_VARS.footerText,
+        ['--landing-footer-muted' as string]: THEME_VARS.footerMuted,
         ['--landing-ink' as string]: THEME_VARS.ink,
         ['--landing-ink2' as string]: THEME_VARS.ink2,
         ['--landing-ink3' as string]: THEME_VARS.ink3,
@@ -134,28 +197,41 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
       <div className="pointer-events-none fixed inset-0 z-50 noise-texture opacity-5" />
 
       {/* NAV */}
-      <nav className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-12 py-5 bg-paper/90 backdrop-blur-2xl border-b border-paper3 transition-all duration-300">
-        <a href="#" className="flex items-center gap-2 group">
+      <nav
+        className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-12 py-5 backdrop-blur-2xl border-b transition-all duration-300"
+        style={{
+          backgroundColor: 'var(--landing-nav)',
+          borderColor: 'var(--landing-nav-border)',
+          boxShadow: theme === 'dark' ? '0 12px 40px rgba(0, 0, 0, 0.28)' : '0 8px 24px rgba(20, 35, 49, 0.06)',
+        }}
+      >
+        <a href="https://app.snabbb.com/" className="flex items-center gap-2 group">
           <img
             src={brandLogo}
             alt="To-do manager"
             className="h-8 w-auto object-contain drop-shadow-sm transition-transform group-hover:scale-105"
           />
-          <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--landing-ink)' }}>To-do <span style={{ color: 'var(--accent)' }}>manager</span></span>
+          <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--landing-nav-text)' }}>To-do <span style={{ color: 'var(--accent)' }}>manager</span></span>
         </a>
         
         <div className="hidden md:flex items-center gap-8">
           {['Features', 'Calendar', 'Themes', 'Reviews'].map(item => (
             <a key={item} href={`#${item.toLowerCase()}`} 
                className="text-sm font-bold tracking-tight uppercase hover:opacity-100 transition-all opacity-40 hover:scale-105" 
-               style={{ color: 'var(--landing-ink)' }}>
+               style={{ color: 'var(--landing-nav-text)' }}>
               {item}
             </a>
           ))}
         </div>
 
         <div className="flex items-center gap-3">
-          <button onClick={() => setAuthMode('login')} className="px-4 py-2 text-sm font-semibold text-ink3 hover:text-ink transition-all">Sign in</button>
+          <button
+            onClick={() => setAuthMode('login')}
+            className="px-4 py-2 text-sm font-semibold transition-all"
+            style={{ color: 'var(--landing-nav-muted)' }}
+          >
+            Sign in
+          </button>
           <button onClick={() => setAuthMode('signup')} className="hidden sm:flex items-center gap-2 px-5 py-2.5 text-white rounded-lg text-sm font-bold shadow-lg shadow-black/10 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all" style={{ backgroundColor: 'var(--accent)' }}>
             Join Us
             <ArrowRight size={14} />
@@ -357,11 +433,15 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
       </section>
 
       {/* HOW IT WORKS */}
-      <section id="how" className="py-24 md:py-32 bg-paper2 px-6">
+      <section
+        id="how"
+        className="py-24 md:py-32 px-6 transition-colors duration-500"
+        style={{ backgroundColor: 'var(--landing-how-bg)' }}
+      >
          <div className="max-w-6xl mx-auto">
             <div className="text-center reveal mb-20">
                <div className="text-xs font-bold uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--accent)' }}>Operations</div>
-               <h2 className="font-serif text-4xl md:text-5xl text-ink">Simple as it gets</h2>
+               <h2 className="font-serif text-4xl md:text-5xl" style={{ color: 'var(--landing-how-text)' }}>Simple as it gets</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 relative">
@@ -373,11 +453,18 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
                  { step: '4', title: 'Execute', desc: 'Keep your momentum high with overdue alerts and velocity tracking indicators.' },
                ].map(s => (
                  <div key={s.step} className="reveal text-center relative z-10 group">
-                    <div className="h-20 w-20 rounded-full bg-paper border border-paper3 flex items-center justify-center mx-auto mb-8 shadow-lg group-hover:scale-110 transition-transform duration-500 font-serif italic text-3xl text-[#0078d4]">
+                    <div
+                      className="h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg group-hover:scale-110 transition-transform duration-500 font-serif italic text-3xl"
+                      style={{
+                        backgroundColor: 'var(--landing-how-card)',
+                        border: '1px solid var(--landing-how-border)',
+                        color: 'var(--accent)',
+                      }}
+                    >
                        {s.step}
                     </div>
-                    <h3 className="text-lg font-bold mb-3">{s.title}</h3>
-                    <p className="text-ink3 text-sm leading-relaxed px-4">{s.desc}</p>
+                    <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--landing-how-text)' }}>{s.title}</h3>
+                    <p className="text-sm leading-relaxed px-4" style={{ color: 'var(--landing-how-muted)' }}>{s.desc}</p>
                  </div>
                ))}
             </div>
@@ -457,12 +544,16 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
       </section>
 
       {/* APPEARANCE / THEMES */}
-      <section id="themes" className="pt-12 pb-24 md:pt-16 md:pb-32 bg-paper2 px-6">
+      <section
+        id="themes"
+        className="pt-12 pb-24 md:pt-16 md:pb-32 px-6 transition-colors duration-500"
+        style={{ backgroundColor: 'var(--landing-themes-bg)' }}
+      >
          <div className="max-w-7xl mx-auto">
             <div className="reveal mb-10 text-center max-w-2xl mx-auto">
                <div className="text-xs font-bold uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--accent)' }}>Identity</div>
-               <h2 className="font-serif text-4xl md:text-6xl text-ink leading-tight mb-6">Your app, <em className="italic opacity-80">your style.</em></h2>
-               <p className="text-lg text-ink3">Switch modes. pick colors. Personalize your focus environment. it all persists instantly.</p>
+               <h2 className="font-serif text-4xl md:text-6xl leading-tight mb-6" style={{ color: 'var(--landing-themes-text)' }}>Your app, <em className="italic opacity-80">your style.</em></h2>
+               <p className="text-lg" style={{ color: 'var(--landing-themes-muted)' }}>Switch modes. pick colors. Personalize your focus environment. it all persists instantly.</p>
             </div>
 
             <div className="flex flex-col items-center gap-12 reveal">
@@ -477,9 +568,21 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
                        setActiveAccent(p.accent);
                        localStorage.setItem('tf_theme', p.t);
                      }}>
-                        <div className="rounded-2xl overflow-hidden border border-paper3 shadow-xl transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-3xl w-full">
+                        <div
+                          className="rounded-2xl overflow-hidden shadow-xl transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-3xl w-full"
+                          style={{
+                            backgroundColor: 'var(--landing-themes-card)',
+                            border: '1px solid var(--landing-themes-border)',
+                          }}
+                        >
                            <div className="h-40 relative flex overflow-hidden" style={{ backgroundColor: p.bg }}>
-                              <div className="w-1/3 border-r border-paper3 shadow-sm" style={{ backgroundColor: p.side }} />
+                              <div
+                                className="w-1/3 shadow-sm"
+                                style={{
+                                  backgroundColor: p.side,
+                                  borderRight: '1px solid var(--landing-themes-border)',
+                                }}
+                              />
                               <div className="flex-1 p-4 space-y-2">
                                  {/* Mock Reacting Accent */}
                                  <div className="h-4 w-full rounded-md" style={{ 
@@ -488,8 +591,14 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
                                  }} />
                                  <div className="h-4 w-2/3 rounded-md bg-paper3/50" />
                               </div>
-                              <div className="absolute inset-x-0 bottom-0 h-10 px-4 flex items-center bg-white/10 backdrop-blur-md border-t border-paper3/10">
-                                 <span className={`text-[10px] font-bold ${p.dark ? 'text-white' : 'text-ink3'}`}>{p.title}</span>
+                              <div
+                                className="absolute inset-x-0 bottom-0 h-10 px-4 flex items-center backdrop-blur-md"
+                                style={{
+                                  backgroundColor: p.dark ? 'rgba(8, 12, 18, 0.68)' : 'rgba(255, 255, 255, 0.12)',
+                                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                                }}
+                              >
+                                 <span className="text-[10px] font-bold" style={{ color: p.dark ? '#ffffff' : '#142331' }}>{p.title}</span>
                               </div>
                            </div>
                         </div>
@@ -498,14 +607,22 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
                </div>
             </div>
             <div className="mt-16 reveal flex flex-col items-center">
-               <span className="text-xs font-bold text-ink4 uppercase tracking-widest mb-6">Accent Color Palette —</span>
+               <span className="text-xs font-bold uppercase tracking-widest mb-6" style={{ color: 'var(--landing-themes-muted)' }}>Accent Color Palette —</span>
                <div className="flex flex-wrap justify-center gap-4">
                   {ACCENT_COLORS.map(a => (
                     <button 
                       key={a.name}
                       onClick={() => setActiveAccent(a.name)}
-                      className={`h-12 w-12 rounded-full transition-all duration-300 hover:scale-110 flex items-center justify-center ${activeAccent === a.name ? 'ring-4 ring-offset-4 ring-ink' : ''}`}
-                      style={{ backgroundColor: a.color }}
+                      className="h-12 w-12 rounded-full transition-all duration-300 hover:scale-110 flex items-center justify-center"
+                      style={{
+                        backgroundColor: a.color,
+                        ...(activeAccent === a.name
+                          ? {
+                              boxShadow: '0 0 0 4px var(--landing-themes-ring)',
+                              outline: '4px solid var(--landing-themes-ring-offset)',
+                            }
+                          : {}),
+                      }}
                     >
                       {activeAccent === a.name && <div className="h-2 w-2 rounded-full bg-white" />}
                     </button>
@@ -564,20 +681,26 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
       </section>
 
       {/* FOOTER */}
-      <footer className="px-6 md:px-12 py-12 border-t border-paper3 bg-paper flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
-          <a href="#" className="flex items-center gap-2">
+      <footer
+        className="px-6 md:px-12 py-12 border-t flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left transition-colors duration-500"
+        style={{
+          backgroundColor: 'var(--landing-footer-bg)',
+          borderColor: 'var(--landing-footer-border)',
+        }}
+      >
+          <a href="https://app.snabbb.com/" className="flex items-center gap-2">
             <img src={brandLogo} alt="To-do manager" className="h-6 w-auto object-contain" />
-            <span className="text-md font-bold tracking-tight text-ink uppercase">To-do manager</span>
+            <span className="text-md font-bold tracking-tight uppercase" style={{ color: 'var(--landing-footer-text)' }}>To-do manager</span>
           </a>
           
-          <div className="flex gap-8 text-xs font-bold text-ink4 uppercase tracking-widest">
-             <a href="#features" className="hover:text-ink transition-colors">Features</a>
-             <a href="#calendar" className="hover:text-ink transition-colors">Calendar</a>
-             <a href="#themes" className="hover:text-ink transition-colors">Themes</a>
-             <button onClick={() => setAuthMode('login')} className="hover:text-ink transition-colors">Open App</button>
+          <div className="flex gap-8 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--landing-footer-muted)' }}>
+             <a href="#features" className="transition-colors" style={{ color: 'var(--landing-footer-muted)' }}>Features</a>
+             <a href="#calendar" className="transition-colors" style={{ color: 'var(--landing-footer-muted)' }}>Calendar</a>
+             <a href="#themes" className="transition-colors" style={{ color: 'var(--landing-footer-muted)' }}>Themes</a>
+             <button onClick={() => setAuthMode('login')} className="transition-colors" style={{ color: 'var(--landing-footer-muted)' }}>Open App</button>
           </div>
 
-          <div className="text-[10px] font-black uppercase tracking-[0.3em] text-ink4">
+          <div className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--landing-footer-muted)' }}>
             © 2026 Hei Systems.
           </div>
       </footer>

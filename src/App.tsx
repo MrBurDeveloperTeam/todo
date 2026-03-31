@@ -88,7 +88,12 @@ export default function App() {
         initialCheckDone = true;
 
         if (!session) {
-          if (isMounted) setIsAuthChecking(false);
+          if (isMounted) {
+            setSession(null);
+            setUser(DEFAULT_USER);
+            setTasks(SEED_DATA);
+            setIsAuthChecking(false);
+          }
           return;
         }
 
