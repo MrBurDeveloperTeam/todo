@@ -39,6 +39,7 @@ export function SettingsView({
   userLists
 }: SettingsViewProps) {
   const [showClearConfirm, setShowClearConfirm] = React.useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveStatus, setSaveStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
 
@@ -274,7 +275,7 @@ export function SettingsView({
               </button>
               <button
                 className="flex-1 py-2 rounded-lg bg-red-600 text-white font-bold text-xs hover:bg-red-700 transition"
-                onClick={handleLogout}
+                onClick={() => setShowLogoutConfirm(true)}
               >
                 Log Out
               </button>
@@ -304,6 +305,18 @@ export function SettingsView({
               title="Clear All Data?"
               message="This will permanently delete all your tasks, categories, and settings from this browser. This action cannot be undone."
               confirmText="Clear Everything"
+            />
+
+            <ConfirmModal
+              show={showLogoutConfirm}
+              onClose={() => setShowLogoutConfirm(false)}
+              onConfirm={() => {
+                setShowLogoutConfirm(false);
+                handleLogout();
+              }}
+              title="Log Out?"
+              message="Are you sure you want to log out from your account?"
+              confirmText="Log Out"
             />
           </div>
         </div>

@@ -34,6 +34,11 @@ export function CalendarView({
   const m = calDate.getMonth();
   const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(calDate);
 
+  const openTask = (id: string) => {
+    setSelectedTaskId(id);
+    setCurrentView('todo');
+  };
+
   const getTypeBadgeClass = (type: TaskItem['type']) => {
     if (type === 'task') {
       return 'bg-[#eff6ff] text-[#2563eb] border-[#bfdbfe]';
@@ -43,7 +48,7 @@ export function CalendarView({
     }
     return theme === 'dark'
       ? 'bg-amber-900/20 text-amber-400 border-amber-500/20'
-      : 'bg-transparent text-[#92400e] border-[#fcd34d]';
+      : 'bg-[#fffbeb] text-[#92400e] border-[#fcd34d]';
   };
 
   const getTypeAccentBarClass = (type: TaskItem['type']) => {
@@ -125,7 +130,7 @@ export function CalendarView({
                         <button
                           key={`${task.id}-${weekIndex}`}
                           className={`grid w-full grid-cols-7 gap-1 text-left`}
-                          onClick={() => { setSelectedTaskId(task.id); setCurrentView('todo'); }}
+                          onClick={() => openTask(task.id)}
                         >
                           <span
                             className={`text-[9px] px-2 py-1 rounded font-bold border truncate ${getTypeBadgeClass(task.type)}`}
@@ -154,16 +159,24 @@ export function CalendarView({
                         key={`${weekIndex}-${dayIndex}`}
                         className={`bg-[var(--surface)] min-h-[108px] p-2 hover:bg-[var(--surface2)] cursor-pointer transition ${!cell.current ? 'opacity-40 bg-[var(--bg)]' : ''} ${isToday ? 'bg-[var(--accent-light)]/30' : ''}`}
                         onClick={() => {
-                          if (hasTasks.length > 0) { setSelectedTaskId(hasTasks[0].id); setCurrentView('todo'); }
-                          else { setCalDate(cell.date); setCalView('day'); }
+                          setCalDate(cell.date);
+                          setCalView('week');
                         }}
                       >
                         <div className={`text-[12px] font-black mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-accent text-white' : 'text-[var(--text2)]'}`}>{cell.day}</div>
                         <div className="space-y-1">
                           {cellItems.map((t) => (
-                            <div key={t.id} className={`text-[9px] px-1.5 py-0.5 rounded truncate font-bold border ${getTypeBadgeClass(t.type)}`}>
+                            <button
+                              key={t.id}
+                              type="button"
+                              className={`block w-full text-left text-[9px] px-1.5 py-0.5 rounded truncate font-bold border ${getTypeBadgeClass(t.type)}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openTask(t.id);
+                              }}
+                            >
                               {t.time && formatTime(t.time)} {t.title}
-                            </div>
+                            </button>
                           ))}
                           {hiddenCount > 0 && <div className="text-[9px] text-accent font-black pl-1">+{hiddenCount} more</div>}
                         </div>
@@ -223,7 +236,7 @@ export function CalendarView({
                         key={t.id}
                         className={`absolute left-1 right-1 p-1 rounded border shadow-sm cursor-pointer hover:brightness-105 transition overflow-hidden ${getTypeBadgeClass(t.type)}`}
                         style={{ top: `${top}px`, height: '40px', fontSize: '9px', fontWeight: 'bold' }}
-                        onClick={(e) => { e.stopPropagation(); setSelectedTaskId(t.id); setCurrentView('todo'); }}
+                        onClick={(e) => { e.stopPropagation(); openTask(t.id); }}
                       >
                         {formatTime(t.time)} {t.title}
                       </div>
@@ -258,7 +271,7 @@ export function CalendarView({
             </div>
           ) : (
             items.sort((a,b) => (a.time || '23:59').localeCompare(b.time || '23:59')).map(t => (
-              <div key={t.id} className="flex items-center gap-4 p-4 rounded-xl border border-[var(--border)] hover:border-accent group cursor-pointer transition" onClick={() => { setSelectedTaskId(t.id); setCurrentView('todo'); }}>
+              <div key={t.id} className="flex items-center gap-4 p-4 rounded-xl border border-[var(--border)] hover:border-accent group cursor-pointer transition" onClick={() => openTask(t.id)}>
                  <div className="text-xs font-black text-[var(--text3)] min-w-[60px]">{t.time ? formatTime(t.time) : 'All-day'}</div>
                  <div className={`w-1 h-10 rounded-full ${getTypeAccentBarClass(t.type)}`}></div>
                  <div className="flex-1">

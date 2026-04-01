@@ -62,7 +62,7 @@ export function TodoView({
     if (type === 'event') {
       return 'bg-[#fee2e2] text-[#b42318] border border-[#fca5a5] dark:bg-red-900/20 dark:text-red-400 dark:border-red-500/20';
     }
-    return 'bg-transparent text-[#92400e] border border-[#fcd34d] dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-500/20';
+    return '!bg-transparent text-[#92400e] border border-[#fcd34d] dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-500/20';
   };
   
   const filteredTasks = tasks.filter(t => {
@@ -102,7 +102,7 @@ export function TodoView({
     return (
       <div 
         key={t.id}
-        className={`flex items-start gap-3 p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] mb-1 cursor-pointer transition-all hover:border-accent hover:shadow-[0_2px_8px_var(--accent-subtle)] group ${t.done ? 'opacity-70' : ''} ${t.id === selectedTaskId ? 'border-accent dark:bg-[var(--accent-light)]' : ''}`}
+        className={`flex items-start gap-3 p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] mb-1 cursor-pointer transition-all hover:border-accent hover:shadow-[0_2px_8px_var(--accent-subtle)] group ${t.done ? 'opacity-70' : ''} ${t.id === selectedTaskId ? 'border-accent bg-[var(--accent-light)]/35 dark:bg-[var(--surface2)]' : ''}`}
         onClick={() => { setSelectedTaskId(t.id); }}
       >
         <div 
