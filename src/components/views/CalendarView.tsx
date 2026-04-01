@@ -43,7 +43,7 @@ export function CalendarView({
     }
     return theme === 'dark'
       ? 'bg-amber-900/20 text-amber-400 border-amber-500/20'
-      : 'bg-white text-[#92400e] border-[#fcd34d]';
+      : 'bg-transparent text-[#92400e] border-[#fcd34d]';
   };
 
   const getTypeAccentBarClass = (type: TaskItem['type']) => {
