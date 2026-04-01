@@ -248,11 +248,23 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
           <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[120px] opacity-[0.08]" style={{ backgroundColor: 'var(--accent)' }} />
           <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] rounded-full bg-[#00897b] blur-[100px] opacity-10" />
           <div className="absolute top-[30%] right-[10%] w-[300px] h-[300px] rounded-full bg-[#e67e00] blur-[80px] opacity-[0.05]" />
-          <div className="landing-clouds absolute inset-0">
-            <span className="landing-cloud landing-cloud-a" />
-            <span className="landing-cloud landing-cloud-b" />
-            <span className="landing-cloud landing-cloud-c" />
-          </div>
+          {theme === 'dark' ? (
+            <div className="landing-night absolute inset-0">
+              <span className="landing-moon" />
+              <span className="landing-star landing-star-a" />
+              <span className="landing-star landing-star-b" />
+              <span className="landing-star landing-star-c" />
+              <span className="landing-star landing-star-d" />
+              <span className="landing-star landing-star-e" />
+              <span className="landing-star landing-star-f" />
+            </div>
+          ) : (
+            <div className="landing-clouds absolute inset-0">
+              <span className="landing-cloud landing-cloud-a" />
+              <span className="landing-cloud landing-cloud-b" />
+              <span className="landing-cloud landing-cloud-c" />
+            </div>
+          )}
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center flex flex-col items-center">
@@ -357,9 +369,9 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
                           ].map(t => (
                             <div key={t.title} className={`p-3 rounded-xl border flex items-center gap-3 shadow-sm ${t.active ? 'border-[#0078d4] bg-[#f0f7ff]' : 'border-paper3 bg-paper'}`}>
                                <div className="h-4 w-4 rounded-full border border-ink/20" />
-                               <span className="text-xs font-semibold flex-1">{t.title}</span>
+                               <span className="text-xs font-semibold flex-1" style={{ color: t.active ? '#16324a' : '#20384c' }}>{t.title}</span>
                                <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${t.type === 'Task' ? 'text-blue-600' : 'bg-[#fce8e6] text-red-600'}`} style={t.type === 'Task' ? { backgroundColor: 'color-mix(in srgb, var(--accent), transparent 85%)', color: 'var(--accent)' } : {}}>{t.type}</span>
-                               <span className={`text-[10px] font-bold ${t.red ? 'text-red-500' : 'text-ink4'}`}>{t.date}</span>
+                               <span className="text-[10px] font-bold" style={{ color: t.red ? '#dc2626' : t.active ? '#35526a' : 'var(--landing-ink3)' }}>{t.date}</span>
                             </div>
                           ))}
                        </div>
@@ -376,11 +388,11 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
                              <div className="grid grid-cols-2 gap-4">
                                 <div>
                                    <div className="text-[10px] font-bold uppercase tracking-widest text-ink4 mb-1">Priority</div>
-                                   <div className="text-xs font-bold flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-red-500" /> High</div>
+                                   <div className="text-xs font-bold flex items-center gap-2" style={{ color: '#20384c' }}><div className="h-2 w-2 rounded-full bg-red-500" /> High</div>
                                 </div>
                                 <div>
                                    <div className="text-[10px] font-bold uppercase tracking-widest text-ink4 mb-1">Due Date</div>
-                                   <div className="text-xs font-bold">May 12, 2026</div>
+                                   <div className="text-xs font-bold" style={{ color: '#20384c' }}>May 12, 2026</div>
                                 </div>
                              </div>
                           </div>
@@ -431,7 +443,7 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
             ].map((f, i) => (
                <div key={f.title} className="reveal group p-6 bg-paper border border-paper3 rounded-2xl hover:shadow-xl transition-all duration-500">
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform" style={{ backgroundColor: f.color }}>{f.icon}</div>
-                  <h3 className="text-lg font-bold mb-1.5" style={{ color: 'var(--landing-ink)' }}>{f.title}</h3>
+                  <h3 className="text-lg font-bold mb-1.5" style={{ color: '#000000' }}>{f.title}</h3>
                   <p className="text-xs leading-relaxed" style={{ color: 'var(--landing-ink3)' }}>{f.desc}</p>
               </div>
             ))}
@@ -564,10 +576,10 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
 
             <div className="flex flex-col items-center gap-12 reveal">
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
-                                  {[
-                     { title: 'Light Aesthetic', bg: '#f4ead7', accent: 'blue', side: '#eadcc4', t: 'light' },
+                  {[
+                     { title: 'Morning Light', bg: '#dff1ff', accent: 'blue', side: '#b8daf8', t: 'light' },
+                     { title: 'Afternoon Glow', bg: '#c28d63', accent: 'orange', side: '#8f603b', t: 'light' },
                      { title: 'Midnight Engine', bg: '#1a1a1a', accent: 'blue', side: '#222', t: 'dark', dark: true },
-                     { title: 'Forest Protocol', bg: '#f4ead7', accent: 'teal', side: '#eadcc4', t: 'light' },
                    ].map(p => (
                      <div key={p.title} className="group cursor-pointer flex flex-col items-center" onClick={() => {
                        setTheme(p.t as any);

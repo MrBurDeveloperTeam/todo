@@ -234,6 +234,16 @@ html {
   opacity: 1;
 }
 
+[class~="dark"] .landing-sky-gradient,
+[data-theme="dark"] .landing-sky-gradient {
+  background:
+    radial-gradient(circle at 78% 18%, rgba(255, 245, 200, 0.12), transparent 16%),
+    linear-gradient(180deg,
+      rgba(10, 18, 32, 0.92) 0%,
+      rgba(18, 28, 45, 0.78) 45%,
+      rgba(32, 42, 60, 0.38) 100%);
+}
+
 .landing-clouds {
   pointer-events: none;
   overflow: hidden;
@@ -306,11 +316,65 @@ html {
   box-shadow: 0 24px 60px rgba(125, 173, 214, 0.1);
 }
 
+.landing-night {
+  pointer-events: none;
+}
+
+.landing-moon {
+  position: absolute;
+  top: 11%;
+  right: 11%;
+  width: 88px;
+  height: 88px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 35%, #fffbe8 0%, #f4e4af 48%, #d5bf77 100%);
+  box-shadow:
+    0 0 0 14px rgba(250, 231, 166, 0.05),
+    0 0 48px rgba(250, 231, 166, 0.22);
+}
+
+.landing-moon::after {
+  content: "";
+  position: absolute;
+  inset: 12px 10px 10px 24px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 38, 0.16);
+  filter: blur(2px);
+}
+
+.landing-star {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
+  animation: landing-star-twinkle 4.8s ease-in-out infinite;
+}
+
+.landing-star-a { top: 14%; left: 18%; animation-delay: 0s; }
+.landing-star-b { top: 22%; left: 32%; width: 3px; height: 3px; animation-delay: 0.8s; }
+.landing-star-c { top: 10%; left: 52%; width: 5px; height: 5px; animation-delay: 1.5s; }
+.landing-star-d { top: 28%; left: 68%; animation-delay: 2.1s; }
+.landing-star-e { top: 18%; left: 82%; width: 3px; height: 3px; animation-delay: 2.8s; }
+.landing-star-f { top: 32%; left: 24%; width: 5px; height: 5px; animation-delay: 3.2s; }
+
 @keyframes landing-cloud-drift {
   0% {
     transform: translateX(0);
   }
   100% {
     transform: translateX(145vw);
+  }
+}
+
+@keyframes landing-star-twinkle {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
   }
 }
