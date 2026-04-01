@@ -243,10 +243,16 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
       <section id="hero" className="relative pt-28 md:pt-40 pb-20 px-6 overflow-hidden">
         {/* Geometric Background */}
         <div className="absolute inset-0 pointer-events-none">
+          <div className="landing-sky-gradient absolute inset-0" />
           <div className="absolute inset-0 hero-grid-pattern opacity-40 [mask-image:radial-gradient(ellipse_80%_60%_at_50%_50%,black_40%,transparent_100%)]" />
           <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[120px] opacity-[0.08]" style={{ backgroundColor: 'var(--accent)' }} />
           <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] rounded-full bg-[#00897b] blur-[100px] opacity-10" />
           <div className="absolute top-[30%] right-[10%] w-[300px] h-[300px] rounded-full bg-[#e67e00] blur-[80px] opacity-[0.05]" />
+          <div className="landing-clouds absolute inset-0">
+            <span className="landing-cloud landing-cloud-a" />
+            <span className="landing-cloud landing-cloud-b" />
+            <span className="landing-cloud landing-cloud-c" />
+          </div>
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center flex flex-col items-center">
