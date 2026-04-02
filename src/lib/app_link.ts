@@ -2,11 +2,11 @@ import axios from "axios";
 
 const applink = async (param: any) => {
     try {
-        const {data} = await axios.post('https://appointment.snabbb.com/api/v1/sso/app_link', {
+        const {data} = await axios.post('https://todo.snabbb.com/api/v1/sso/app_link', {
                     "jsonrpc": "2.0",
                     "method": "call",
                     "params": {
-                      "app_code": "appointment",
+                      "app_code": "todo",
                       "email": param.username,
                       "name": param.name,
                       "company_id": 2,
