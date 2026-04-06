@@ -134,10 +134,13 @@ api.interceptors.request.use((config) => {
 export const checkSession = async (forceCheck: boolean = false) => {
   if (!supabase) return null;
 
+  const { data: { session: existingSession } } = await supabase.auth.getSession();
+  const sessionId = getCookie('session_id');
+  const ssoToken = getCookie('mrbur_sso');
+
   // If a Supabase session already exists, keep using it (unless we force a check).
-  if (!forceCheck) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) return session;
+  if (existingSession && (!forceCheck || (!sessionId && !ssoToken))) {
+    return existingSession;
   }
 
   try {
@@ -168,13 +171,18 @@ export const checkSession = async (forceCheck: boolean = false) => {
     }
   } catch (err) {
     const status = (err as any)?.response?.status ?? (err as any)?.status;
-    // We treat 401 as legitimately "not logged in" for our flow once all fallbacks fail
+
+    if (existingSession) {
+      console.info('[auth] preserving existing Supabase session after SSO exchange failure');
+      return existingSession;
+    }
+
+    // We treat 401 as legitimately "not logged in" for our flow once all fallbacks fail.
     if (status !== 401) {
       await supabase.auth.signOut().catch(() => { });
       console.error('SSO exchange failed:', err);
     } else {
-      console.info('[auth] SSO exchange skipped (no valid cookies found) - signing out local session');
-      await supabase.auth.signOut().catch(() => { });
+      console.info('[auth] SSO exchange skipped (no valid cookies found)');
     }
     return null;
   }
