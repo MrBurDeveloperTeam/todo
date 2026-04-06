@@ -216,7 +216,7 @@ export function TodoView({
                   <div className="mb-6">
                     <div 
                       className="text-[11px] font-bold text-red-500 uppercase tracking-widest mb-3 flex items-center gap-2 cursor-pointer hover:opacity-70 transition-all select-none bg-red-500/5 py-1.5 px-2 rounded-md border border-red-500/10"
-                      onClick={() => setIsOverdueCollapsed(!isOverdueCollapsed)}
+                      onClick={() => setIsOverdueCollapsed((prev) => !prev)}
                     >
                       <ChevronRight size={12} strokeWidth={3} className={`transition-transform duration-200 ${isOverdueCollapsed ? '' : 'rotate-90'}`} />
                       Overdue List ({overdue.length})
@@ -233,7 +233,7 @@ export function TodoView({
                   <div className="mt-6 pt-4 border-t border-[var(--border)] border-dashed">
                     <div 
                       className="text-[11px] font-bold text-[var(--text4)] uppercase tracking-widest mb-3 flex items-center gap-2 cursor-pointer hover:opacity-70 transition-all select-none"
-                      onClick={() => setIsCompletedCollapsed(!isCompletedCollapsed)}
+                      onClick={() => setIsCompletedCollapsed((prev) => !prev)}
                     >
                       <ChevronRight size={12} strokeWidth={3} className={`transition-transform duration-200 ${isCompletedCollapsed ? '' : 'rotate-90'}`} />
                       Completed tasks ({completed.length})

@@ -13,7 +13,7 @@ interface SettingsViewProps {
   accent: string;
   setAccent: (accent: string) => void;
   showCompleted: boolean;
-  setShowCompleted: (show: boolean) => void;
+  setShowCompleted: React.Dispatch<React.SetStateAction<boolean>>;
   handleLogout: () => void;
   setTasks: (tasks: any[]) => void;
   setUserLists: React.Dispatch<React.SetStateAction<any[]>>;
@@ -43,6 +43,13 @@ export function SettingsView({
   const [isSaving, setIsSaving] = React.useState(false);
   const [saveStatus, setSaveStatus] = React.useState<'idle' | 'success' | 'error'>('idle');
 
+  const toggleShowClearConfirm = () => {
+    setShowClearConfirm((prev) => !prev);
+  };
+
+  const toggleShowLogoutConfirm = () => {
+    setShowLogoutConfirm((prev) => !prev);
+  };
   const handleSaveProfile = async () => {
     if (!supabase) return;
     setIsSaving(true);
@@ -244,7 +251,7 @@ export function SettingsView({
               </div>
               <div
                 className={`w-10 h-5 rounded-full relative cursor-pointer transition-colors ${showCompleted ? 'bg-accent' : 'bg-gray-300'}`}
-                onClick={() => setShowCompleted(!showCompleted)}
+                onClick={() => setShowCompleted((prev) => !prev)}
               >
                 <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${showCompleted ? 'translate-x-5' : ''}`}></div>
               </div>
@@ -269,13 +276,13 @@ export function SettingsView({
             <div className="pt-4 border-t border-[var(--border)] flex gap-2">
               <button
                 className="flex-1 py-2 rounded-lg border border-red-200 text-red-600 font-bold text-xs hover:bg-red-50 transition"
-                onClick={() => setShowClearConfirm(true)}
+                onClick={toggleShowClearConfirm}
               >
                 Clear Data
               </button>
               <button
                 className="flex-1 py-2 rounded-lg bg-red-600 text-white font-bold text-xs hover:bg-red-700 transition"
-                onClick={() => setShowLogoutConfirm(true)}
+                onClick={toggleShowLogoutConfirm}
               >
                 Log Out
               </button>
@@ -283,7 +290,7 @@ export function SettingsView({
 
             <ConfirmModal
               show={showClearConfirm}
-              onClose={() => setShowClearConfirm(false)}
+              onClose={toggleShowClearConfirm}
               onConfirm={async () => {
                 if (supabase) {
                   // 1. Delete from DB
@@ -300,7 +307,7 @@ export function SettingsView({
                 setTasks([]);
                 setUserLists(DEFAULT_CATEGORIES);
 
-                setShowClearConfirm(false);
+                setShowClearConfirm((prev) => !prev);
               }}
               title="Clear All Data?"
               message="This will permanently delete all your tasks, categories, and settings from this browser. This action cannot be undone."
@@ -309,7 +316,7 @@ export function SettingsView({
 
             <ConfirmModal
               show={showLogoutConfirm}
-              onClose={() => setShowLogoutConfirm(false)}
+              onClose={toggleShowLogoutConfirm}
               onConfirm={() => {
                 setShowLogoutConfirm(false);
                 handleLogout();
