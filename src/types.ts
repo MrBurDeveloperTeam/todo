@@ -32,4 +32,7 @@ export interface AppUser {
   status?: string;
   plan?: string;
   default_list_id?: string;
+  task_theme?: string;
+  accent?: string;
+  show_completed?: boolean;
 }

@@ -21,6 +21,7 @@ import { CalendarView } from '../components/views/CalendarView';
 import { SettingsView } from '../components/views/SettingsView';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { Toast } from '../components/Toast';
 import { todayStr, ACCENTS, updateThemeIcon } from '../utils';
 import { supabase } from '../supabase';
 
@@ -31,6 +32,7 @@ const DEFAULT_CATEGORIES = [
 ];
 const DEFAULT_CATEGORY_IDS = DEFAULT_CATEGORIES.map(c => c.id);
 type UserList = { id: string; name: string; color: string; pinned?: boolean };
+type CompletionToastState = { taskId: string; message: string };
 
 
 interface HomeProps {
@@ -66,10 +68,30 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   });
   
   // Theme state
-  const [theme, setTheme] = useState(() => localStorage.getItem('tf_theme') || 'light');
-  const [accent, setAccent] = useState(() => localStorage.getItem('tf_accent') || 'tiffany');
-  const [showCompleted, setShowCompleted] = useState(() => localStorage.getItem('tf_show_completed') === 'true');
+  const [theme, setTheme] = useState(() => user.task_theme || localStorage.getItem('tf_theme') || 'light');
+  const [accent, setAccent] = useState(() => user.accent || localStorage.getItem('tf_accent') || 'tiffany');
+  const [showCompleted, setShowCompleted] = useState(() => user.show_completed ?? (localStorage.getItem('tf_show_completed') === 'true'));
   const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || localStorage.getItem('tf_default_list') || 'personal');
+  const [completionToast, setCompletionToast] = useState<CompletionToastState | null>(null);
+  const completionToastTimeoutRef = useRef<number | null>(null);
+
+  const clearCompletionToast = () => {
+    setCompletionToast(null);
+    if (completionToastTimeoutRef.current) {
+      window.clearTimeout(completionToastTimeoutRef.current);
+      completionToastTimeoutRef.current = null;
+    }
+  };
+
+  const showCompletionToast = (taskId: string, message: string) => {
+    setCompletionToast({ taskId, message });
+    if (completionToastTimeoutRef.current) {
+      window.clearTimeout(completionToastTimeoutRef.current);
+    }
+    completionToastTimeoutRef.current = window.setTimeout(() => {
+      clearCompletionToast();
+    }, 2600);
+  };
 
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -112,6 +134,38 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     };
     fetchCategories();
   }, [user.user_id]);
+
+  useEffect(() => () => {
+    if (completionToastTimeoutRef.current) {
+      window.clearTimeout(completionToastTimeoutRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user.task_theme) setTheme(user.task_theme);
+    if (user.accent) setAccent(user.accent);
+    if (typeof user.show_completed === 'boolean') setShowCompleted(user.show_completed);
+  }, [user.task_theme, user.accent, user.show_completed]);
+
+  const updateThemeDB = async (nextTheme: string) => {
+    setTheme(nextTheme);
+    setUser(prev => ({ ...prev, task_theme: nextTheme }));
+    if (!supabase) return;
+    await supabase
+      .from('profiles')
+      .update({ task_theme: nextTheme, updated_at: new Date().toISOString() })
+      .eq('user_id', user.user_id);
+  };
+
+  const updateAccentDB = async (nextAccent: string) => {
+    setAccent(nextAccent);
+    setUser(prev => ({ ...prev, accent: nextAccent }));
+    if (!supabase) return;
+    await supabase
+      .from('profiles')
+      .update({ accent: nextAccent, updated_at: new Date().toISOString() })
+      .eq('user_id', user.user_id);
+  };
 
   const saveCategory = async (cat: UserList) => {
     if (!supabase) return;
@@ -162,6 +216,19 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (aPinned !== bPinned) return bPinned - aPinned;
     return a.name.localeCompare(b.name);
   });
+  const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
+  const getValidTaskListId = (candidate?: string) => {
+    const fallbackListId = userLists.some((list) => list.id === defaultListId)
+      ? defaultListId
+      : (userLists[0]?.id || 'personal');
+
+    if (!candidate || standardFilters.includes(candidate)) {
+      return fallbackListId;
+    }
+
+    return userLists.some((list) => list.id === candidate) ? candidate : fallbackListId;
+  };
+  const resolveTaskListId = (candidate?: string) => getValidTaskListId(candidate || currentFilter);
     const updateDefaultListDB = async (listId: string) => {
       if (!supabase) return;
       await supabase
@@ -176,6 +243,16 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       setDefaultListId(listId);
       updateDefaultListDB(listId);
     };
+
+  const handleSetShowCompleted = async (show: boolean) => {
+    setShowCompleted(show);
+    setUser(prev => ({ ...prev, show_completed: show }));
+    if (!supabase) return;
+    await supabase
+      .from('profiles')
+      .update({ show_completed: show, updated_at: new Date().toISOString() })
+      .eq('user_id', user.user_id);
+  };
 
   useEffect(() => {
     localStorage.setItem('tf_theme', theme);
@@ -221,11 +298,25 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (!task) return;
     const nextDone = !task.done;
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: nextDone } : t));
+    if (nextDone) {
+      showCompletionToast(id, `"${task.title}" has been completed.`);
+    }
     
     await supabase.from('tasks').update({ 
       status: nextDone ? 'done' : 'todo',
       is_completed: nextDone 
     }).eq('id', id);
+  };
+
+  const handleUndoCompletedTask = async () => {
+    if (!supabase || !completionToast) return;
+    const { taskId } = completionToast;
+    clearCompletionToast();
+    setTasks(prev => prev.map(task => task.id === taskId ? { ...task, done: false } : task));
+    await supabase.from('tasks').update({
+      status: 'todo',
+      is_completed: false
+    }).eq('id', taskId);
   };
 
   const handleDeleteTask = async (id: string) => {
@@ -247,9 +338,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     });
   };
 
-  const openAddModal = (type: ItemType = 'task') => {
-    const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
-    const listCategory = !standardFilters.includes(currentFilter) ? currentFilter : defaultListId;
+  const openAddModal = (type: ItemType = 'task', defaults: Partial<TaskItem> = {}) => {
+    const listCategory = getValidTaskListId(currentFilter);
     
     setEditingTask(null);
     setNewTask({
@@ -257,6 +347,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       priority: 'none',
       list: listCategory,
       date: todayStr(),
+      ...defaults,
     });
     setIsModalOpen(true);
   };
@@ -271,7 +362,11 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (!newTask.title || !supabase) return;
 
     if (editingTask) {
-      const updated = { ...editingTask, ...newTask } as TaskItem;
+      const updated = {
+        ...editingTask,
+        ...newTask,
+        list: resolveTaskListId(newTask.list || editingTask.list)
+      } as TaskItem;
       setTasks(prev => prev.map(t => t.id === editingTask.id ? updated : t));
       
       await supabase.from('tasks').update({
@@ -284,12 +379,13 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         endtime: updated.endtime,
         location: updated.location,
         urgency: updated.priority === 'none' ? null : (updated.priority === 'med' ? 'MEDIUM' : updated.priority.toUpperCase()),
-        list_id_text: updated.list || 'personal',
+        list_id_text: updated.list,
         status: updated.done ? 'done' : 'todo',
         is_completed: updated.done
       }).eq('id', editingTask.id);
     } else {
       const id = crypto.randomUUID();
+      const resolvedListId = resolveTaskListId(newTask.list);
       const item: TaskItem = {
         id,
         type: newTask.type || 'task',
@@ -301,7 +397,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         endtime: newTask.endtime || '',
         location: newTask.location || '',
         priority: newTask.priority || 'none',
-        list: newTask.list || 'personal',
+        list: resolvedListId,
         done: false,
         created: Date.now(),
       };
@@ -320,7 +416,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         endtime: item.endtime || null,
         location: item.location || null,
         urgency: item.priority === 'none' ? 'NORMAL' : (item.priority === 'med' ? 'MEDIUM' : item.priority.toUpperCase()),
-        list_id_text: item.list || 'personal',
+        list_id_text: item.list,
         status: 'todo',
         is_completed: false,
         color: getListColorName(item.list)
@@ -336,6 +432,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   const handleQuickAddTask = async (title: string, list: string, type: ItemType = 'task') => {
     if (!title || !supabase) return;
     const id = crypto.randomUUID();
+    const resolvedListId = resolveTaskListId(list);
     const item: TaskItem = {
       id,
       type,
@@ -347,7 +444,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       endtime: '',
       location: '',
       priority: 'none',
-      list,
+      list: resolvedListId,
       done: false,
       created: Date.now(),
     };
@@ -366,7 +463,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       endtime: item.endtime || null,
       location: item.location || null,
       urgency: item.priority === 'none' ? 'NORMAL' : (item.priority === 'med' ? 'MEDIUM' : item.priority.toUpperCase()),
-      list_id_text: item.list || 'personal',
+      list_id_text: item.list,
       status: 'todo',
       is_completed: false,
       color: getListColorName(item.list)
@@ -374,6 +471,34 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (error) {
       console.error('SUPABASE INSERT ERROR:', error);
     }
+  };
+
+  const handleSaveTaskDescription = async (id: string, desc: string) => {
+    if (!supabase) return;
+    await supabase
+      .from('tasks')
+      .update({ description: desc || null })
+      .eq('id', id);
+  };
+
+  const handleMoveTask = async (id: string, updates: Partial<TaskItem>) => {
+    setTasks((prev) => prev.map((task) => task.id === id ? { ...task, ...updates } : task));
+    if (!supabase) return;
+
+    await supabase
+      .from('tasks')
+      .update({
+        date: updates.date,
+        time: updates.time || null,
+      })
+      .eq('id', id);
+  };
+
+  const handleOpenTaskFromCalendar = (task: TaskItem) => {
+    const nextFilter = task.list || task.type || 'all';
+    setSelectedTaskId(task.id);
+    setCurrentFilter(nextFilter);
+    setCurrentView('todo');
   };
 
   const renderContent = () => {
@@ -396,6 +521,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             setCurrentView={setCurrentView}
             showCompleted={showCompleted}
             handleQuickAddTask={handleQuickAddTask}
+            handleSaveTaskDescription={handleSaveTaskDescription}
             userLists={userLists}
             defaultListId={defaultListId}
           />
@@ -408,8 +534,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             setCalDate={setCalDate}
             calView={calView}
             setCalView={setCalView}
-            setSelectedTaskId={setSelectedTaskId}
-            setCurrentView={setCurrentView}
+            onOpenTask={handleOpenTaskFromCalendar}
+            onMoveTask={handleMoveTask}
             openAddModal={openAddModal}
             theme={theme}
           />
@@ -420,11 +546,11 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             user={user}
             setUser={setUser}
             theme={theme}
-            setTheme={setTheme}
+            setTheme={updateThemeDB}
             accent={accent}
-            setAccent={setAccent}
+            setAccent={updateAccentDB}
             showCompleted={showCompleted}
-            setShowCompleted={setShowCompleted}
+            setShowCompleted={handleSetShowCompleted}
             handleLogout={handleLogout}
             setTasks={setTasks}
             defaultListId={defaultListId}
@@ -438,6 +564,14 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     }
   };
 
+  const handleToggleSidebar = () => {
+    if (window.innerWidth < 1024) {
+      setIsMobileMenuOpen((prev) => !prev);
+      return;
+    }
+    setIsSidebarCollapsed((prev) => !prev);
+  };
+
   return (
     <div className={`flex h-screen w-full transition-colors duration-200 overflow-hidden ${theme === 'dark' ? 'bg-[#1a1a1a] text-white' : 'bg-[#f5f5f5] text-[#1a1a1a]'}`} data-theme={theme}>
       {/* MOBILE OVERLAY */}
@@ -446,7 +580,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       )}
 
       {/* SIDEBAR */}
-      <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--border)] transition-all lg:static ${isSidebarCollapsed ? 'w-[52px]' : 'w-[240px]'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-[70] flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--border)] transition-all lg:static ${isSidebarCollapsed ? 'w-[52px]' : 'w-[min(86vw,240px)] lg:w-[240px]'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="flex h-[52px] items-center px-3.5 border-b border-[var(--border)] cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => { setCurrentView('todo'); setCurrentFilter('all'); }}>
           <div className="flex items-center gap-2.5 overflow-hidden">
             <img src={brandLogo} alt="To-do manager" className="h-7 w-auto flex-shrink-0 object-contain" />
@@ -634,12 +768,12 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col min-w-0 relative h-full">
-        <header className="h-[52px] flex-shrink-0 flex items-center gap-3 px-5 border-b border-[var(--border)] bg-[var(--header-bg)] sticky top-0 z-40">
-          <button id="toggle-sidebar" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="h-8 w-8 items-center justify-center flex hover:bg-[var(--bg3)] text-[var(--text3)] hover:text-[var(--text)] rounded-md transition-all">
+        <header className="h-[52px] flex-shrink-0 flex items-center gap-2 px-3 sm:gap-3 sm:px-5 border-b border-[var(--border)] bg-[var(--header-bg)] sticky top-0 z-40">
+          <button id="toggle-sidebar" onClick={handleToggleSidebar} className="h-8 w-8 items-center justify-center flex hover:bg-[var(--bg3)] text-[var(--text3)] hover:text-[var(--text)] rounded-md transition-all">
             <Menu size={16} />
           </button>
           
-          <h1 className="text-base font-semibold text-[var(--text)] whitespace-nowrap">
+          <h1 className="min-w-0 text-sm font-semibold text-[var(--text)] whitespace-nowrap sm:text-base">
             {currentView === 'todo' ? 'My Tasks' : (currentView === 'today' ? 'Today' : (currentView === 'upcoming' ? 'Upcoming' : currentView))}
           </h1>
 
@@ -653,15 +787,15 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
           <div className="flex items-center gap-1.5 ml-auto">
             <button 
               onClick={() => openAddModal('task')}
-              className="h-8 flex items-center gap-1.5 px-3.5 bg-accent text-white rounded-md text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-all active:scale-[0.97]"
+              className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-white rounded-md text-[12px] sm:text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-all active:scale-[0.97]"
             >
               <Plus size={14} strokeWidth={2.5} /> 
-              <span>New Task</span>
+              <span className="hidden sm:inline">New Task</span>
             </button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-5 py-5 sm:px-10 scroll-smooth no-scrollbar">
+        <main className="flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-5 lg:px-10 scroll-smooth no-scrollbar">
           {renderContent()}
         </main>
       </div>
@@ -684,6 +818,16 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         message={confirmState.message}
         confirmText="Confirm Delete"
       />
+
+      {completionToast && (
+        <div className="pointer-events-none fixed bottom-4 left-3 right-3 z-[120] sm:left-auto sm:right-5 sm:bottom-5">
+          <Toast
+            message={completionToast.message}
+            onUndo={handleUndoCompletedTask}
+            onClose={clearCompletionToast}
+          />
+        </div>
+      )}
     </div>
   );
 }
