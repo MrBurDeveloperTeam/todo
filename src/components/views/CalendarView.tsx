@@ -110,8 +110,8 @@ export function CalendarView({
     const firstDay = new Date(y, m, 1).getDay();
     const daysInMonth = new Date(y, m + 1, 0).getDate();
     const prevMonthLastDay = new Date(y, m, 0).getDate();
-
-    const cells = [];
+    
+    const cells: Array<{ day: number; current: boolean; date: Date }> = [];
     for (let i = firstDay - 1; i >= 0; i--) {
       cells.push({ day: prevMonthLastDay - i, current: false, date: new Date(y, m - 1, prevMonthLastDay - i) });
     }
