@@ -32,6 +32,7 @@ const DEFAULT_CATEGORIES = [
 ];
 const DEFAULT_CATEGORY_IDS = DEFAULT_CATEGORIES.map(c => c.id);
 type UserList = { id: string; name: string; color: string; pinned?: boolean };
+type CompletionToastState = { taskId: string; message: string };
 
 
 interface HomeProps {
@@ -124,6 +125,38 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     fetchCategories();
   }, [user.user_id]);
 
+  useEffect(() => () => {
+    if (completionToastTimeoutRef.current) {
+      window.clearTimeout(completionToastTimeoutRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user.task_theme) setTheme(user.task_theme);
+    if (user.accent) setAccent(user.accent);
+    if (typeof user.show_completed === 'boolean') setShowCompleted(user.show_completed);
+  }, [user.task_theme, user.accent, user.show_completed]);
+
+  const updateThemeDB = async (nextTheme: string) => {
+    setTheme(nextTheme);
+    setUser(prev => ({ ...prev, task_theme: nextTheme }));
+    if (!supabase) return;
+    await supabase
+      .from('profiles')
+      .update({ task_theme: nextTheme, updated_at: new Date().toISOString() })
+      .eq('user_id', user.user_id);
+  };
+
+  const updateAccentDB = async (nextAccent: string) => {
+    setAccent(nextAccent);
+    setUser(prev => ({ ...prev, accent: nextAccent }));
+    if (!supabase) return;
+    await supabase
+      .from('profiles')
+      .update({ accent: nextAccent, updated_at: new Date().toISOString() })
+      .eq('user_id', user.user_id);
+  };
+
   const saveCategory = async (cat: UserList) => {
     if (!supabase) return;
     const payload = {
@@ -167,6 +200,19 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (aPinned !== bPinned) return bPinned - aPinned;
     return a.name.localeCompare(b.name);
   });
+  const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
+  const getValidTaskListId = (candidate?: string) => {
+    const fallbackListId = userLists.some((list) => list.id === defaultListId)
+      ? defaultListId
+      : (userLists[0]?.id || 'personal');
+
+    if (!candidate || standardFilters.includes(candidate)) {
+      return fallbackListId;
+    }
+
+    return userLists.some((list) => list.id === candidate) ? candidate : fallbackListId;
+  };
+  const resolveTaskListId = (candidate?: string) => getValidTaskListId(candidate || currentFilter);
     const updateDefaultListDB = async (listId: string) => {
       if (!supabase) return;
       await supabase
@@ -181,6 +227,16 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       setDefaultListId(listId);
       updateDefaultListDB(listId);
     };
+
+  const handleSetShowCompleted = async (show: boolean) => {
+    setShowCompleted(show);
+    setUser(prev => ({ ...prev, show_completed: show }));
+    if (!supabase) return;
+    await supabase
+      .from('profiles')
+      .update({ show_completed: show, updated_at: new Date().toISOString() })
+      .eq('user_id', user.user_id);
+  };
 
   useEffect(() => {
     updateThemeIcon(theme);
@@ -222,11 +278,25 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (!task) return;
     const nextDone = !task.done;
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: nextDone } : t));
+    if (nextDone) {
+      showCompletionToast(id, `"${task.title}" has been completed.`);
+    }
     
     await supabase.from('tasks').update({ 
       status: nextDone ? 'done' : 'todo',
       is_completed: nextDone 
     }).eq('id', id);
+  };
+
+  const handleUndoCompletedTask = async () => {
+    if (!supabase || !completionToast) return;
+    const { taskId } = completionToast;
+    clearCompletionToast();
+    setTasks(prev => prev.map(task => task.id === taskId ? { ...task, done: false } : task));
+    await supabase.from('tasks').update({
+      status: 'todo',
+      is_completed: false
+    }).eq('id', taskId);
   };
 
   const handleDeleteTask = async (id: string) => {
@@ -248,16 +318,19 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     });
   };
 
-  const openAddModal = (type: ItemType = 'task') => {
-    const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
-    const listCategory = !standardFilters.includes(currentFilter) ? currentFilter : defaultListId;
+  const openAddModal = (type: ItemType = 'task', defaults: Partial<TaskItem> = {}) => {
+    const listCategory = getValidTaskListId(currentFilter);
+    const calendarSelectedDate = toLocalDateStr(calDate);
+    const baseDate = currentView === 'calendar' ? calendarSelectedDate : todayStr();
     
     setEditingTask(null);
     setNewTask({
       type,
       priority: 'none',
       list: listCategory,
-      date: todayStr(),
+      date: baseDate,
+      enddate: type === 'event' ? baseDate : '',
+      ...defaults,
     });
     setIsModalOpen(true);
   };
@@ -272,7 +345,11 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (!newTask.title || !supabase) return;
 
     if (editingTask) {
-      const updated = { ...editingTask, ...newTask } as TaskItem;
+      const updated = {
+        ...editingTask,
+        ...newTask,
+        list: resolveTaskListId(newTask.list || editingTask.list)
+      } as TaskItem;
       setTasks(prev => prev.map(t => t.id === editingTask.id ? updated : t));
       
       await supabase.from('tasks').update({
@@ -285,12 +362,13 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         endtime: updated.endtime,
         location: updated.location,
         urgency: updated.priority === 'none' ? null : (updated.priority === 'med' ? 'MEDIUM' : updated.priority.toUpperCase()),
-        list_id_text: updated.list || 'personal',
+        list_id_text: updated.list,
         status: updated.done ? 'done' : 'todo',
         is_completed: updated.done
       }).eq('id', editingTask.id);
     } else {
       const id = crypto.randomUUID();
+      const resolvedListId = resolveTaskListId(newTask.list);
       const item: TaskItem = {
         id,
         type: newTask.type || 'task',
@@ -302,7 +380,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         endtime: newTask.endtime || '',
         location: newTask.location || '',
         priority: newTask.priority || 'none',
-        list: newTask.list || 'personal',
+        list: resolvedListId,
         done: false,
         created: Date.now(),
       };
@@ -321,7 +399,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         endtime: item.endtime || null,
         location: item.location || null,
         urgency: item.priority === 'none' ? 'NORMAL' : (item.priority === 'med' ? 'MEDIUM' : item.priority.toUpperCase()),
-        list_id_text: item.list || 'personal',
+        list_id_text: item.list,
         status: 'todo',
         is_completed: false,
         color: getListColorName(item.list)
@@ -337,6 +415,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   const handleQuickAddTask = async (title: string, list: string, type: ItemType = 'task') => {
     if (!title || !supabase) return;
     const id = crypto.randomUUID();
+    const resolvedListId = resolveTaskListId(list);
     const item: TaskItem = {
       id,
       type,
@@ -348,7 +427,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       endtime: '',
       location: '',
       priority: 'none',
-      list,
+      list: resolvedListId,
       done: false,
       created: Date.now(),
     };
@@ -367,7 +446,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       endtime: item.endtime || null,
       location: item.location || null,
       urgency: item.priority === 'none' ? 'NORMAL' : (item.priority === 'med' ? 'MEDIUM' : item.priority.toUpperCase()),
-      list_id_text: item.list || 'personal',
+      list_id_text: item.list,
       status: 'todo',
       is_completed: false,
       color: getListColorName(item.list)
@@ -375,6 +454,34 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (error) {
       console.error('SUPABASE INSERT ERROR:', error);
     }
+  };
+
+  const handleSaveTaskDescription = async (id: string, desc: string) => {
+    if (!supabase) return;
+    await supabase
+      .from('tasks')
+      .update({ description: desc || null })
+      .eq('id', id);
+  };
+
+  const handleMoveTask = async (id: string, updates: Partial<TaskItem>) => {
+    setTasks((prev) => prev.map((task) => task.id === id ? { ...task, ...updates } : task));
+    if (!supabase) return;
+
+    await supabase
+      .from('tasks')
+      .update({
+        date: updates.date,
+        time: updates.time || null,
+      })
+      .eq('id', id);
+  };
+
+  const handleOpenTaskFromCalendar = (task: TaskItem) => {
+    const nextFilter = task.list || task.type || 'all';
+    setSelectedTaskId(task.id);
+    setCurrentFilter(nextFilter);
+    setCurrentView('todo');
   };
 
   const renderContent = () => {
@@ -397,6 +504,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             setCurrentView={setCurrentView}
             showCompleted={showCompleted}
             handleQuickAddTask={handleQuickAddTask}
+            handleSaveTaskDescription={handleSaveTaskDescription}
             userLists={userLists}
             defaultListId={defaultListId}
           />
@@ -409,8 +517,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             setCalDate={setCalDate}
             calView={calView}
             setCalView={setCalView}
-            setSelectedTaskId={setSelectedTaskId}
-            setCurrentView={setCurrentView}
+            onOpenTask={handleOpenTaskFromCalendar}
+            onMoveTask={handleMoveTask}
             openAddModal={openAddModal}
             theme={theme}
           />
@@ -425,7 +533,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             accent={accent}
             setAccent={updateAccentDB}
             showCompleted={showCompleted}
-            setShowCompleted={setShowCompleted}
+            setShowCompleted={handleSetShowCompleted}
             handleLogout={handleLogout}
             setTasks={setTasks}
             defaultListId={defaultListId}
@@ -437,6 +545,14 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       default:
         return <div className="p-10 text-center font-bold opacity-50">View not implemented</div>;
     }
+  };
+
+  const handleToggleSidebar = () => {
+    if (window.innerWidth < 1024) {
+      setIsMobileMenuOpen((prev) => !prev);
+      return;
+    }
+    setIsSidebarCollapsed((prev) => !prev);
   };
 
   return (
@@ -670,7 +786,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             <Menu size={16} />
           </button>
           
-          <h1 className="text-base font-semibold text-[var(--text)] whitespace-nowrap">
+          <h1 className="min-w-0 text-sm font-semibold text-[var(--text)] whitespace-nowrap sm:text-base">
             {currentView === 'todo' ? 'My Tasks' : (currentView === 'today' ? 'Today' : (currentView === 'upcoming' ? 'Upcoming' : currentView))}
           </h1>
 
@@ -684,15 +800,15 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
           <div className="flex items-center gap-1.5 ml-auto">
             <button 
               onClick={() => openAddModal('task')}
-              className="h-8 flex items-center gap-1.5 px-3.5 bg-accent text-white rounded-md text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-all active:scale-[0.97]"
+              className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-white rounded-md text-[12px] sm:text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-all active:scale-[0.97]"
             >
               <Plus size={14} strokeWidth={2.5} /> 
-              <span>New Task</span>
+              <span className="hidden sm:inline">New Task</span>
             </button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-5 py-5 sm:px-10 scroll-smooth no-scrollbar">
+        <main className="flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-5 lg:px-10 scroll-smooth no-scrollbar">
           {renderContent()}
         </main>
       </div>
@@ -715,6 +831,16 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         message={confirmState.message}
         confirmText={confirmState.confirmText || "Confirm Delete"}
       />
+
+      {completionToast && (
+        <div className="pointer-events-none fixed bottom-4 left-3 right-3 z-[120] sm:left-auto sm:right-5 sm:bottom-5">
+          <Toast
+            message={completionToast.message}
+            onUndo={handleUndoCompletedTask}
+            onClose={clearCompletionToast}
+          />
+        </div>
+      )}
     </div>
   );
 }
