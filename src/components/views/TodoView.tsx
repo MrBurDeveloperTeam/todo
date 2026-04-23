@@ -54,6 +54,7 @@ export function TodoView({
 }: TodoViewProps) {
   const [isCompletedCollapsed, setIsCompletedCollapsed] = useState(true);
   const [isOverdueCollapsed, setIsOverdueCollapsed] = useState(true);
+  const [quickTaskValue, setQuickTaskValue] = useState('');
   const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
 
   const getValidTaskListId = (candidate?: string) => {
@@ -120,6 +121,20 @@ export function TodoView({
     { id: 'overdue', label: 'Overdue' },
     ...userLists.map((list) => ({ id: list.id, label: list.name })),
   ].filter((option, index, array) => array.findIndex((item) => item.id === option.id) === index);
+
+  const submitQuickTask = () => {
+    const title = quickTaskValue.trim();
+    if (!title) return;
+
+    const listCategory = getValidTaskListId(currentFilter);
+
+    let type: ItemType = 'task';
+    if (currentFilter === 'event') type = 'event';
+    if (currentFilter === 'reminder') type = 'reminder';
+
+    handleQuickAddTask(title, listCategory, type);
+    setQuickTaskValue('');
+  };
 
   const renderSelectedTaskDetail = () => {
     if (!selectedTask) {
@@ -356,33 +371,43 @@ export function TodoView({
           </div>
         </div>
 
-        <div className="flex flex-col mb-4">
+        <form
+          className="flex flex-col mb-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submitQuickTask();
+          }}
+        >
           <div className="flex gap-2">
             <input
               id="quick-task-input"
               name="quickTask"
               type="text"
-              placeholder="Add a task... press Enter to save"
+              placeholder="Add a task..."
               className="flex-1 px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--surface)] text-[13.5px] outline-none focus:border-accent focus:ring-2 focus:ring-[var(--accent-subtle)]"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                  const listCategory = getValidTaskListId(currentFilter);
-
-                  let type: ItemType = 'task';
-                  if (currentFilter === 'event') type = 'event';
-                  if (currentFilter === 'reminder') type = 'reminder';
-
-                  handleQuickAddTask(e.currentTarget.value.trim(), listCategory, type);
-                  e.currentTarget.value = '';
-                }
-              }}
+              value={quickTaskValue}
+              onChange={(e) => setQuickTaskValue(e.target.value)}
             />
+            <button
+              type="submit"
+              className="hidden sm:inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!quickTaskValue.trim()}
+            >
+              Save
+            </button>
           </div>
+          <button
+            type="submit"
+            className="mt-2 inline-flex sm:hidden items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!quickTaskValue.trim()}
+          >
+            Save Task
+          </button>
           <div className="mt-1 px-2 text-[10px] text-[var(--text4)] flex items-center gap-1 opacity-80">
             <Info size={10} className="text-accent" />
             <span>Tasks created here are automatically assigned to the <strong className="text-[var(--text3)] uppercase">{getValidTaskListId(currentFilter)}</strong> list</span>
           </div>
-        </div>
+        </form>
 
         <div className="flex gap-2 mb-4 overflow-x-auto pb-2 mini-scrollbar">
           {['all', 'task', 'event', 'reminder', 'today', 'upcoming', 'overdue'].map((f) => (

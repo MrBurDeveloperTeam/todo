@@ -32,6 +32,10 @@ export function CalendarView({
 }: CalendarViewProps) {
   const visibleTasks = tasks.filter((task) => !task.done);
   const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [isPhoneLayout, setIsPhoneLayout] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 640;
+  });
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [hoveredHour, setHoveredHour] = useState<number | null>(null);
   const [hoveredWeekDate, setHoveredWeekDate] = useState<string | null>(null);
@@ -47,6 +51,16 @@ export function CalendarView({
     }, 60000);
 
     return () => window.clearInterval(intervalId);
+  }, []);
+
+  useEffect(() => {
+    const syncPhoneLayout = () => {
+      setIsPhoneLayout(window.innerWidth < 640);
+    };
+
+    syncPhoneLayout();
+    window.addEventListener('resize', syncPhoneLayout);
+    return () => window.removeEventListener('resize', syncPhoneLayout);
   }, []);
 
   const getTypeBadgeClass = (type: TaskItem['type']) => {
@@ -78,6 +92,10 @@ export function CalendarView({
     return dateS >= start && dateS <= end;
   };
 
+  const getItemsForDate = (dateS: string) => visibleTasks
+    .filter((task) => occursOnDate(task, dateS))
+    .sort((a, b) => (a.time || '23:59').localeCompare(b.time || '23:59'));
+
   const isMultiDayEvent = (item: TaskItem) => item.type === 'event' && !!item.enddate && item.enddate !== item.date;
   const getHourSlotTime = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
   const finishDropToTime = async (droppedTaskId: string | null, date: string, time: string) => {
@@ -106,13 +124,25 @@ export function CalendarView({
     }
 
     const weeks = Array.from({ length: 6 }, (_, weekIndex) => cells.slice(weekIndex * 7, (weekIndex + 1) * 7));
+    const selectedDateStr = toLocalDateStr(calDate);
+    const selectedDateItems = getItemsForDate(selectedDateStr);
+
+    const weekdayLabels = isPhoneLayout
+      ? ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+      : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     return (
-      <div className="border border-[var(--border)] rounded-lg overflow-x-auto bg-[var(--border)]">
-        <div className="min-w-[700px]">
+      <div className="space-y-3">
+        <div className="border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--border)]">
+        <div className={isPhoneLayout ? '' : 'min-w-[700px]'}>
         <div className="grid grid-cols-7 gap-px">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-            <div key={d} className="bg-[var(--surface2)] text-center py-2 text-[10px] font-black text-[var(--text4)] uppercase tracking-widest">{d}</div>
+          {weekdayLabels.map((d, index) => (
+            <div
+              key={`${d}-${index}`}
+              className={`bg-[var(--surface2)] text-center font-black text-[var(--text4)] uppercase ${isPhoneLayout ? 'py-1.5 text-[9px] tracking-[0.18em]' : 'py-2 text-[10px] tracking-widest'}`}
+            >
+              {d}
+            </div>
           ))}
         </div>
 
@@ -142,7 +172,7 @@ export function CalendarView({
 
             return (
               <div key={weekIndex} className="bg-[var(--surface)]">
-                {spanningEvents.length > 0 && (
+                {!isPhoneLayout && spanningEvents.length > 0 && (
                   <div className="grid grid-cols-7 gap-px bg-[var(--border)] border-b border-[var(--border)]">
                     <div className="col-span-7 bg-[var(--surface)] px-1.5 py-1.5 space-y-1">
                       {spanningEvents.slice(0, 3).map(({ task, startIndex, endIndex }) => (
@@ -168,17 +198,21 @@ export function CalendarView({
                 <div className="grid grid-cols-7 gap-px bg-[var(--border)]">
                   {week.map((cell, dayIndex) => {
                     const dateS = toLocalDateStr(cell.date);
-                    const hasTasks = visibleTasks.filter((task) => occursOnDate(task, dateS));
-                    const cellItems = hasTasks.filter((task) => !isMultiDayEvent(task)).slice(0, 2);
+                    const hasTasks = getItemsForDate(dateS);
+                    const cellItems = hasTasks.filter((task) => !isMultiDayEvent(task)).slice(0, isPhoneLayout ? 1 : 2);
                     const hiddenCount = hasTasks.length - cellItems.length;
                     const isToday = dateS === todayStr();
+                    const isSelected = dateS === selectedDateStr;
+                    const phoneDots = hasTasks.slice(0, 3);
 
                     return (
                       <div
                         key={`${weekIndex}-${dayIndex}`}
-                        className={`bg-[var(--surface)] min-h-[108px] p-2 hover:bg-[var(--surface2)] cursor-pointer transition ${!cell.current ? 'opacity-40 bg-[var(--bg)]' : ''} ${isToday ? 'bg-[var(--accent-light)]/30' : ''}`}
+                        className={`bg-[var(--surface)] cursor-pointer transition hover:bg-[var(--surface2)] ${isPhoneLayout ? 'h-[88px] p-1.5' : 'min-h-[108px] p-2'} ${!cell.current ? 'opacity-40 bg-[var(--bg)]' : ''} ${isToday ? 'bg-[var(--accent-light)]/30' : ''} ${isSelected && isPhoneLayout ? 'ring-2 ring-accent ring-inset' : ''}`}
                         onClick={() => {
-                          if (hasTasks.length > 0) {
+                          if (isPhoneLayout) {
+                            setCalDate(cell.date);
+                          } else if (hasTasks.length > 0) {
                             onOpenTask(hasTasks[0]);
                           } else {
                             setCalDate(cell.date);
@@ -186,15 +220,42 @@ export function CalendarView({
                           }
                         }}
                       >
-                        <div className={`text-[12px] font-black mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'bg-accent text-white' : 'text-[var(--text2)]'}`}>{cell.day}</div>
+                        <div className={`font-black flex items-center justify-center rounded-full ${isPhoneLayout ? 'mb-1 h-5 w-5 text-[10px]' : 'mb-1 h-6 w-6 text-[12px]'} ${isToday ? 'bg-accent text-white' : isSelected && isPhoneLayout ? 'bg-[var(--surface2)] text-accent' : 'text-[var(--text2)]'}`}>{cell.day}</div>
+                        {isPhoneLayout ? (
+                          <div className="mt-auto pt-1">
+                            <div className="flex min-h-[10px] items-center gap-0.5">
+                              {phoneDots.map((task) => (
+                                <span
+                                  key={task.id}
+                                  className={`h-1.5 w-1.5 rounded-full ${getTypeAccentBarClass(task.type)}`}
+                                ></span>
+                              ))}
+                            </div>
+                            {hasTasks.length > 0 && (
+                              <div className="mt-1 truncate text-[8px] font-semibold text-[var(--text3)]">
+                                {hasTasks.length} item{hasTasks.length === 1 ? '' : 's'}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
                         <div className="space-y-1">
                           {cellItems.map((task) => (
-                            <div key={task.id} className={`text-[9px] px-1.5 py-0.5 rounded truncate font-bold border ${getTypeBadgeClass(task.type)}`}>
-                              {task.time && formatTime(task.time)} {task.title}
+                            <div
+                              key={task.id}
+                              className={`rounded truncate font-bold border ${isPhoneLayout ? 'px-1 py-0.5 text-[8px] leading-tight' : 'px-1.5 py-0.5 text-[9px]'} ${getTypeBadgeClass(task.type)}`}
+                            >
+                              {isPhoneLayout
+                                ? task.title
+                                : `${task.time ? `${formatTime(task.time)} ` : ''}${task.title}`}
                             </div>
                           ))}
-                          {hiddenCount > 0 && <div className="text-[9px] text-accent font-black pl-1">+{hiddenCount} more</div>}
+                          {hiddenCount > 0 && (
+                            <div className={`${isPhoneLayout ? 'text-[8px]' : 'text-[9px]'} text-accent font-black pl-1`}>
+                              +{hiddenCount} more
+                            </div>
+                          )}
                         </div>
+                        )}
                       </div>
                     );
                   })}
@@ -204,6 +265,54 @@ export function CalendarView({
           })}
         </div>
         </div>
+        </div>
+
+        {isPhoneLayout && (
+          <div className="rounded-[22px] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden">
+            <div className="border-b border-[var(--border)] px-4 py-3">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text4)]">
+                Selected Day
+              </div>
+              <div className="mt-1 text-[18px] font-black text-[var(--text)]">
+                {calDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              </div>
+            </div>
+
+            <div className="px-3 py-2">
+              {selectedDateItems.length === 0 ? (
+                <button
+                  className="w-full rounded-2xl border border-dashed border-[var(--border)] px-4 py-5 text-left text-sm text-[var(--text3)] transition hover:border-accent hover:text-accent hover:bg-[var(--surface2)]"
+                  onClick={() => openAddModal('event', { date: selectedDateStr, enddate: selectedDateStr })}
+                >
+                  No events for this day
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  {selectedDateItems.map((task) => (
+                    <button
+                      key={task.id}
+                      className="flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition hover:bg-[var(--surface2)]"
+                      onClick={() => onOpenTask(task)}
+                    >
+                      <span className={`mt-1 h-10 w-1 rounded-full ${getTypeAccentBarClass(task.type)}`}></span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[12px] font-black uppercase tracking-[0.14em] text-[var(--text4)]">
+                          {task.time ? formatTime(task.time) : 'All-day'}
+                        </div>
+                        <div className="mt-1 text-[15px] font-bold leading-tight text-[var(--text)]">
+                          {task.title}
+                        </div>
+                        <div className="mt-1 text-[12px] text-[var(--text3)]">
+                          {task.list}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -621,16 +730,16 @@ export function CalendarView({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center gap-2 mb-4 bg-[var(--surface)] p-3 rounded-xl border border-[var(--border)] flex-wrap">
+      <div className={`mb-4 border border-[var(--border)] bg-[var(--surface)] flex-wrap ${isPhoneLayout ? 'rounded-[24px] p-3 shadow-[0_10px_30px_rgba(0,0,0,0.06)]' : 'rounded-xl p-3'} flex items-center gap-2`}>
         <div className="flex items-center gap-1 shrink-0">
-          <button className="p-1.5 rounded-lg hover:bg-[var(--bg3)] text-[var(--text3)] transition" onClick={() => {
+          <button className={`text-[var(--text3)] transition hover:bg-[var(--bg3)] ${isPhoneLayout ? 'rounded-full p-2' : 'rounded-lg p-1.5'}`} onClick={() => {
             const d = new Date(calDate);
             if (calView === 'month') d.setMonth(d.getMonth() - 1);
             else if (calView === 'week') d.setDate(d.getDate() - 7);
             else d.setDate(d.getDate() - 1);
             setCalDate(d);
           }}><ChevronLeft size={16} /></button>
-          <button className="p-1.5 rounded-lg hover:bg-[var(--bg3)] text-[var(--text3)] transition" onClick={() => {
+          <button className={`text-[var(--text3)] transition hover:bg-[var(--bg3)] ${isPhoneLayout ? 'rounded-full p-2' : 'rounded-lg p-1.5'}`} onClick={() => {
             const d = new Date(calDate);
             if (calView === 'month') d.setMonth(d.getMonth() + 1);
             else if (calView === 'week') d.setDate(d.getDate() + 7);
@@ -638,17 +747,17 @@ export function CalendarView({
             setCalDate(d);
           }}><ChevronRight size={16} /></button>
         </div>
-        <button className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs font-black hover:bg-accent hover:text-white transition active:scale-95 shrink-0" onClick={() => setCalDate(new Date())}>Today</button>
-        <h2 className="text-[15px] sm:text-[17px] font-black text-[var(--text)] min-w-0 flex-1 order-3 basis-full sm:order-none sm:basis-auto sm:ml-2">
+        <button className={`border border-[var(--border)] text-xs font-black transition active:scale-95 shrink-0 hover:bg-accent hover:text-white ${isPhoneLayout ? 'rounded-full px-3 py-2' : 'rounded-lg px-3 py-1.5'}`} onClick={() => setCalDate(new Date())}>Today</button>
+        <h2 className={`text-[var(--text)] min-w-0 flex-1 order-3 basis-full sm:order-none sm:basis-auto sm:ml-2 ${isPhoneLayout ? 'text-[20px] font-black tracking-[-0.02em]' : 'text-[15px] sm:text-[17px] font-black'}`}>
           {calView === 'month' ? monthLabel :
            calView === 'week' ? `Week of ${calDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` :
            calDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
         </h2>
-        <div className="ml-auto flex gap-1 p-1 bg-[var(--bg3)] rounded-lg shrink-0">
+        <div className={`ml-auto flex gap-1 p-1 bg-[var(--bg3)] shrink-0 ${isPhoneLayout ? 'w-full rounded-full' : 'rounded-lg'}`}>
           {['month', 'week', 'day'].map((v) => (
             <button
               key={v}
-              className={`px-2.5 sm:px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${calView === v ? 'bg-[var(--surface)] text-accent shadow-sm' : 'text-[var(--text4)] hover:text-[var(--text2)]'}`}
+              className={`transition-all ${isPhoneLayout ? 'flex-1 rounded-full px-2 py-2 text-[11px] font-black uppercase tracking-[0.16em]' : 'rounded-md px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider sm:px-3'} ${calView === v ? 'bg-[var(--surface)] text-accent shadow-sm' : 'text-[var(--text4)] hover:text-[var(--text2)]'}`}
               onClick={() => setCalView(v)}
             >
               {v}

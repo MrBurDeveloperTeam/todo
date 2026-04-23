@@ -22,7 +22,7 @@ import { SettingsView } from '../components/views/SettingsView';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Toast } from '../components/Toast';
-import { todayStr, ACCENTS, updateThemeIcon } from '../utils';
+import { todayStr, toLocalDateStr, ACCENTS, updateThemeIcon } from '../utils';
 import { supabase } from '../supabase';
 
 const DEFAULT_CATEGORIES = [
@@ -340,13 +340,16 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
 
   const openAddModal = (type: ItemType = 'task', defaults: Partial<TaskItem> = {}) => {
     const listCategory = getValidTaskListId(currentFilter);
+    const calendarSelectedDate = toLocalDateStr(calDate);
+    const baseDate = currentView === 'calendar' ? calendarSelectedDate : todayStr();
     
     setEditingTask(null);
     setNewTask({
       type,
       priority: 'none',
       list: listCategory,
-      date: todayStr(),
+      date: baseDate,
+      enddate: type === 'event' ? baseDate : '',
       ...defaults,
     });
     setIsModalOpen(true);
