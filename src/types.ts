@@ -34,4 +34,5 @@ export interface AppUser {
   default_list_id?: string;
   task_theme?: string;
   accent?: string;
+  show_completed?: boolean;
 }

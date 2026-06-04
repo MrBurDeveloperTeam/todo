@@ -24,7 +24,13 @@ import {
 } from 'lucide-react';
 import { AuthForm } from '../components/AuthForm';
 
-export function LandingPage({ onStart }: { onStart: () => void }) {
+export function LandingPage({
+  onStart,
+  onAuthFormActiveChange,
+}: {
+  onStart: () => void;
+  onAuthFormActiveChange?: (isActive: boolean) => void;
+}) {
   const [authMode, setAuthMode] = useState<'landing' | 'login' | 'signup'>('landing');
   const [activeAccent, setActiveAccent] = useState('blue');
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
@@ -66,6 +72,11 @@ export function LandingPage({ onStart }: { onStart: () => void }) {
     const nextTheme = localStorage.getItem('tf_theme') === 'dark' ? 'dark' : 'light';
     setTheme(nextTheme);
   }, [authMode]);
+
+  useEffect(() => {
+    onAuthFormActiveChange?.(authMode !== 'landing');
+    return () => onAuthFormActiveChange?.(false);
+  }, [authMode, onAuthFormActiveChange]);
 
   if (authMode !== 'landing') {
     return (

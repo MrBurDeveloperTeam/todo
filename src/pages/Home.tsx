@@ -22,7 +22,8 @@ import { CalendarView } from '../components/views/CalendarView';
 import { SettingsView } from '../components/views/SettingsView';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { todayStr, ACCENTS, updateThemeIcon } from '../utils';
+import { Toast } from '../components/Toast';
+import { toLocalDateStr, todayStr, ACCENTS, updateThemeIcon } from '../utils';
 import { supabase } from '../lib/supabase';
 
 const DEFAULT_CATEGORIES = [
@@ -73,6 +74,27 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   const [accent, setAccent] = useState(user.accent || 'tiffany');
   const [showCompleted, setShowCompleted] = useState(false);
   const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || 'personal');
+  const [completionToast, setCompletionToast] = useState<CompletionToastState | null>(null);
+  const completionToastTimeoutRef = useRef<number | null>(null);
+
+  const clearCompletionToast = () => {
+    if (completionToastTimeoutRef.current) {
+      window.clearTimeout(completionToastTimeoutRef.current);
+      completionToastTimeoutRef.current = null;
+    }
+    setCompletionToast(null);
+  };
+
+  const showCompletionToast = (taskId: string, message: string) => {
+    if (completionToastTimeoutRef.current) {
+      window.clearTimeout(completionToastTimeoutRef.current);
+    }
+    setCompletionToast({ taskId, message });
+    completionToastTimeoutRef.current = window.setTimeout(() => {
+      setCompletionToast(null);
+      completionToastTimeoutRef.current = null;
+    }, 6000);
+  };
 
   useEffect(() => {
     if (user.task_theme) setTheme(user.task_theme);
@@ -137,25 +159,6 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (typeof user.show_completed === 'boolean') setShowCompleted(user.show_completed);
   }, [user.task_theme, user.accent, user.show_completed]);
 
-  const updateThemeDB = async (nextTheme: string) => {
-    setTheme(nextTheme);
-    setUser(prev => ({ ...prev, task_theme: nextTheme }));
-    if (!supabase) return;
-    await supabase
-      .from('profiles')
-      .update({ task_theme: nextTheme, updated_at: new Date().toISOString() })
-      .eq('user_id', user.user_id);
-  };
-
-  const updateAccentDB = async (nextAccent: string) => {
-    setAccent(nextAccent);
-    setUser(prev => ({ ...prev, accent: nextAccent }));
-    if (!supabase) return;
-    await supabase
-      .from('profiles')
-      .update({ accent: nextAccent, updated_at: new Date().toISOString() })
-      .eq('user_id', user.user_id);
-  };
 
   const saveCategory = async (cat: UserList) => {
     if (!supabase) return;
