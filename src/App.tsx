@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TaskItem, AppUser } from './types';
 import { toLocalDateStr, todayStr, updateThemeIcon } from './utils';
 import { supabase } from './lib/supabase';
 import { LandingPage } from './pages/LandingPage';
 import { Home } from './pages/Home';
 import { api, checkSession } from './lib/api';
+import CatMascot from './components/CatMascot.jsx';
+import MolarAIFloat from './components/MolarAIFloat.jsx';
+import { VirtualPetContainer } from '../VirtualPet/VirtualPetContainer';
 
 const SEED_DATA: TaskItem[] = [
   {
@@ -67,6 +70,31 @@ export default function App() {
 
   const [session, setSession] = useState<any>(null);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isVirtualPetOpen, setIsVirtualPetOpen] = useState(false);
+  const [isAuthFormActive, setIsAuthFormActive] = useState(false);
+
+  const aiContext = useMemo(() => {
+    const pendingTasks = tasks.filter(task => !task.done);
+    const completedTasks = tasks.filter(task => task.done);
+    const overdueTasks = pendingTasks.filter(task => task.date && task.date < todayStr());
+    const todayTasks = pendingTasks.filter(task => task.date === todayStr());
+    const upcomingTasks = pendingTasks
+      .filter(task => task.date && task.date > todayStr())
+      .sort((a, b) => `${a.date || ''} ${a.time || ''}`.localeCompare(`${b.date || ''} ${b.time || ''}`))
+      .slice(0, 8);
+
+    return [
+      `Module: To-Do Manager`,
+      `User: ${user.name}`,
+      `Email: ${user.email}`,
+      `Total items: ${tasks.length}`,
+      `Pending items: ${pendingTasks.length}`,
+      `Completed items: ${completedTasks.length}`,
+      `Due today: ${todayTasks.length}`,
+      `Overdue: ${overdueTasks.length}`,
+      `Upcoming items: ${upcomingTasks.map(task => `${task.title} (${task.date}${task.time ? ` ${task.time}` : ''})`).join('; ') || 'None'}`,
+    ].join('\n');
+  }, [tasks, user]);
 
   // Persistence removed (no localStorage)
 
@@ -244,16 +272,40 @@ export default function App() {
   }
 
   if (!session) {
-    return <LandingPage onStart={() => { }} />;
+    return (
+      <>
+        <LandingPage
+          onStart={() => { }}
+          onAuthFormActiveChange={setIsAuthFormActive}
+        />
+        <div className={isAuthFormActive ? 'hidden' : 'contents'}>
+          <CatMascot disabled />
+          <MolarAIFloat disabled />
+        </div>
+      </>
+    );
   }
 
   return (
-    <Home
-      tasks={tasks}
-      setTasks={setTasks}
-      user={user}
-      setUser={setUser}
-      handleLogout={handleLogout}
-    />
+    <>
+      <Home
+        tasks={tasks}
+        setTasks={setTasks}
+        user={user}
+        setUser={setUser}
+        handleLogout={handleLogout}
+      />
+      <div className={isVirtualPetOpen ? 'hidden' : 'contents'}>
+        <CatMascot onCatClick={() => setIsVirtualPetOpen(true)} />
+        <MolarAIFloat
+          userContext={aiContext}
+          onPetToggle={() => setIsVirtualPetOpen(true)}
+        />
+      </div>
+      <VirtualPetContainer
+        isOpen={isVirtualPetOpen}
+        onClose={() => setIsVirtualPetOpen(false)}
+      />
+    </>
   );
 }
