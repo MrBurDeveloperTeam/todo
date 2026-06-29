@@ -8,6 +8,20 @@ import { api, checkSession } from './lib/api';
 import CatMascot from './components/CatMascot.jsx';
 import MolarAIFloat from './components/MolarAIFloat.jsx';
 import { VirtualPetContainer } from '../VirtualPet/VirtualPetContainer';
+import {
+  normalizeTheme,
+  readStoredTheme,
+  readThemeCookie,
+  writeThemeCookie,
+  writeStoredTheme,
+  applyThemeToDocument,
+  resolveTheme,
+  broadcastTheme,
+  syncThemeFromOdoo,
+  pushThemeToOdoo,
+  THEME_SYNC,
+  type ThemePreference,
+} from './lib/themeSync';
 
 const SEED_DATA: TaskItem[] = [
   {
@@ -64,6 +78,77 @@ const DEFAULT_USER: AppUser = {
 };
 
 export default function App() {
+  // Snabbb theme inheritance: Worker-injected value/cookie first, mini-app fallback second.
+  const [theme, setTheme] = useState<ThemePreference>(() => readStoredTheme() || 'light');
+
+  useEffect(() => {
+    const normalized = normalizeTheme(theme) || 'light';
+    applyThemeToDocument(normalized);
+    updateThemeIcon(resolveTheme(normalized));
+  }, [theme]);
+
+  useEffect(() => {
+    syncThemeFromOdoo((odooTheme) => {
+      setTheme((current) => (current === odooTheme ? current : odooTheme));
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleStorageSync = (event: StorageEvent) => {
+      if (event.key !== THEME_SYNC.localStorageKey && event.key !== 'snabbb-theme') return;
+      const next = normalizeTheme(event.newValue);
+      if (next) setTheme((current) => (current === next ? current : next));
+    };
+
+    const handleMessageSync = (event: MessageEvent) => {
+      const data = event.data;
+      if (!data || data.type !== THEME_SYNC.messageType) return;
+      if (data.source === THEME_SYNC.appSource) return;
+
+      const next = normalizeTheme(data.theme);
+      if (next) setTheme((current) => (current === next ? current : next));
+    };
+
+    const handleSystemThemeChange = () => {
+      setTheme((current) => {
+        if (current === 'system') applyThemeToDocument('system');
+        return current;
+      });
+    };
+
+    let lastCookie = readThemeCookie();
+    const cookieInterval = window.setInterval(() => {
+      const currentCookie = readThemeCookie();
+      if (currentCookie && currentCookie !== lastCookie) {
+        lastCookie = currentCookie;
+        setTheme((current) => (current === currentCookie ? current : currentCookie));
+      }
+    }, 1000);
+
+    const mediaQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
+
+    window.addEventListener('storage', handleStorageSync);
+    window.addEventListener('message', handleMessageSync);
+    mediaQuery?.addEventListener?.('change', handleSystemThemeChange);
+    mediaQuery?.addListener?.(handleSystemThemeChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageSync);
+      window.removeEventListener('message', handleMessageSync);
+      mediaQuery?.removeEventListener?.('change', handleSystemThemeChange);
+      mediaQuery?.removeListener?.(handleSystemThemeChange);
+      window.clearInterval(cookieInterval);
+    };
+  }, []);
+
+  const handleSetTheme = (newTheme: ThemePreference) => {
+    const normalized = normalizeTheme(newTheme) || 'light';
+    setTheme(normalized);
+    writeThemeCookie(normalized);
+    writeStoredTheme(normalized);
+    broadcastTheme(normalized);
+    void pushThemeToOdoo(normalized);
+  };
   // State
   const [tasks, setTasks] = useState<TaskItem[]>(SEED_DATA);
   const [user, setUser] = useState<AppUser>(DEFAULT_USER);
@@ -294,6 +379,8 @@ export default function App() {
         user={user}
         setUser={setUser}
         handleLogout={handleLogout}
+        theme={theme}
+        setTheme={handleSetTheme}
       />
       <div className={isVirtualPetOpen ? 'hidden' : 'contents'}>
         <CatMascot onCatClick={() => setIsVirtualPetOpen(true)} />

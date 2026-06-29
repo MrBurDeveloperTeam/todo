@@ -1,15 +1,16 @@
 import React from 'react';
-import { User, Sun, Moon, LayoutGrid, Check, Loader2 } from 'lucide-react';
+import { User, Sun, Moon, Monitor, LayoutGrid, Check, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { AppUser } from '../../types';
+import { type ThemePreference } from '../../lib/themeSync';
 import { ACCENTS } from '../../utils';
 import { ConfirmModal } from '../ConfirmModal';
 
 interface SettingsViewProps {
   user: AppUser;
   setUser: React.Dispatch<React.SetStateAction<AppUser>>;
-  theme: string;
-  setTheme: (theme: string) => void;
+  theme: ThemePreference;
+  setTheme: (theme: ThemePreference) => void;
   accent: string;
   setAccent: (accent: string) => void;
   showCompleted: boolean;
@@ -196,6 +197,7 @@ export function SettingsView({
                   className={`p-2 rounded-lg border transition ${theme === 'light' ? 'border-accent bg-[var(--accent-light)] text-accent' : 'border-[var(--border)]'}`}
                   onClick={() => setTheme('light')}
                   aria-label="Use light mode"
+                  title="Light"
                 >
                   <Sun size={16} />
                 </button>
@@ -203,8 +205,17 @@ export function SettingsView({
                   className={`p-2 rounded-lg border transition ${theme === 'dark' ? 'border-accent bg-accent text-white' : 'border-[var(--border)]'}`}
                   onClick={() => setTheme('dark')}
                   aria-label="Use dark mode"
+                  title="Dark"
                 >
                   <Moon size={16} />
+                </button>
+                <button
+                  className={`p-2 rounded-lg border transition ${theme === 'system' ? 'border-accent bg-[var(--accent-light)] text-accent' : 'border-[var(--border)]'}`}
+                  onClick={() => setTheme('system')}
+                  aria-label="Use system theme"
+                  title="System"
+                >
+                  <Monitor size={16} />
                 </button>
               </div>
             </div>

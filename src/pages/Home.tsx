@@ -24,6 +24,7 @@ import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Toast } from '../components/Toast';
 import { toLocalDateStr, todayStr, ACCENTS, updateThemeIcon } from '../utils';
+import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
 
 const DEFAULT_CATEGORIES = [
@@ -42,9 +43,11 @@ interface HomeProps {
   user: AppUser;
   setUser: React.Dispatch<React.SetStateAction<AppUser>>;
   handleLogout: () => void;
+  theme: ThemePreference;
+  setTheme: (theme: ThemePreference) => void;
 }
 
-export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps) {
+export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -69,8 +72,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     confirmText: 'Confirm Delete',
     onConfirm: () => {}
   });
-  // Theme state
-  const [theme, setTheme] = useState(user.task_theme || 'light');
+  // Theme is inherited from Snabbb and controlled by the app-level theme sync.
   const [accent, setAccent] = useState(user.accent || 'tiffany');
   const [showCompleted, setShowCompleted] = useState(false);
   const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || 'personal');
@@ -97,11 +99,10 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   };
 
   useEffect(() => {
-    if (user.task_theme) setTheme(user.task_theme);
     if (user.accent) setAccent(user.accent);
-  }, [user.task_theme, user.accent]);
+  }, [user.accent]);
 
-  const updateThemeDB = async (t: string) => {
+  const updateThemeDB = async (t: ThemePreference) => {
     setTheme(t);
     setUser(prev => ({ ...prev, task_theme: t }));
     if (supabase) {
@@ -154,10 +155,9 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   }, []);
 
   useEffect(() => {
-    if (user.task_theme) setTheme(user.task_theme);
     if (user.accent) setAccent(user.accent);
     if (typeof user.show_completed === 'boolean') setShowCompleted(user.show_completed);
-  }, [user.task_theme, user.accent, user.show_completed]);
+  }, [user.accent, user.show_completed]);
 
 
   const saveCategory = async (cat: UserList) => {
@@ -196,7 +196,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   // Calendar state
   const [calDate, setCalDate] = useState(new Date());
   const [calView, setCalView] = useState('month');
-  const brandLogo = theme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
+  const resolvedTheme = resolveTheme(theme);
+  const brandLogo = resolvedTheme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
   const sortedLists = [...userLists].sort((a, b) => {
     const aPinned = pinnedListIds.includes(a.id) ? 1 : 0;
     const bPinned = pinnedListIds.includes(b.id) ? 1 : 0;
@@ -242,16 +243,19 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   };
 
   useEffect(() => {
-    updateThemeIcon(theme);
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    document.documentElement.setAttribute('data-theme', theme);
+    const resolved = resolveTheme(theme);
+    updateThemeIcon(resolved);
+    document.documentElement.classList.toggle('dark', resolved === 'dark');
+    document.documentElement.setAttribute('data-theme', resolved);
+    document.documentElement.dataset.themePreference = theme;
+    document.documentElement.style.colorScheme = resolved;
     
     // Update CSS variables for accent
     const accentData = (ACCENTS as any)[accent] || { main: accent, light: `${accent}15`, hover: accent };
     document.documentElement.style.setProperty('--accent', accentData.main);
     document.documentElement.style.setProperty('--accent-rgb', accentData.main.startsWith('#') ? hexToRgb(accentData.main) : '0, 120, 212');
     document.documentElement.style.setProperty('--accent-light', accentData.light || `${accentData.main}15`);
-    document.documentElement.style.setProperty('--accent-subtle', theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)');
+    document.documentElement.style.setProperty('--accent-subtle', resolved === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)');
   }, [theme, accent]);
 
   function hexToRgb(hex: string) {
@@ -523,7 +527,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             onOpenTask={handleOpenTaskFromCalendar}
             onMoveTask={handleMoveTask}
             openAddModal={openAddModal}
-            theme={theme}
+            theme={resolvedTheme}
           />
         );
       case 'settings':
@@ -559,7 +563,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   };
 
   return (
-    <div className={`flex h-screen w-full transition-colors duration-200 overflow-hidden ${theme === 'dark' ? 'bg-[#1a1a1a] text-white' : 'bg-[#f5f5f5] text-[#1a1a1a]'}`} data-theme={theme}>
+    <div className={`flex h-screen w-full transition-colors duration-200 overflow-hidden ${resolvedTheme === 'dark' ? 'bg-[#1a1a1a] text-white' : 'bg-[#f5f5f5] text-[#1a1a1a]'}`} data-theme={resolvedTheme} data-theme-preference={theme}>
       {/* MOBILE OVERLAY */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm lg:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
