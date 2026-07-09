@@ -24,43 +24,6 @@ import {
 } from './lib/themeSync';
 
 const SEED_DATA: TaskItem[] = [
-  {
-    id: '1',
-    type: 'task',
-    title: 'Review Q3 performance report',
-    desc: 'Go through all metrics in the dashboard and prepare a summary for the team meeting.',
-    date: toLocalDateStr(new Date(Date.now() + 86400000)),
-    time: '09:00',
-    priority: 'high',
-    list: 'work',
-    done: false,
-    created: Date.now()
-  },
-  {
-    id: '2',
-    type: 'event',
-    title: 'Team standup meeting',
-    desc: 'Daily 15-minute sync with the engineering team.',
-    date: todayStr(),
-    time: '10:00',
-    endtime: '10:15',
-    priority: 'med',
-    list: 'work',
-    done: false,
-    created: Date.now()
-  },
-  {
-    id: '3',
-    type: 'reminder',
-    title: 'Pay electricity bill',
-    desc: 'Due on the 15th of each month.',
-    date: todayStr(),
-    time: '18:00',
-    priority: 'high',
-    list: 'personal',
-    done: false,
-    created: Date.now()
-  }
 ];
 
 const DEFAULT_USER: AppUser = {
