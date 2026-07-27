@@ -77,7 +77,7 @@ export default function App() {
         if (current === 'system') applyThemeToDocument('system');
         return current;
       });
-    };
+    }; 
 
     let lastCookie = readThemeCookie();
     const cookieInterval = window.setInterval(() => {
