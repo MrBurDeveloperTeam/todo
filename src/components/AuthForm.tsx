@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { ChevronLeft, RefreshCw } from 'lucide-react';
-import { supabase } from '../supabase';
+import { supabase } from '../lib/supabase';
 import { apiBaseUrl } from '../utils';
+import { loginOdoo } from '../lib/loginOdoo';
+import applink from '../lib/app_link';
 
 export function AuthForm({
   mode,
@@ -77,7 +79,15 @@ export function AuthForm({
         onSwitchMode('login');
       } else if (supabase) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        if (error) {
+          const { data } =  await loginOdoo(email, password); 
+          data && data?.result && data.result?.uid
+          if (data && data.result && data.result.uid) {
+            const applinkData = await applink(data.result);
+            console.log('Applink response:', applinkData);
+          }
+          return data;
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An error occurred during authentication.';

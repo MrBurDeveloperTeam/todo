@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap');
 
 :root {
   --accent: #0078d4;
@@ -50,6 +51,34 @@
   --input-focus: #0078d4;
   --scrollbar: #ccc;
   --scrollbar-hover: #aaa;
+
+  /* Snabbb inherited theme aliases */
+  color-scheme: light;
+  --snabbb-primary: #2452A0;
+  --snabbb-primary-hover: #1D4485;
+  --snabbb-accent: #0d9488;
+  --app-bg: var(--bg);
+  --app-surface: var(--surface);
+  --app-surface-soft: var(--bg3);
+  --app-surface-muted: var(--bg4);
+  --app-border: var(--border);
+  --app-border-strong: var(--border2);
+  --app-text: var(--text);
+  --app-text-soft: var(--text2);
+  --app-text-muted: var(--text3);
+  --app-placeholder: var(--text4);
+  --bg-primary: var(--bg);
+  --bg-card: var(--surface);
+  --surface-soft: var(--bg3);
+  --border-color: var(--border);
+  --text-primary: var(--text);
+  --text-secondary: var(--text2);
+  --text-muted: var(--text3);
+  --primary: var(--accent);
+  --primary-color: var(--accent);
+  --primary-hover: var(--accent-hover);
+  --success-color: var(--priority-low);
+  --danger-color: var(--priority-high);
 }
 
 [data-theme="dark"] {
@@ -86,6 +115,11 @@
   --input-focus: #60b3f5;
   --scrollbar: #444;
   --scrollbar-hover: #555;
+
+  color-scheme: dark;
+  --snabbb-primary: #6EA8FF;
+  --snabbb-primary-hover: #93BFFF;
+  --snabbb-accent: #2DD4BF;
 }
 
 @theme {
@@ -112,6 +146,11 @@
     cursor: pointer;
     font-family: var(--font);
   }
+}
+
+.pet-interface,
+.pet-interface * {
+  font-family: "Fredoka", "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* Scrollbar */
@@ -188,7 +227,194 @@ html {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .animate-reveal {
   animation: animate-reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   opacity: 0;
+}
+
+.landing-shell {
+  isolation: isolate;
+}
+
+.landing-backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 22%, transparent), transparent 42%),
+    radial-gradient(circle at 85% 18%, color-mix(in srgb, #00897b 18%, transparent), transparent 34%),
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--landing-paper3) 28%, transparent), transparent 50%),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--landing-paper) 72%, transparent),
+      color-mix(in srgb, var(--landing-paper2) 58%, transparent)
+    );
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+}
+
+.landing-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04) 28%, rgba(255, 255, 255, 0) 48%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.05), transparent 45%);
+  opacity: 0.8;
+}
+
+
+/* --------------------------------------------------------------------------
+   Snabbb inherited theme compatibility for existing Tailwind utility classes
+   -------------------------------------------------------------------------- */
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .bg-slate-50,
+:root[data-theme="dark"] .bg-gray-50,
+:root[data-theme="dark"] .even\:bg-slate-50:nth-child(even),
+:root[data-theme="dark"] .odd\:bg-white:nth-child(odd) {
+  background-color: var(--bg) !important;
+}
+
+:root[data-theme="dark"] .bg-white,
+:root[data-theme="dark"] .bg-gray-100,
+:root[data-theme="dark"] .bg-slate-100,
+:root[data-theme="dark"] [class~="bg-white/50"],
+:root[data-theme="dark"] [class~="bg-white/60"],
+:root[data-theme="dark"] [class~="bg-white/80"],
+:root[data-theme="dark"] [class~="bg-slate-50/50"],
+:root[data-theme="dark"] [class~="bg-slate-100/70"],
+:root[data-theme="dark"] [class~="bg-emerald-50/30"] {
+  background-color: var(--surface) !important;
+}
+
+:root[data-theme="dark"] .bg-slate-200,
+:root[data-theme="dark"] .bg-gray-200,
+:root[data-theme="dark"] .bg-gray-300,
+:root[data-theme="dark"] .bg-blue-50,
+:root[data-theme="dark"] .bg-teal-50,
+:root[data-theme="dark"] .bg-indigo-50,
+:root[data-theme="dark"] .bg-emerald-50,
+:root[data-theme="dark"] .bg-amber-50,
+:root[data-theme="dark"] .bg-rose-50,
+:root[data-theme="dark"] .bg-red-50,
+:root[data-theme="dark"] [class~="bg-slate-200/50"],
+:root[data-theme="dark"] [class~="bg-slate-100/70"] {
+  background-color: var(--bg3) !important;
+}
+
+:root[data-theme="dark"] .text-slate-900,
+:root[data-theme="dark"] .text-slate-800,
+:root[data-theme="dark"] .text-gray-900,
+:root[data-theme="dark"] .text-gray-800,
+:root[data-theme="dark"] .text-blue-900,
+:root[data-theme="dark"] .text-indigo-900,
+:root[data-theme="dark"] .text-emerald-800,
+:root[data-theme="dark"] .text-amber-800,
+:root[data-theme="dark"] .text-rose-800,
+:root[data-theme="dark"] .text-red-900,
+:root[data-theme="dark"] .text-ink {
+  color: var(--text) !important;
+}
+
+:root[data-theme="dark"] .text-slate-700,
+:root[data-theme="dark"] .text-slate-600,
+:root[data-theme="dark"] .text-gray-700,
+:root[data-theme="dark"] .text-gray-600,
+:root[data-theme="dark"] .text-blue-800,
+:root[data-theme="dark"] .text-indigo-800,
+:root[data-theme="dark"] .text-emerald-700,
+:root[data-theme="dark"] .text-amber-700,
+:root[data-theme="dark"] .text-rose-700,
+:root[data-theme="dark"] .text-ink2 {
+  color: var(--text2) !important;
+}
+
+:root[data-theme="dark"] .text-slate-500,
+:root[data-theme="dark"] .text-slate-400,
+:root[data-theme="dark"] .text-gray-500,
+:root[data-theme="dark"] .text-gray-400,
+:root[data-theme="dark"] .text-ink3,
+:root[data-theme="dark"] .text-ink4 {
+  color: var(--text3) !important;
+}
+
+:root[data-theme="dark"] .placeholder-slate-300::placeholder,
+:root[data-theme="dark"] .placeholder-gray-400::placeholder,
+:root[data-theme="dark"] .placeholder\:text-slate-400::placeholder,
+:root[data-theme="dark"] .placeholder\:text-gray-300::placeholder {
+  color: var(--text4) !important;
+}
+
+:root[data-theme="dark"] .border-slate-50,
+:root[data-theme="dark"] .border-slate-100,
+:root[data-theme="dark"] .border-slate-200,
+:root[data-theme="dark"] .border-gray-100,
+:root[data-theme="dark"] .border-gray-200,
+:root[data-theme="dark"] .border-blue-50,
+:root[data-theme="dark"] .border-blue-100,
+:root[data-theme="dark"] .border-indigo-50,
+:root[data-theme="dark"] .border-indigo-100,
+:root[data-theme="dark"] .border-emerald-100,
+:root[data-theme="dark"] .border-amber-100,
+:root[data-theme="dark"] .border-rose-100,
+:root[data-theme="dark"] .border-white,
+:root[data-theme="dark"] [class~="border-white/40"],
+:root[data-theme="dark"] [class~="border-slate-200/80"],
+:root[data-theme="dark"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+:root[data-theme="dark"] .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+:root[data-theme="dark"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+:root[data-theme="dark"] .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
+}
+
+:root[data-theme="dark"] .border-slate-300,
+:root[data-theme="dark"] .border-gray-300,
+:root[data-theme="dark"] [class~="border-slate-300/70"],
+:root[data-theme="dark"] .ring-slate-200,
+:root[data-theme="dark"] [class~="ring-white/60"],
+:root[data-theme="dark"] [class~="ring-slate-900/5"] {
+  border-color: var(--border2) !important;
+  --tw-ring-color: var(--border2) !important;
+}
+
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea,
+:root[data-theme="dark"] select {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .focus\:bg-white:focus,
+:root[data-theme="dark"] .hover\:bg-slate-50:hover,
+:root[data-theme="dark"] .hover\:bg-slate-100:hover,
+:root[data-theme="dark"] .hover\:bg-gray-50:hover,
+:root[data-theme="dark"] .hover\:bg-gray-200:hover,
+:root[data-theme="dark"] .hover\:bg-emerald-50:hover,
+:root[data-theme="dark"] [class~="hover:bg-emerald-50/30"]:hover {
+  background-color: var(--bg4) !important;
+}
+
+:root[data-theme="dark"] .shadow-sm,
+:root[data-theme="dark"] .shadow-md,
+:root[data-theme="dark"] .shadow-lg,
+:root[data-theme="dark"] .shadow-xl,
+:root[data-theme="dark"] .shadow-2xl,
+:root[data-theme="dark"] [class*="shadow-"] {
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.38) !important;
+}
+
+:root[data-theme="dark"] .text-blue-600,
+:root[data-theme="dark"] .text-blue-700,
+:root[data-theme="dark"] .hover\:text-blue-500:hover,
+:root[data-theme="dark"] .text-emerald-500,
+:root[data-theme="dark"] .text-emerald-600,
+:root[data-theme="dark"] .hover\:text-emerald-500:hover,
+:root[data-theme="dark"] .group-hover\:text-emerald-800:hover {
+  color: var(--snabbb-accent) !important;
 }

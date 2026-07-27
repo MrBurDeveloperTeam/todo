@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Clock, Calendar, Search, MapPin, Briefcase, ChevronDown } from 'lucide-react';
+import { X, Clock, Calendar, Search, Briefcase, ChevronDown } from 'lucide-react';
 import { TaskItem, ItemType, Priority, ListType } from '../types';
 
 interface ModalProps {
@@ -31,21 +31,21 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-xl bg-[var(--surface)] rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="px-6 py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg3)]/50">
-          <h2 className="text-xl font-black">{isEdit ? 'Edit Item' : 'Create New'}</h2>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 sm:p-6 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-xl bg-[var(--surface)] rounded-2xl sm:rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200 max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)]">
+        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg3)]/50">
+          <h2 className="text-lg sm:text-xl font-black">{isEdit ? 'Edit Item' : 'Create New'}</h2>
           <button onClick={onClose} className="p-2 hover:bg-[var(--bg3)] rounded-full transition"><X size={20} /></button>
         </div>
 
-        <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <div className="p-4 sm:p-6 space-y-5 max-h-[calc(100vh-8.5rem)] sm:max-h-[80vh] overflow-y-auto custom-scrollbar">
           <div className="space-y-4">
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {(['task', 'event', 'reminder'] as ItemType[]).map(t => (
                 <button 
                   key={t}
                   onClick={() => setNewTask({...newTask, type: t})}
-                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase tracking-wider transition border ${newTask.type === t ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' : 'bg-[var(--bg3)] border-[var(--border)] text-[var(--text3)] hover:border-accent/40'}`}
+                  className={`min-w-0 py-2 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition border ${newTask.type === t ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' : 'bg-[var(--bg3)] border-[var(--border)] text-[var(--text3)] hover:border-accent/40'}`}
                 >
                   {t}
                 </button>
@@ -55,7 +55,7 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
             <input 
               autoFocus
               autoComplete="off"
-              className="w-full text-2xl font-black bg-transparent outline-none placeholder:text-[var(--text4)]"
+              className="w-full text-xl sm:text-2xl font-black bg-transparent outline-none placeholder:text-[var(--text4)]"
               placeholder="What needs to be done?"
               value={newTask.title || ''}
               onChange={e => setNewTask({...newTask, title: e.target.value})}
@@ -69,7 +69,7 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text4)] flex items-center gap-1.5"><Calendar size={12} /> Date</label>
               <input 
@@ -90,8 +90,9 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
             </div>
           </div>
 
-          {newTask.type === 'event' && (
-             <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-200">
+          <div className={`grid overflow-hidden transition-all duration-300 ease-in-out ${newTask.type === 'event' ? 'grid-rows-[1fr] opacity-100 mt-0' : 'grid-rows-[0fr] opacity-0 -mt-2'}`}>
+            <div className="min-h-0">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text4)]">End Date</label>
                  <input 
@@ -111,9 +112,10 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
                  />
                </div>
              </div>
-          )}
+            </div>
+          </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text4)]">Priority</label>
               <div className="flex gap-1 bg-[var(--bg3)] p-1 rounded-xl border border-[var(--border)]">
@@ -144,11 +146,11 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
                 </button>
 
                 {isListDropdownOpen && (
-                  <div className="fixed mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] z-[200] py-1 overflow-hidden animate-in slide-in-from-top-2 duration-200" 
+                  <div className="fixed mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] z-[200] py-1 overflow-hidden animate-in slide-in-from-top-2 duration-200 max-w-[calc(100vw-1rem)] sm:max-w-none" 
                        style={{ 
                          width: dropdownRef.current?.offsetWidth || '200px',
-                         top: (dropdownRef.current?.getBoundingClientRect().bottom || 0) + 4,
-                         left: dropdownRef.current?.getBoundingClientRect().left || 0
+                          top: (dropdownRef.current?.getBoundingClientRect().bottom || 0) + 4,
+                         left: Math.max(8, dropdownRef.current?.getBoundingClientRect().left || 0)
                        }}>
                     <div className="max-h-[100px] overflow-y-auto custom-scrollbar shadow-inner">
                       {availableLists.map(l => (
@@ -173,23 +175,14 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text4)] flex items-center gap-1.5"><MapPin size={12} /> Location</label>
-            <input 
-              className="w-full bg-[var(--bg3)] p-3 rounded-xl outline-none border border-[var(--border)] focus:border-accent text-sm font-medium"
-              placeholder="Add physical or virtual location"
-              value={newTask.location || ''}
-              onChange={e => setNewTask({...newTask, location: e.target.value})}
-            />
-          </div>
         </div>
 
-        <div className="px-6 py-4 bg-[var(--bg3)]/50 border-t border-[var(--border)] flex justify-end gap-3">
-          <button onClick={onClose} className="px-5 py-2.5 rounded-2xl text-[13.5px] font-bold hover:bg-[var(--bg3)] transition text-[var(--text2)]">Cancel</button>
+        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-[var(--bg3)]/50 border-t border-[var(--border)] flex flex-col-reverse sm:flex-row justify-end gap-3">
+          <button onClick={onClose} className="w-full sm:w-auto px-5 py-2.5 rounded-2xl text-[13.5px] font-bold hover:bg-[var(--bg3)] transition text-[var(--text2)]">Cancel</button>
           <button 
             onClick={onSubmit} 
             disabled={!newTask.title}
-            className={`px-8 py-2.5 rounded-2xl text-[13.5px] font-black shadow-lg transition active:scale-95 ${newTask.title ? 'bg-accent text-white shadow-accent/20 hover:brightness-110' : 'bg-[var(--bg-disabled)] text-[var(--text4)] cursor-not-allowed'}`}
+            className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-black shadow-lg transition active:scale-95 ${newTask.title ? 'bg-accent text-white shadow-accent/20 hover:brightness-110' : 'bg-[var(--bg-disabled)] text-[var(--text4)] cursor-not-allowed'}`}
           >
             {isEdit ? 'Save Changes' : (newTask.type === 'task' ? 'Create Task' : newTask.type === 'event' ? 'Add Event' : 'Add Reminder')}
           </button>

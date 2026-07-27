@@ -3,13 +3,73 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        var ALLOWED = { light: true, dark: true, system: true };
+
+        function readCookie(name) {
+          var parts = document.cookie ? document.cookie.split(';') : [];
+          for (var i = 0; i < parts.length; i++) {
+            var part = parts[i].trim();
+            if (part.indexOf(name + '=') === 0) {
+              return decodeURIComponent(part.slice(name.length + 1));
+            }
+          }
+          return null;
+        }
+
+        function safeGet(key) {
+          try { return window.localStorage.getItem(key); } catch (e) { return null; }
+        }
+
+        function parseTheme(raw) {
+          if (!raw) return null;
+          var str = String(raw).trim();
+          try {
+            var parsed = JSON.parse(str);
+            if (typeof parsed === 'string') str = parsed;
+            else if (parsed && parsed.state && parsed.state.theme) str = parsed.state.theme;
+            else if (parsed && parsed.theme) str = parsed.theme;
+          } catch (e) {}
+          str = String(str).trim().toLowerCase();
+          return ALLOWED[str] ? str : null;
+        }
+
+        function resolveTheme(theme) {
+          if (theme === 'system') {
+            return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark' : 'light';
+          }
+          return theme === 'dark' ? 'dark' : 'light';
+        }
+
+        // Priority:
+        // 1. window.__SNABBB_THEME__ — injected by Cloudflare Pages Worker from Odoo.
+        // 2. snabbb-theme cookie — shared across *.snabbb.com.
+        // 3. localStorage['snabbb-theme'] — read-only Snabbb/Zustand fallback.
+        // 4. localStorage['theme'] — todo mini-app fallback.
+        // 5. light fallback.
+        var theme = parseTheme(window.__SNABBB_THEME__)
+          || parseTheme(readCookie('snabbb-theme'))
+          || parseTheme(safeGet('snabbb-theme'))
+          || parseTheme(safeGet('theme'))
+          || 'light';
+
+        var resolved = resolveTheme(theme);
+
+        document.documentElement.setAttribute('data-theme', resolved);
+        document.documentElement.dataset.themePreference = theme;
+        document.documentElement.classList.toggle('dark', resolved === 'dark');
+        document.documentElement.style.colorScheme = resolved;
+      })();
+    </script>
     <title>To-do manager — Task, Event & Calendar Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/png" href="/Logo/snabbb-teal.png" />
   </head>
-  <body data-theme="light" data-accent="blue" className="bg-white dark:bg-[#1a1a1a] transition-colors duration-200">
+  <body data-accent="blue" class="bg-[var(--bg)] text-[var(--text)] transition-colors duration-200">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

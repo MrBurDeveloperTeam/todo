@@ -12,7 +12,8 @@ import {
   LayoutGrid, 
   PanelLeftClose, 
   PanelLeftOpen, 
-  Activity
+  Activity,
+  LogOut
 } from 'lucide-react';
 import { TaskItem, AppUser, ViewType, ItemType } from '../types';
 import { NavItem } from '../components/NavItem';
@@ -21,8 +22,10 @@ import { CalendarView } from '../components/views/CalendarView';
 import { SettingsView } from '../components/views/SettingsView';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { todayStr, ACCENTS, updateThemeIcon } from '../utils';
-import { supabase } from '../supabase';
+import { Toast } from '../components/Toast';
+import { toLocalDateStr, todayStr, ACCENTS, updateThemeIcon } from '../utils';
+import { resolveTheme, type ThemePreference } from '../lib/themeSync';
+import { supabase } from '../lib/supabase';
 
 const DEFAULT_CATEGORIES = [
   { id: 'work', name: 'Work', color: '#3b82f6' },
@@ -31,6 +34,7 @@ const DEFAULT_CATEGORIES = [
 ];
 const DEFAULT_CATEGORY_IDS = DEFAULT_CATEGORIES.map(c => c.id);
 type UserList = { id: string; name: string; color: string; pinned?: boolean };
+type CompletionToastState = { taskId: string; message: string };
 
 
 interface HomeProps {
@@ -39,9 +43,11 @@ interface HomeProps {
   user: AppUser;
   setUser: React.Dispatch<React.SetStateAction<AppUser>>;
   handleLogout: () => void;
+  theme: ThemePreference;
+  setTheme: (theme: ThemePreference) => void;
 }
 
-export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps) {
+export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -57,28 +63,66 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     show: boolean;
     title: string;
     message: string;
+    confirmText?: string;
     onConfirm: () => void;
   }>({
     show: false,
     title: '',
     message: '',
+    confirmText: 'Confirm Delete',
     onConfirm: () => {}
   });
-  
-  // Theme state
-  const [theme, setTheme] = useState(() => localStorage.getItem('tf_theme') || 'light');
-  const [accent, setAccent] = useState(() => localStorage.getItem('tf_accent') || 'tiffany');
-  const [showCompleted, setShowCompleted] = useState(() => localStorage.getItem('tf_show_completed') === 'true');
-  const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || localStorage.getItem('tf_default_list') || 'personal');
+  // Theme is inherited from Snabbb and controlled by the app-level theme sync.
+  const [accent, setAccent] = useState(user.accent || 'tiffany');
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || 'personal');
+  const [completionToast, setCompletionToast] = useState<CompletionToastState | null>(null);
+  const completionToastTimeoutRef = useRef<number | null>(null);
+
+  const clearCompletionToast = () => {
+    if (completionToastTimeoutRef.current) {
+      window.clearTimeout(completionToastTimeoutRef.current);
+      completionToastTimeoutRef.current = null;
+    }
+    setCompletionToast(null);
+  };
+
+  const showCompletionToast = (taskId: string, message: string) => {
+    if (completionToastTimeoutRef.current) {
+      window.clearTimeout(completionToastTimeoutRef.current);
+    }
+    setCompletionToast({ taskId, message });
+    completionToastTimeoutRef.current = window.setTimeout(() => {
+      setCompletionToast(null);
+      completionToastTimeoutRef.current = null;
+    }, 6000);
+  };
+
+  useEffect(() => {
+    if (user.accent) setAccent(user.accent);
+  }, [user.accent]);
+
+  const updateThemeDB = async (t: ThemePreference) => {
+    setTheme(t);
+    setUser(prev => ({ ...prev, task_theme: t }));
+    if (supabase) {
+      await supabase.from('profiles').update({ task_theme: t, updated_at: new Date().toISOString() }).eq('user_id', user.user_id);
+    }
+  };
+
+  const updateAccentDB = async (a: string) => {
+    setAccent(a);
+    setUser(prev => ({ ...prev, accent: a }));
+    if (supabase) {
+      await supabase.from('profiles').update({ accent: a, updated_at: new Date().toISOString() }).eq('user_id', user.user_id);
+    }
+  };
 
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListColor, setNewListColor] = useState('#3b82f6');
   const [userLists, setUserLists] = useState<UserList[]>([]);
-  const [pinnedListIds, setPinnedListIds] = useState<string[]>(() => {
-    const saved = localStorage.getItem('tf_pinned_lists');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [pinnedListIds, setPinnedListIds] = useState<string[]>([]);
 
 
   useEffect(() => {
@@ -98,20 +142,23 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             combined.push(cat);
           }
         });
-      } else {
-        const saved = localStorage.getItem('tf_user_lists');
-        if (saved) {
-          JSON.parse(saved).forEach((cat: any) => {
-            if (!DEFAULT_CATEGORY_IDS.includes(cat.id)) {
-              combined.push(cat);
-            }
-          });
-        }
       }
       setUserLists(combined);
     };
     fetchCategories();
   }, [user.user_id]);
+
+  useEffect(() => () => {
+    if (completionToastTimeoutRef.current) {
+      window.clearTimeout(completionToastTimeoutRef.current);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user.accent) setAccent(user.accent);
+    if (typeof user.show_completed === 'boolean') setShowCompleted(user.show_completed);
+  }, [user.accent, user.show_completed]);
+
 
   const saveCategory = async (cat: UserList) => {
     if (!supabase) return;
@@ -144,24 +191,32 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     await supabase.from('task-categories').delete().eq('user_id', user.user_id).eq('id', id);
   };
 
-  useEffect(() => {
-    localStorage.setItem('tf_user_lists', JSON.stringify(userLists));
-  }, [userLists]);
-
-  useEffect(() => {
-    localStorage.setItem('tf_pinned_lists', JSON.stringify(pinnedListIds));
-  }, [pinnedListIds]);
+  // Persistence removed (no localStorage)
 
   // Calendar state
   const [calDate, setCalDate] = useState(new Date());
   const [calView, setCalView] = useState('month');
-  const brandLogo = theme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
+  const resolvedTheme = resolveTheme(theme);
+  const brandLogo = resolvedTheme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
   const sortedLists = [...userLists].sort((a, b) => {
     const aPinned = pinnedListIds.includes(a.id) ? 1 : 0;
     const bPinned = pinnedListIds.includes(b.id) ? 1 : 0;
     if (aPinned !== bPinned) return bPinned - aPinned;
     return a.name.localeCompare(b.name);
   });
+  const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
+  const getValidTaskListId = (candidate?: string) => {
+    const fallbackListId = userLists.some((list) => list.id === defaultListId)
+      ? defaultListId
+      : (userLists[0]?.id || 'personal');
+
+    if (!candidate || standardFilters.includes(candidate)) {
+      return fallbackListId;
+    }
+
+    return userLists.some((list) => list.id === candidate) ? candidate : fallbackListId;
+  };
+  const resolveTaskListId = (candidate?: string) => getValidTaskListId(candidate || currentFilter);
     const updateDefaultListDB = async (listId: string) => {
       if (!supabase) return;
       await supabase
@@ -177,21 +232,30 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       updateDefaultListDB(listId);
     };
 
+  const handleSetShowCompleted = async (show: boolean) => {
+    setShowCompleted(show);
+    setUser(prev => ({ ...prev, show_completed: show }));
+    if (!supabase) return;
+    await supabase
+      .from('profiles')
+      .update({ show_completed: show, updated_at: new Date().toISOString() })
+      .eq('user_id', user.user_id);
+  };
+
   useEffect(() => {
-    localStorage.setItem('tf_theme', theme);
-    localStorage.setItem('tf_accent', accent);
-    localStorage.setItem('tf_show_completed', String(showCompleted));
-    localStorage.setItem('tf_default_list', defaultListId);
-    updateThemeIcon(theme);
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    document.documentElement.setAttribute('data-theme', theme);
+    const resolved = resolveTheme(theme);
+    updateThemeIcon(resolved);
+    document.documentElement.classList.toggle('dark', resolved === 'dark');
+    document.documentElement.setAttribute('data-theme', resolved);
+    document.documentElement.dataset.themePreference = theme;
+    document.documentElement.style.colorScheme = resolved;
     
     // Update CSS variables for accent
     const accentData = (ACCENTS as any)[accent] || { main: accent, light: `${accent}15`, hover: accent };
     document.documentElement.style.setProperty('--accent', accentData.main);
     document.documentElement.style.setProperty('--accent-rgb', accentData.main.startsWith('#') ? hexToRgb(accentData.main) : '0, 120, 212');
     document.documentElement.style.setProperty('--accent-light', accentData.light || `${accentData.main}15`);
-    document.documentElement.style.setProperty('--accent-subtle', theme === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)');
+    document.documentElement.style.setProperty('--accent-subtle', resolved === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)');
   }, [theme, accent]);
 
   function hexToRgb(hex: string) {
@@ -221,11 +285,25 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (!task) return;
     const nextDone = !task.done;
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: nextDone } : t));
+    if (nextDone) {
+      showCompletionToast(id, `"${task.title}" has been completed.`);
+    }
     
     await supabase.from('tasks').update({ 
       status: nextDone ? 'done' : 'todo',
       is_completed: nextDone 
     }).eq('id', id);
+  };
+
+  const handleUndoCompletedTask = async () => {
+    if (!supabase || !completionToast) return;
+    const { taskId } = completionToast;
+    clearCompletionToast();
+    setTasks(prev => prev.map(task => task.id === taskId ? { ...task, done: false } : task));
+    await supabase.from('tasks').update({
+      status: 'todo',
+      is_completed: false
+    }).eq('id', taskId);
   };
 
   const handleDeleteTask = async (id: string) => {
@@ -247,16 +325,19 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     });
   };
 
-  const openAddModal = (type: ItemType = 'task') => {
-    const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
-    const listCategory = !standardFilters.includes(currentFilter) ? currentFilter : defaultListId;
+  const openAddModal = (type: ItemType = 'task', defaults: Partial<TaskItem> = {}) => {
+    const listCategory = getValidTaskListId(currentFilter);
+    const calendarSelectedDate = toLocalDateStr(calDate);
+    const baseDate = currentView === 'calendar' ? calendarSelectedDate : todayStr();
     
     setEditingTask(null);
     setNewTask({
       type,
       priority: 'none',
       list: listCategory,
-      date: todayStr(),
+      date: baseDate,
+      enddate: type === 'event' ? baseDate : '',
+      ...defaults,
     });
     setIsModalOpen(true);
   };
@@ -271,7 +352,11 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (!newTask.title || !supabase) return;
 
     if (editingTask) {
-      const updated = { ...editingTask, ...newTask } as TaskItem;
+      const updated = {
+        ...editingTask,
+        ...newTask,
+        list: resolveTaskListId(newTask.list || editingTask.list)
+      } as TaskItem;
       setTasks(prev => prev.map(t => t.id === editingTask.id ? updated : t));
       
       await supabase.from('tasks').update({
@@ -284,12 +369,13 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         endtime: updated.endtime,
         location: updated.location,
         urgency: updated.priority === 'none' ? null : (updated.priority === 'med' ? 'MEDIUM' : updated.priority.toUpperCase()),
-        list_id_text: updated.list || 'personal',
+        list_id_text: updated.list,
         status: updated.done ? 'done' : 'todo',
         is_completed: updated.done
       }).eq('id', editingTask.id);
     } else {
       const id = crypto.randomUUID();
+      const resolvedListId = resolveTaskListId(newTask.list);
       const item: TaskItem = {
         id,
         type: newTask.type || 'task',
@@ -301,7 +387,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         endtime: newTask.endtime || '',
         location: newTask.location || '',
         priority: newTask.priority || 'none',
-        list: newTask.list || 'personal',
+        list: resolvedListId,
         done: false,
         created: Date.now(),
       };
@@ -320,7 +406,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         endtime: item.endtime || null,
         location: item.location || null,
         urgency: item.priority === 'none' ? 'NORMAL' : (item.priority === 'med' ? 'MEDIUM' : item.priority.toUpperCase()),
-        list_id_text: item.list || 'personal',
+        list_id_text: item.list,
         status: 'todo',
         is_completed: false,
         color: getListColorName(item.list)
@@ -336,6 +422,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
   const handleQuickAddTask = async (title: string, list: string, type: ItemType = 'task') => {
     if (!title || !supabase) return;
     const id = crypto.randomUUID();
+    const resolvedListId = resolveTaskListId(list);
     const item: TaskItem = {
       id,
       type,
@@ -347,7 +434,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       endtime: '',
       location: '',
       priority: 'none',
-      list,
+      list: resolvedListId,
       done: false,
       created: Date.now(),
     };
@@ -366,7 +453,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       endtime: item.endtime || null,
       location: item.location || null,
       urgency: item.priority === 'none' ? 'NORMAL' : (item.priority === 'med' ? 'MEDIUM' : item.priority.toUpperCase()),
-      list_id_text: item.list || 'personal',
+      list_id_text: item.list,
       status: 'todo',
       is_completed: false,
       color: getListColorName(item.list)
@@ -374,6 +461,34 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     if (error) {
       console.error('SUPABASE INSERT ERROR:', error);
     }
+  };
+
+  const handleSaveTaskDescription = async (id: string, desc: string) => {
+    if (!supabase) return;
+    await supabase
+      .from('tasks')
+      .update({ description: desc || null })
+      .eq('id', id);
+  };
+
+  const handleMoveTask = async (id: string, updates: Partial<TaskItem>) => {
+    setTasks((prev) => prev.map((task) => task.id === id ? { ...task, ...updates } : task));
+    if (!supabase) return;
+
+    await supabase
+      .from('tasks')
+      .update({
+        date: updates.date,
+        time: updates.time || null,
+      })
+      .eq('id', id);
+  };
+
+  const handleOpenTaskFromCalendar = (task: TaskItem) => {
+    const nextFilter = task.list || task.type || 'all';
+    setSelectedTaskId(task.id);
+    setCurrentFilter(nextFilter);
+    setCurrentView('todo');
   };
 
   const renderContent = () => {
@@ -396,6 +511,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             setCurrentView={setCurrentView}
             showCompleted={showCompleted}
             handleQuickAddTask={handleQuickAddTask}
+            handleSaveTaskDescription={handleSaveTaskDescription}
             userLists={userLists}
             defaultListId={defaultListId}
           />
@@ -408,10 +524,10 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             setCalDate={setCalDate}
             calView={calView}
             setCalView={setCalView}
-            setSelectedTaskId={setSelectedTaskId}
-            setCurrentView={setCurrentView}
+            onOpenTask={handleOpenTaskFromCalendar}
+            onMoveTask={handleMoveTask}
             openAddModal={openAddModal}
-            theme={theme}
+            theme={resolvedTheme}
           />
         );
       case 'settings':
@@ -420,11 +536,11 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
             user={user}
             setUser={setUser}
             theme={theme}
-            setTheme={setTheme}
+            setTheme={updateThemeDB}
             accent={accent}
-            setAccent={setAccent}
+            setAccent={updateAccentDB}
             showCompleted={showCompleted}
-            setShowCompleted={setShowCompleted}
+            setShowCompleted={handleSetShowCompleted}
             handleLogout={handleLogout}
             setTasks={setTasks}
             defaultListId={defaultListId}
@@ -438,16 +554,24 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
     }
   };
 
+  const handleToggleSidebar = () => {
+    if (window.innerWidth < 1024) {
+      setIsMobileMenuOpen((prev) => !prev);
+      return;
+    }
+    setIsSidebarCollapsed((prev) => !prev);
+  };
+
   return (
-    <div className={`flex h-screen w-full transition-colors duration-200 overflow-hidden ${theme === 'dark' ? 'bg-[#1a1a1a] text-white' : 'bg-[#f5f5f5] text-[#1a1a1a]'}`} data-theme={theme}>
+    <div className={`flex h-screen w-full transition-colors duration-200 overflow-hidden ${resolvedTheme === 'dark' ? 'bg-[#1a1a1a] text-white' : 'bg-[#f5f5f5] text-[#1a1a1a]'}`} data-theme={resolvedTheme} data-theme-preference={theme}>
       {/* MOBILE OVERLAY */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm lg:hidden" onClick={() => setIsMobileMenuOpen(false)}></div>
       )}
 
       {/* SIDEBAR */}
-      <aside className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--border)] transition-all lg:static ${isSidebarCollapsed ? 'w-[52px]' : 'w-[240px]'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <div className="flex h-[52px] items-center px-3.5 border-b border-[var(--border)] cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors" onClick={() => { setCurrentView('todo'); setCurrentFilter('all'); }}>
+      <aside className={`fixed inset-y-0 left-0 z-[70] flex flex-col bg-[var(--sidebar-bg)] border-r border-[var(--border)] transition-all lg:static ${isSidebarCollapsed ? 'w-[52px]' : 'w-[240px]'} ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+        <a href="https://app.snabbb.com/" className="flex h-[52px] items-center px-3.5 border-b border-[var(--border)] cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors">
           <div className="flex items-center gap-2.5 overflow-hidden">
             <img src={brandLogo} alt="To-do manager" className="h-7 w-auto flex-shrink-0 object-contain" />
             {!isSidebarCollapsed && (
@@ -456,7 +580,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
               </span>
             )}
           </div>
-        </div>
+        </a>
 
         <div className="px-1.5 py-2 border-b border-[var(--border)]">
           <div className="space-y-0.5">
@@ -621,12 +745,32 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
               {user.name.charAt(0)}
             </div>
             {!isSidebarCollapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold text-[var(--text)] truncate">{user.name}</p>
-                <div className="flex items-center gap-1 opacity-60">
-                   <p className="text-[10px] truncate">{user.plan || 'Free Plan'}</p>
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-bold text-[var(--text)] truncate">{user.name}</p>
+                  <div className="flex items-center gap-1 opacity-60">
+                     <p className="text-[10px] truncate">{user.plan || 'Free Plan'}</p>
+                  </div>
                 </div>
-              </div>
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmState({
+                      show: true,
+                      title: 'Log Out',
+                      message: 'Are you sure you want to log out from your account?',
+                      confirmText: 'Log Out',
+                      onConfirm: () => {
+                        handleLogout();
+                      }
+                    });
+                  }}
+                  className="flex-shrink-0 h-7 w-7 flex items-center justify-center text-[var(--text4)] hover:text-red-500 hover:bg-red-500/10 rounded-md transition-all"
+                  title="Log out"
+                >
+                  <LogOut size={15} />
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -635,11 +779,21 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col min-w-0 relative h-full">
         <header className="h-[52px] flex-shrink-0 flex items-center gap-3 px-5 border-b border-[var(--border)] bg-[var(--header-bg)] sticky top-0 z-40">
-          <button id="toggle-sidebar" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="h-8 w-8 items-center justify-center flex hover:bg-[var(--bg3)] text-[var(--text3)] hover:text-[var(--text)] rounded-md transition-all">
+          <button 
+            id="toggle-sidebar" 
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                setIsMobileMenuOpen(true);
+              } else {
+                setIsSidebarCollapsed(!isSidebarCollapsed);
+              }
+            }} 
+            className="h-8 w-8 items-center justify-center flex hover:bg-[var(--bg3)] text-[var(--text3)] hover:text-[var(--text)] rounded-md transition-all"
+          >
             <Menu size={16} />
           </button>
           
-          <h1 className="text-base font-semibold text-[var(--text)] whitespace-nowrap">
+          <h1 className="min-w-0 text-sm font-semibold text-[var(--text)] whitespace-nowrap sm:text-base">
             {currentView === 'todo' ? 'My Tasks' : (currentView === 'today' ? 'Today' : (currentView === 'upcoming' ? 'Upcoming' : currentView))}
           </h1>
 
@@ -653,15 +807,15 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
           <div className="flex items-center gap-1.5 ml-auto">
             <button 
               onClick={() => openAddModal('task')}
-              className="h-8 flex items-center gap-1.5 px-3.5 bg-accent text-white rounded-md text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-all active:scale-[0.97]"
+              className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-white rounded-md text-[12px] sm:text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-all active:scale-[0.97]"
             >
               <Plus size={14} strokeWidth={2.5} /> 
-              <span>New Task</span>
+              <span className="hidden sm:inline">New Task</span>
             </button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-5 py-5 sm:px-10 scroll-smooth no-scrollbar">
+        <main className="flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-5 lg:px-10 scroll-smooth no-scrollbar">
           {renderContent()}
         </main>
       </div>
@@ -682,8 +836,18 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout }: HomeProps
         onConfirm={confirmState.onConfirm}
         title={confirmState.title}
         message={confirmState.message}
-        confirmText="Confirm Delete"
+        confirmText={confirmState.confirmText || "Confirm Delete"}
       />
+
+      {completionToast && (
+        <div className="pointer-events-none fixed bottom-4 left-3 right-3 z-[120] sm:left-auto sm:right-5 sm:bottom-5">
+          <Toast
+            message={completionToast.message}
+            onUndo={handleUndoCompletedTask}
+            onClose={clearCompletionToast}
+          />
+        </div>
+      )}
     </div>
   );
 }

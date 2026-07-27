@@ -1,15 +1,16 @@
 import React from 'react';
-import { User, Sun, Moon, LayoutGrid, Check, Loader2 } from 'lucide-react';
-import { supabase } from '../../supabase';
+import { User, Sun, Moon, Monitor, LayoutGrid, Check, Loader2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { AppUser } from '../../types';
+import { type ThemePreference } from '../../lib/themeSync';
 import { ACCENTS } from '../../utils';
 import { ConfirmModal } from '../ConfirmModal';
 
 interface SettingsViewProps {
   user: AppUser;
   setUser: React.Dispatch<React.SetStateAction<AppUser>>;
-  theme: string;
-  setTheme: (theme: string) => void;
+  theme: ThemePreference;
+  setTheme: (theme: ThemePreference) => void;
   accent: string;
   setAccent: (accent: string) => void;
   showCompleted: boolean;
@@ -62,6 +63,10 @@ export function SettingsView({
           background_url: user.background_url,
           status: user.status,
           plan: user.plan,
+          default_list_id: defaultListId,
+          task_theme: theme,
+          accent,
+          show_completed: showCompleted,
           updated_at: new Date().toISOString()
         });
 
@@ -83,7 +88,7 @@ export function SettingsView({
         <div className="bg-[var(--surface)] p-6 rounded-xl border border-[var(--border)]">
           <h3 className="text-sm font-bold mb-4 flex items-center gap-2"><User size={16} className="text-accent" /> Profile Information</h3>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Full Name</label>
                 <input
@@ -104,7 +109,7 @@ export function SettingsView({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Position</label>
                 <input
@@ -125,7 +130,7 @@ export function SettingsView({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Phone</label>
                 <input
@@ -182,7 +187,7 @@ export function SettingsView({
           <h3 className="text-sm font-bold mb-4 flex items-center gap-2">🎨 Appearance</h3>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xs font-bold text-[var(--text2)]">Theme</div>
                 <div className="text-[11px] text-[var(--text3)]">Choose your preferred color scheme</div>
@@ -192,6 +197,7 @@ export function SettingsView({
                   className={`p-2 rounded-lg border transition ${theme === 'light' ? 'border-accent bg-[var(--accent-light)] text-accent' : 'border-[var(--border)]'}`}
                   onClick={() => setTheme('light')}
                   aria-label="Use light mode"
+                  title="Light"
                 >
                   <Sun size={16} />
                 </button>
@@ -199,8 +205,17 @@ export function SettingsView({
                   className={`p-2 rounded-lg border transition ${theme === 'dark' ? 'border-accent bg-accent text-white' : 'border-[var(--border)]'}`}
                   onClick={() => setTheme('dark')}
                   aria-label="Use dark mode"
+                  title="Dark"
                 >
                   <Moon size={16} />
+                </button>
+                <button
+                  className={`p-2 rounded-lg border transition ${theme === 'system' ? 'border-accent bg-[var(--accent-light)] text-accent' : 'border-[var(--border)]'}`}
+                  onClick={() => setTheme('system')}
+                  aria-label="Use system theme"
+                  title="System"
+                >
+                  <Monitor size={16} />
                 </button>
               </div>
             </div>
@@ -236,7 +251,7 @@ export function SettingsView({
         <div className="bg-[var(--surface)] p-6 rounded-xl border border-[var(--border)]">
           <h3 className="text-sm font-bold mb-4 flex items-center gap-2">📋 Display & Security</h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xs font-bold text-[var(--text2)]">Show Completed</div>
                 <div className="text-[11px] text-[var(--text3)]">Display finished tasks in list</div>
@@ -249,7 +264,7 @@ export function SettingsView({
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t border-[var(--border)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-4 border-t border-[var(--border)]">
               <div>
                 <div className="text-xs font-bold text-[var(--text2)]">Default Save Location</div>
                 <div className="text-[11px] text-[var(--text3)]">Where new tasks go by default</div>
@@ -257,7 +272,7 @@ export function SettingsView({
               <select
                 value={defaultListId}
                 onChange={(e) => setDefaultListId(e.target.value)}
-                className="pl-3 pr-8 py-1.5 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[11px] font-bold outline-none focus:border-accent select-custom-arrow"
+                className="w-full sm:w-auto pl-3 pr-8 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[11px] font-bold outline-none focus:border-accent select-custom-arrow"
               >
                 {userLists.map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
@@ -265,7 +280,7 @@ export function SettingsView({
               </select>
             </div>
 
-            <div className="pt-4 border-t border-[var(--border)] flex gap-2">
+            <div className="pt-4 border-t border-[var(--border)] flex flex-col sm:flex-row gap-2">
               <button
                 className="flex-1 py-2 rounded-lg border border-red-200 text-red-600 font-bold text-xs hover:bg-red-50 transition"
                 onClick={() => setShowClearConfirm(true)}
@@ -299,13 +314,6 @@ export function SettingsView({
                 setTasks([]);
                 setUserLists(DEFAULT_CATEGORIES);
 
-                // 3. Selective LocalStorage Clear (only app keys, don't touch auth)
-                const keysToClear = [
-                  'tf_tasks', 'tf_user_lists', 'tf_pinned_lists',
-                  'tf_default_list', 'tf_show_completed'
-                ];
-                keysToClear.forEach(key => localStorage.removeItem(key));
-
                 setShowClearConfirm(false);
               }}
               title="Clear All Data?"
@@ -316,15 +324,15 @@ export function SettingsView({
         </div>
       </div>
 
-      <div className="bg-accent text-white p-6 rounded-xl shadow-lg relative overflow-hidden">
+      <div className="bg-accent text-white p-5 sm:p-6 rounded-xl shadow-lg relative overflow-hidden">
         <div className="relative z-10">
-          <h2 className="text-xl font-black mb-1">To-do manager v1.0.0</h2>
+          <h2 className="text-lg sm:text-xl font-black mb-1">To-do manager v1.0.0</h2>
           <p className="text-sm opacity-90">Experience the premium task manager. Your data is saved locally on this browser.</p>
         </div>
         <LayoutGrid className="absolute -right-4 -bottom-4 w-32 h-32 opacity-10 rotate-12" />
       </div>
 
-      <div className="pt-4 text-[10px] font-black uppercase tracking-widest text-[var(--text4)] flex items-center justify-between">
+      <div className="pt-4 text-[10px] font-black uppercase tracking-widest text-[var(--text4)] flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <span>© 2026 To-do manager Systems</span>
         <span>Designed by Hei</span>
       </div>
