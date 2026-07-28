@@ -405,9 +405,9 @@ html {
 :root[data-theme="dark"] .shadow-lg,
 :root[data-theme="dark"] .shadow-xl,
 :root[data-theme="dark"] .shadow-2xl,
-:root[data-theme="dark"] [class*="shadow-"] {
+/* :root[data-theme="dark"] [class*="shadow-"] {
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.38) !important;
-}
+} */
 
 :root[data-theme="dark"] .text-blue-600,
 :root[data-theme="dark"] .text-blue-700,
