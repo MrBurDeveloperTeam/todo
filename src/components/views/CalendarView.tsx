@@ -268,7 +268,7 @@ export function CalendarView({
         </div>
 
         {isPhoneLayout && (
-          <div className="rounded-[22px] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden">
+          <div className="mb-4 rounded-[22px] border border-[var(--border)] bg-[var(--surface)] shadow-[0_10px_30px_rgba(0,0,0,0.06)] overflow-hidden">
             <div className="border-b border-[var(--border)] px-4 py-3">
               <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text4)]">
                 Selected Day
@@ -327,7 +327,7 @@ export function CalendarView({
     });
 
     return (
-      <div className="border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--surface)] min-h-[500px]">
+      <div className={`border border-[var(--border)] rounded-xl overflow-hidden bg-[var(--surface)] min-h-[500px] ${isPhoneLayout ? 'mb-4' : ''}`}>
         <div className="divide-y divide-[var(--border)]">
           {days.map((day, di) => {
             const ds = toLocalDateStr(day);
@@ -351,13 +351,36 @@ export function CalendarView({
                     openAddModal('event', { date: ds, enddate: ds });
                   }}
                 >
-                  <div className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text4)]">
+                  <div
+                    className={`text-[10px] font-black uppercase tracking-[0.18em] ${
+                      isToday && theme === 'dark'
+                        ? 'text-slate-300'
+                        : 'text-[var(--text4)]'
+                    }`}
+                  >
                     {day.toLocaleDateString('en-US', { weekday: 'long' })}
                   </div>
-                  <div className={`mt-1 text-lg font-black ${isToday ? 'text-accent' : 'text-[var(--text)]'}`}>
-                    {day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  <div
+                    className={`mt-1 text-lg font-black ${
+                      isToday
+                        ? theme === 'dark'
+                          ? 'text-slate-50'
+                          : 'text-accent'
+                        : 'text-[var(--text)]'
+                    }`}
+                  >
+                    {day.toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
                   </div>
-                  <div className="mt-2 text-[11px] text-[var(--text3)]">
+                  <div
+                    className={`mt-2 text-[11px] ${
+                      isToday && theme === 'dark'
+                        ? 'text-slate-300'
+                        : 'text-[var(--text3)]'
+                    }`}
+                  >
                     {dayItems.length} item{dayItems.length === 1 ? '' : 's'}
                   </div>
                 </button>
