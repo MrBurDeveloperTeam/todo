@@ -89,7 +89,7 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
       {success && <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-3 text-xs font-bold text-green-700">{success}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {isSignup ? <SignupFields /> : <LoginFields />}
+        {isSignup ? SignupFields() : LoginFields()}
         <button type="submit" disabled={loading} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-base font-black text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">{loading ? <RefreshCw size={18} className="animate-spin" /> : isSignup ? 'Sign up' : 'Sign In'}</button>
       </form>
       <p className="mt-5 text-center text-xs text-slate-500">{isSignup ? 'Already have an account?' : "Don't have an account?"}<button onClick={() => onSwitchMode(isSignup ? 'login' : 'signup')} className="ml-1 font-bold text-[#0ababa] hover:underline">{isSignup ? 'Log In' : 'Sign up'}</button></p>
