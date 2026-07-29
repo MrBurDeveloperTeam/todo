@@ -81,7 +81,13 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
   return <div className="min-h-screen bg-slate-100 px-4 py-6 sm:flex sm:items-center sm:justify-center sm:px-6 sm:py-10">
     <div className="relative mx-auto w-full max-w-xl rounded-[1.5rem] bg-white p-6 shadow-2xl sm:p-8 lg:p-10">
       <div className="mb-8 text-left">
-        <img src={brandLogo} className="mb-5 h-8 w-auto" alt="Snabbb" />
+      <a
+        href="https://app.snabbb.com/"
+        className="mb-5 inline-flex items-center transition-opacity hover:opacity-80"
+        title="Go to Snabbb Home"
+      >
+        <img src={brandLogo} className="h-8 w-auto" alt="Snabbb" />
+      </a>
         <h1 className="text-3xl font-black tracking-tight text-slate-900">{isSignup ? 'Create Account' : 'Welcome Back'}</h1>
         {isSignup && <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">Organize your tasks, priorities, and schedule with ease.</p>}
       </div>
@@ -102,7 +108,7 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
       <div><p className={labelClass}>Account type</p><div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200"><button type="button" onClick={() => setAccountType('individual')} className={`flex items-center justify-center gap-2 py-3 text-sm font-bold ${!company ? 'bg-[#0ababa] text-white' : 'bg-white text-slate-500'}`}><User size={16} /> Individual</button><button type="button" onClick={() => setAccountType('company')} className={`flex items-center justify-center gap-2 border-l border-slate-200 py-3 text-sm font-bold ${company ? 'bg-[#0ababa] text-white' : 'bg-white text-slate-500'}`}><Building2 size={16} /> Company</button></div></div>
       {company && <Field label="Company name" icon={<Building2 />}><input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className={inputClass} placeholder="e.g. SNABBB DENTAL" autoComplete="organization" /></Field>}
       <Field label={company ? 'Name' : 'Your name'} icon={<User />}><input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder={company ? 'Contact name' : 'e.g. Nur AYA CHE'} autoComplete="name" /></Field>
-      <Field label={company ? 'Company email' : 'Your email'} icon={<Mail />}><input value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} type="email" placeholder={company ? 'e.g. hello@company.com' : 'e.g. nur@email.com'} autoComplete="email" /><p className="mt-1 text-xs italic text-slate-400">This will be your login email.</p></Field>
+      <Field label={company ? 'Company email' : 'Your email'} icon={<Mail />} helper={<p className="mt-1 text-xs italic text-slate-400">This will be your login email.</p>}><input value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} type="email" placeholder={company ? 'e.g. hello@company.com' : 'e.g. nur@email.com'} autoComplete="email" /></Field>
       <Field label={company ? 'Phone' : 'Phone (WhatsApp)'} icon={<Phone />}><input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} type="tel" placeholder="e.g. +60123456789" autoComplete="tel" /></Field>
       <div><p className={labelClass}>Date of birth</p><DOBPicker value={dob} onChange={setDob} /></div>
       <Field label="Job position" icon={<BriefcaseBusiness />}><span className="relative block"><select value={position} onChange={(e) => setPosition(e.target.value)} className={`${inputClass} appearance-none`}><option value="">-- Select Position --</option>{DENTAL_POSITIONS.map((item) => <option key={item} value={item}>{item}</option>)}<option value="Other">Other</option></select><ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-300" /></span></Field>
@@ -123,6 +129,6 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
   }
 }
 
-function Field({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return <div><label className={labelClass}>{label}</label><div className="relative"><span className={iconClass}>{icon}</span>{children}</div></div>;
+function Field({ label, icon, children, helper }: { label: string; icon: React.ReactNode; children: React.ReactNode; helper?: React.ReactNode }) {
+  return <div><label className={labelClass}>{label}</label><div className="relative"><span className={iconClass}>{icon}</span>{children}</div>{helper}</div>;
 }
