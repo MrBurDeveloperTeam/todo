@@ -23,6 +23,12 @@ import {
   Monitor
 } from 'lucide-react';
 import { AuthForm } from '../components/AuthForm';
+import {
+  applyThemeToDocument,
+  persistTheme,
+  readStoredTheme,
+  resolveTheme,
+} from '../lib/themeSync';
 
 export function LandingPage({
   onStart,
@@ -34,7 +40,7 @@ export function LandingPage({
   const [authMode, setAuthMode] = useState<'landing' | 'login' | 'signup'>('landing');
   const [activeAccent, setActiveAccent] = useState('blue');
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    localStorage.getItem('tf_theme') === 'dark' ? 'dark' : 'light'
+    resolveTheme(readStoredTheme() ?? 'light')
   );
   const [scrollProgress, setScrollProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -69,9 +75,9 @@ export function LandingPage({
   }, [authMode]);
 
   useEffect(() => {
-    const nextTheme = localStorage.getItem('tf_theme') === 'dark' ? 'dark' : 'light';
-    setTheme(nextTheme);
-  }, [authMode]);
+    applyThemeToDocument(theme);
+    persistTheme(theme);
+  }, [theme]);
 
   useEffect(() => {
     onAuthFormActiveChange?.(authMode !== 'landing');
@@ -104,63 +110,27 @@ export function LandingPage({
   const brandLogo = theme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
 
   const THEME_VARS = theme === 'dark' ? {
-    paper: '#0e0e0f',
-    paper2: '#18181b',
-    paper3: '#27272a',
-    nav: 'rgba(18, 23, 30, 0.92)',
-    navBorder: 'rgba(255, 255, 255, 0.08)',
-    navText: '#f5f7fa',
-    navMuted: '#b8c2cf',
-    howBg: '#14181f',
-    howCard: '#1b222c',
-    howBorder: 'rgba(255, 255, 255, 0.08)',
-    howText: '#f3f6fa',
-    howMuted: '#aab5c2',
-    themesBg: '#10161d',
-    themesCard: '#1a212b',
-    themesBorder: 'rgba(255, 255, 255, 0.08)',
-    themesText: '#f3f6fa',
-    themesMuted: '#aab5c2',
-    themesLabel: '#d9e1ea',
-    themesRing: '#f3f6fa',
-    themesRingOffset: '#10161d',
-    footerBg: '#0d1319',
-    footerBorder: 'rgba(255, 255, 255, 0.08)',
-    footerText: '#f3f6fa',
-    footerMuted: '#aab5c2',
-    ink: '#fafafa',
-    ink2: '#e4e4e7',
-    ink3: '#a1a1aa',
-    ink4: '#71717a',
+    paper: '#0f172a', paper2: '#111827', paper3: '#334155',
+    nav: 'rgba(15, 23, 42, 0.94)', navBorder: '#334155', navText: '#f8fafc', navMuted: '#cbd5e1',
+    howBg: '#111827', howCard: '#1e293b', howBorder: '#334155', howText: '#f8fafc', howMuted: '#cbd5e1',
+    themesBg: '#0f172a', themesCard: '#1e293b', themesBorder: '#334155', themesText: '#f8fafc', themesMuted: '#cbd5e1',
+    themesLabel: '#e2e8f0', themesRing: '#f8fafc', themesRingOffset: '#0f172a',
+    footerBg: '#020617', footerBorder: '#334155', footerText: '#f8fafc', footerMuted: '#94a3b8',
+    ink: '#f8fafc', ink2: '#e2e8f0', ink3: '#cbd5e1', ink4: '#94a3b8',
+    ctaBg: '#020617', ctaText: '#f8fafc', ctaMuted: '#cbd5e1', ctaButtonBg: '#ffffff', ctaButtonText: '#0f172a',
   } : {
-    paper: '#f4ead7',
-    paper2: '#eadcc4',
-    paper3: '#cdb89a',
-    nav: 'rgba(244, 234, 215, 0.9)',
-    navBorder: '#cdb89a',
-    navText: '#142331',
-    navMuted: '#55697c',
-    howBg: '#eadcc4',
-    howCard: '#f4ead7',
-    howBorder: '#cdb89a',
-    howText: '#142331',
-    howMuted: '#55697c',
-    themesBg: '#eadcc4',
-    themesCard: '#f4ead7',
-    themesBorder: '#cdb89a',
-    themesText: '#142331',
-    themesMuted: '#55697c',
-    themesLabel: '#2c4256',
-    themesRing: '#142331',
-    themesRingOffset: '#eadcc4',
-    footerBg: '#f1e4cf',
-    footerBorder: '#cdb89a',
-    footerText: '#142331',
-    footerMuted: '#55697c',
-    ink: '#142331',
-    ink2: '#2c4256',
-    ink3: '#55697c',
-    ink4: '#7f91a2',
+    paper: '#f5f5f5',
+    paper2: '#ffffff',
+    paper3: '#e2e8f0',
+    nav: 'rgba(255, 255, 255, 0.92)',
+    navBorder: '#e2e8f0',
+    navText: '#0f172a', navMuted: '#64748b',
+    howBg: '#f1f5f9', howCard: '#ffffff', howBorder: '#e2e8f0', howText: '#0f172a', howMuted: '#64748b',
+    themesBg: '#f8fafc', themesCard: '#ffffff', themesBorder: '#e2e8f0', themesText: '#0f172a', themesMuted: '#64748b',
+    themesLabel: '#334155', themesRing: '#0f172a', themesRingOffset: '#f8fafc',
+    footerBg: '#f8fafc', footerBorder: '#e2e8f0', footerText: '#0f172a', footerMuted: '#64748b',
+    ink: '#0f172a', ink2: '#334155', ink3: '#64748b', ink4: '#94a3b8',
+    ctaBg: '#ffffff', ctaText: '#0f172a', ctaMuted: '#64748b', ctaButtonBg: '#0f172a', ctaButtonText: '#ffffff',
   };
 
   return (
@@ -429,10 +399,10 @@ export function LandingPage({
             {[
               { icon: '📋', title: 'Efficient Task List Style', desc: 'A clean two-panel layout — task list on the left, rich detail panel on the right. Browse and inspect without leaving.', color: '#e8f0fe' },
               { icon: '📅', title: 'Strategic Dynamic Calendar', desc: 'Month, Week, and Day views — navigate with mini calendar, drill in, and see everything at a glance.', color: '#fce8e6' },
-              { icon: '🔔', title: 'Intelligent Reminders', desc: 'Set time-based reminders that show overdue alerts directly in your list. Never miss a deadline with visual indicators.', color: '#fef9e7' },
+              { icon: '🔔', title: 'Intelligent Reminders', desc: 'Set time-based reminders that show overdue alerts directly in your list. Never miss a deadline with visual indicators.', color: '#f1f5f9' },
               { icon: '✍️', title: 'Comprehensive Descriptions', desc: 'Add detailed notes, links, and context to every item. One description field — no multi-step wizards.', color: '#e8f5e9' },
               { icon: '⚡', title: 'Quick Add Engine', desc: "Type a task and hit Enter. added instantly. No modal, no friction. Use the full form when you need the details.", color: '#f3e8fd' },
-              { icon: '🎨', title: 'Theme Personalization', desc: 'Light or dark mode. Six accent colors. Your preferences are saved locally so it looks exactly how you like it.', color: '#fff3e0' },
+              { icon: '🎨', title: 'Theme Personalization', desc: 'Light or dark mode. Six accent colors. Your preferences are saved locally so it looks exactly how you like it.', color: '#e0f2fe' },
             ].map((f, i) => (
                <div key={f.title} className="reveal group p-6 bg-paper border border-paper3 rounded-2xl hover:shadow-xl transition-all duration-500">
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform" style={{ backgroundColor: f.color }}>{f.icon}</div>
@@ -570,14 +540,13 @@ export function LandingPage({
             <div className="flex flex-col items-center gap-12 reveal">
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
                                   {[
-                     { title: 'Light Aesthetic', bg: '#f4ead7', accent: 'blue', side: '#eadcc4', t: 'light' },
+                     { title: 'Light Aesthetic', bg: '#f5f5f5', accent: 'blue', side: '#ffffff', t: 'light' },
                      { title: 'Midnight Engine', bg: '#1a1a1a', accent: 'blue', side: '#222', t: 'dark', dark: true },
-                     { title: 'Forest Protocol', bg: '#f4ead7', accent: 'teal', side: '#eadcc4', t: 'light' },
+                     { title: 'Forest Protocol', bg: '#f5f5f5', accent: 'teal', side: '#ffffff', t: 'light' },
                    ].map(p => (
                      <div key={p.title} className="group cursor-pointer flex flex-col items-center" onClick={() => {
                        setTheme(p.t as any);
                        setActiveAccent(p.accent);
-                       localStorage.setItem('tf_theme', p.t);
                      }}>
                         <div
                           className="rounded-2xl overflow-hidden shadow-xl transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-3xl w-full"
@@ -673,7 +642,10 @@ export function LandingPage({
 
       {/* FINAL CTA */}
       <section id="cta" className="mx-6 md:mx-12 mb-20">
-         <div className="relative overflow-hidden bg-ink rounded-[2.5rem] py-24 md:py-36 text-center px-10">
+         <div
+           className="relative overflow-hidden rounded-[2.5rem] py-24 md:py-36 text-center px-10 border transition-colors duration-500"
+           style={{ backgroundColor: THEME_VARS.ctaBg, borderColor: THEME_VARS.paper3 }}
+         >
             <div className="absolute inset-0 pointer-events-none opacity-20">
                <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_20%_50%,rgba(0,120,212,0.3)_0%,transparent_60%)]" />
                <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_80%_50%,rgba(0,137,123,0.3)_0%,transparent_60%)]" />
@@ -681,12 +653,12 @@ export function LandingPage({
             </div>
 
             <div className="relative z-10">
-               <h2 className="font-serif text-5xl md:text-8xl text-white tracking-tight leading-none mb-10">Ready to get<br /><em className="italic text-white/40">organized?</em></h2>
-               <p className="text-white/50 text-xl font-medium max-w-lg mx-auto mb-14">Open your workspace right now. No signup. No friction. Pure execution.</p>
-               <button onClick={() => setAuthMode('signup')} className="h-20 px-12 bg-white text-ink rounded-2xl text-xl font-black shadow-3xl hover:-translate-y-2 hover:shadow-white/10 transition-all flex items-center justify-center gap-4 mx-auto" style={{ border: '2px solid var(--accent)' }}>
+               <h2 className="font-serif text-5xl md:text-8xl tracking-tight leading-none mb-10" style={{ color: THEME_VARS.ctaText }}>Ready to get<br /><em className="italic opacity-50">organized?</em></h2>
+               <p className="text-xl font-medium max-w-lg mx-auto mb-14" style={{ color: THEME_VARS.ctaMuted }}>Open your workspace right now. No signup. No friction. Pure execution.</p>
+               <button onClick={() => setAuthMode('signup')} className="h-20 px-12 rounded-2xl text-xl font-black shadow-3xl hover:-translate-y-2 transition-all flex items-center justify-center gap-4 mx-auto" style={{ backgroundColor: THEME_VARS.ctaButtonBg, color: THEME_VARS.ctaButtonText, border: '2px solid var(--accent)' }}>
                   Join Us <ArrowRight size={24} style={{ color: 'var(--accent)' }} />
                </button>
-               <p className="mt-8 text-sm text-white/20 font-bold tracking-widest uppercase">Free session · Local persistence · 100% Privacy</p>
+               <p className="mt-8 text-sm font-bold tracking-widest uppercase opacity-60" style={{ color: THEME_VARS.ctaMuted }}>Free session · Local persistence · 100% Privacy</p>
             </div>
          </div>
       </section>
