@@ -404,7 +404,14 @@ export function LandingPage({
               { icon: '⚡', title: 'Quick Add Engine', desc: "Type a task and hit Enter. added instantly. No modal, no friction. Use the full form when you need the details.", color: '#f3e8fd' },
               { icon: '🎨', title: 'Theme Personalization', desc: 'Light or dark mode. Six accent colors. Your preferences are saved locally so it looks exactly how you like it.', color: '#e0f2fe' },
             ].map((f, i) => (
-               <div key={f.title} className="reveal group p-6 bg-paper border border-paper3 rounded-2xl hover:shadow-xl transition-all duration-500">
+               <div
+                 key={f.title}
+                 className="reveal group p-6 border rounded-2xl hover:shadow-xl transition-all duration-500"
+                 style={{
+                   backgroundColor: 'var(--landing-paper2)',
+                   borderColor: 'var(--landing-paper3)',
+                 }}
+               >
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform" style={{ backgroundColor: f.color }}>{f.icon}</div>
                   <h3 className="text-lg font-bold mb-1.5" style={{ color: 'var(--landing-ink)' }}>{f.title}</h3>
                   <p className="text-xs leading-relaxed" style={{ color: 'var(--landing-ink3)' }}>{f.desc}</p>
@@ -625,14 +632,21 @@ export function LandingPage({
               { author: 'Kevin Marsh', role: 'Engineer', quote: "The teal mode is perfect. No account required means zero friction for my fast-moving workflow.", initials: 'KM', color: '#6b35c8' },
               { author: 'Serena Li', role: 'Designer', quote: 'The spatial engine and the description logic are just like Atlas. It helps me think better.', initials: 'SL', color: '#1a7f4e' },
             ].map((r, i) => (
-              <div key={r.author} className="reveal p-10 bg-paper border border-paper3 rounded-3xl hover:border-ink4 transition-all duration-300">
+              <div
+                key={r.author}
+                className="reveal p-10 border rounded-3xl transition-all duration-300"
+                style={{
+                  backgroundColor: 'var(--landing-paper2)',
+                  borderColor: 'var(--landing-paper3)',
+                }}
+              >
                  <div className="flex gap-0.5 text-amber-500 mb-6 font-bold tracking-tight">★★★★★</div>
-                 <p className="text-ink2 leading-[1.8] mb-10 italic">"{r.quote}"</p>
+                 <p className="leading-[1.8] mb-10 italic" style={{ color: 'var(--landing-ink2)' }}>"{r.quote}"</p>
                  <div className="flex items-center gap-4">
                     <div className="h-10 w-10 rounded-full flex items-center justify-center font-serif text-white text-sm italic" style={{ backgroundColor: r.color }}>{r.initials}</div>
                     <div>
-                       <div className="text-sm font-bold text-ink">{r.author}</div>
-                       <div className="text-xs text-ink4">{r.role}</div>
+                       <div className="text-sm font-bold" style={{ color: 'var(--landing-ink)' }}>{r.author}</div>
+                       <div className="text-xs" style={{ color: 'var(--landing-ink3)' }}>{r.role}</div>
                     </div>
                  </div>
               </div>
