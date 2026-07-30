@@ -127,9 +127,9 @@
   --color-accent-light: var(--accent-light);
   --color-accent-hover: var(--accent-hover);
   --color-accent-subtle: var(--accent-subtle);
-  --color-paper: var(--landing-paper, #f7efe2);
-  --color-paper2: var(--landing-paper2, #efe3d1);
-  --color-paper3: var(--landing-paper3, #d3c2aa);
+  --color-paper: var(--landing-paper, #f5f5f5);
+  --color-paper2: var(--landing-paper2, #ffffff);
+  --color-paper3: var(--landing-paper3, #e2e8f0);
   --color-ink: var(--landing-ink, #13212f);
   --color-ink2: var(--landing-ink2, #314255);
   --color-ink3: var(--landing-ink3, #5c6d80);
