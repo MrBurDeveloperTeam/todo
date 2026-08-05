@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Building2, ChevronDown, Globe2, Mail, Phone, RefreshCw, Share2, ShieldCheck, User, BriefcaseBusiness } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { loginOdoo } from '../lib/loginOdoo';
 import applink from '../lib/app_link';
 import { DOBPicker } from './DOBPicker';
@@ -40,7 +39,6 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (mode === 'login' && !supabase) { setError('Authentication is not configured.'); return; }
     setLoading(true); setError(null); setSuccess(null);
 
     try {
@@ -55,8 +53,6 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
         if (password.length < 8) throw new Error('Password must be at least 8 characters.');
         if (password !== confirmPassword) throw new Error('Passwords do not match.');
         if (!agreedToTerms) throw new Error('Please agree to the Terms of Service, Privacy Policy and Disclaimer.');
-        if (!supabase) throw new Error('Authentication is not configured.');
-
         const payload = {
           email: email.trim(), password,
           options: { data: { name: name.trim(), full_name: name.trim(), account_type: accountType, phone: phone.trim(), position: effectivePosition, dob, country, agreed_to_terms: agreedToTerms, company_name: accountType === 'company' ? companyName.trim() : null, referral_code: referralCode.trim() || null } },
@@ -67,15 +63,11 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
         const result = await response.json().catch(() => null);
         if (!response.ok || result?.ok === false) throw new Error(result?.error || 'Could not create your account.');
 
-        const { data, error: signUpError } = await supabase.auth.signUp(payload);
-        if (signUpError) throw signUpError;
-        setSuccess(data.session ? 'Registration successful!' : 'Registration successful! Check your email to verify your account.');
-      } else if (supabase) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-        if (signInError) {
-          const { data } = await loginOdoo(email.trim(), password);
-          if (data?.result?.uid) await applink(data.result);
-        }
+        setSuccess('Registration successful! Check your email to verify your account.');
+      } else {
+        const { data } = await loginOdoo(email.trim(), password);
+        if (!data?.result?.uid) throw new Error('Invalid login credentials.');
+        await applink(data.result);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during authentication.');
