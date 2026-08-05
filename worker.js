@@ -173,6 +173,7 @@ export default {
       const position = payload?.position ?? body?.position;
       const dob = payload?.dob ?? body?.dob;
       const country = payload?.country ?? body?.country;
+      const referralCode = payload?.referral_code ?? body?.referral_code ?? payload?.referralCode ?? body?.referralCode;
 
       if (!email || !name || !password) {
         return new Response(JSON.stringify({ ok: false, error: 'email, name, and password are required' }), {
@@ -197,6 +198,7 @@ export default {
           ...(position ? { job_position: position } : {}),
           ...(dob ? { date_of_birth: dob } : {}),
           ...(country ? { country_id: Number(country) } : {}),
+          ...(referralCode ? { referral_code: referralCode } : {}),
         },
         id: 1,
       };

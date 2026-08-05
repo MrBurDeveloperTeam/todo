@@ -168,6 +168,12 @@ export default {
       const name = payload?.name ?? body?.name;
       const password = payload?.password ?? body?.password;
       const phone = payload?.phone ?? body?.phone;
+      const accountType = payload?.account_type ?? body?.account_type ?? 'individual';
+      const companyName = payload?.company_name ?? body?.company_name;
+      const position = payload?.position ?? body?.position;
+      const dob = payload?.dob ?? body?.dob;
+      const country = payload?.country ?? body?.country;
+      const referralCode = payload?.referral_code ?? body?.referral_code ?? payload?.referralCode ?? body?.referralCode;
 
       if (!email || !name || !password) {
         return new Response(JSON.stringify({ ok: false, error: 'email, name, and password are required' }), {
@@ -181,10 +187,16 @@ export default {
         method: 'call',
         params: {
           email,
-          name,
+          name: accountType === 'company' && companyName ? companyName : name,
           password,
           company_id: 2,
           ...(phone ? { phone } : {}),
+          ...(accountType === 'company' ? { company_type: 'company', contact_name: name } : { company_type: 'person' }),
+          ...(companyName ? { company_name: companyName } : {}),
+          ...(position ? { job_position: position } : {}),
+          ...(dob ? { date_of_birth: dob } : {}),
+          ...(country ? { country_id: Number(country) } : {}),
+          ...(referralCode ? { referral_code: referralCode } : {}),
         },
         id: 1,
       };
