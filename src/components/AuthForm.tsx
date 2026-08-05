@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, ChevronDown, Globe2, Mail, Phone, RefreshCw, ShieldCheck, User, BriefcaseBusiness } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { Building2, ChevronDown, Globe2, Mail, Phone, RefreshCw, Share2, ShieldCheck, User, BriefcaseBusiness } from 'lucide-react';
 import { loginOdoo } from '../lib/loginOdoo';
 import applink from '../lib/app_link';
 import { DOBPicker } from './DOBPicker';
@@ -20,6 +19,10 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
   const [name, setName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
+  const [referralCode, setReferralCode] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('referral') || params.get('referral_code') || params.get('ref') || '';
+  });
   const [phone, setPhone] = useState('');
   const [dob, setDob] = useState('');
   const [position, setPosition] = useState('');
@@ -36,7 +39,6 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (mode === 'login' && !supabase) { setError('Authentication is not configured.'); return; }
     setLoading(true); setError(null); setSuccess(null);
 
     try {
@@ -51,11 +53,9 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
         if (password.length < 8) throw new Error('Password must be at least 8 characters.');
         if (password !== confirmPassword) throw new Error('Passwords do not match.');
         if (!agreedToTerms) throw new Error('Please agree to the Terms of Service, Privacy Policy and Disclaimer.');
-        if (!supabase) throw new Error('Authentication is not configured.');
-
         const payload = {
           email: email.trim(), password,
-          options: { data: { name: name.trim(), account_type: accountType, phone: phone.trim(), position: effectivePosition, dob, country, agreed_to_terms: agreedToTerms, company_name: accountType === 'company' ? companyName.trim() : null } },
+          options: { data: { name: name.trim(), full_name: name.trim(), account_type: accountType, phone: phone.trim(), position: effectivePosition, dob, country, agreed_to_terms: agreedToTerms, company_name: accountType === 'company' ? companyName.trim() : null, referral_code: referralCode.trim() || null } },
         };
 
         // Todo's own Worker route. This replaces the copied appointment endpoint.
@@ -63,22 +63,18 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
         const result = await response.json().catch(() => null);
         if (!response.ok || result?.ok === false) throw new Error(result?.error || 'Could not create your account.');
 
-        const { data, error: signUpError } = await supabase.auth.signUp(payload);
-        if (signUpError) throw signUpError;
-        setSuccess(data.session ? 'Account created successfully.' : 'Account created. Please check your email to confirm your account.');
-      } else if (supabase) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-        if (signInError) {
-          const { data } = await loginOdoo(email.trim(), password);
-          if (data?.result?.uid) await applink(data.result);
-        }
+        setSuccess('Registration successful! Check your email to verify your account.');
+      } else {
+        const { data } = await loginOdoo(email.trim(), password);
+        if (!data?.result?.uid) throw new Error('Invalid login credentials.');
+        await applink(data.result);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during authentication.');
     } finally { setLoading(false); }
   };
 
-  return <div className="min-h-screen bg-slate-100 px-4 py-6 sm:flex sm:items-center sm:justify-center sm:px-6 sm:py-10">
+  return <div className="min-h-screen bg-slate-100 px-4 py-6 sm:flex sm:items-center sm:justify-center sm:px-6 sm:py-10" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
     <div className="relative mx-auto w-full max-w-xl rounded-[1.5rem] bg-white p-6 shadow-2xl sm:p-8 lg:p-10">
       <div className="mb-8 text-left">
       <a
@@ -92,13 +88,12 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
         {isSignup && <p className="mt-2 text-sm font-semibold leading-relaxed text-slate-500">Organize your tasks, priorities, and schedule with ease.</p>}
       </div>
       {error && <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-600">{error}</div>}
-      {success && <div className="mb-4 rounded-xl border border-green-200 bg-green-50 p-3 text-xs font-bold text-green-700">{success}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {isSignup ? SignupFields() : LoginFields()}
-        <button type="submit" disabled={loading} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-base font-black text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">{loading ? <RefreshCw size={18} className="animate-spin" /> : isSignup ? 'Sign up' : 'Sign In'}</button>
+        <button type="submit" disabled={loading} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-base font-black text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60">{loading ? <RefreshCw size={18} className="animate-spin" /> : isSignup ? 'Sign up' : 'Log in'}</button>
       </form>
-      <p className="mt-5 text-center text-xs text-slate-500">{isSignup ? 'Already have an account?' : "Don't have an account?"}<button onClick={() => onSwitchMode(isSignup ? 'login' : 'signup')} className="ml-1 font-bold text-[#0ababa] hover:underline">{isSignup ? 'Log In' : 'Sign up'}</button></p>
+      <p className="mt-5 text-center text-xs text-slate-500">{isSignup ? 'Already have an account?' : "Don't have an account?"}<button onClick={() => onSwitchMode(isSignup ? 'login' : 'signup')} className="ml-1 font-bold text-[#0ababa] hover:underline">{isSignup ? 'Log In' : 'Sign Up'}</button></p>
     </div>
   </div>;
 
@@ -106,9 +101,11 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
     const company = accountType === 'company';
     return <>
       <div><p className={labelClass}>Account type</p><div className="grid grid-cols-2 overflow-hidden rounded-xl border border-slate-200"><button type="button" onClick={() => setAccountType('individual')} className={`flex items-center justify-center gap-2 py-3 text-sm font-bold ${!company ? 'bg-[#0ababa] text-white' : 'bg-white text-slate-500'}`}><User size={16} /> Individual</button><button type="button" onClick={() => setAccountType('company')} className={`flex items-center justify-center gap-2 border-l border-slate-200 py-3 text-sm font-bold ${company ? 'bg-[#0ababa] text-white' : 'bg-white text-slate-500'}`}><Building2 size={16} /> Company</button></div></div>
+      {success && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">{success}</div>}
       {company && <Field label="Company name" icon={<Building2 className={iconClass} />}><input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className={inputClass} placeholder="e.g. SNABBB DENTAL" autoComplete="organization" /></Field>}
       <Field label={company ? 'Name' : 'Your name'} icon={<User className={iconClass} />}><input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder={company ? 'Contact name' : 'e.g. Nur AYA CHE'} autoComplete="name" /></Field>
       <Field label={company ? 'Company email' : 'Your email'} icon={<Mail className={iconClass} />} helper={<p className="mt-1 text-xs italic text-slate-400">This will be your login email.</p>}><input value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} type="email" placeholder={company ? 'e.g. hello@company.com' : 'e.g. nur@email.com'} autoComplete="email" /></Field>
+      <Field label="Referred by (optional)" icon={<Share2 className={iconClass} />} helper={<p className="mt-1 text-xs italic text-slate-400">Referred by a doctor already on Snabbb? Enter their code, email, or share their link to auto-fill this.</p>}><input value={referralCode} onChange={(e) => setReferralCode(e.target.value)} className={inputClass} placeholder="Referral code" autoComplete="off" /></Field>
       <Field label={company ? 'Phone' : 'Phone (WhatsApp)'} icon={<Phone className={iconClass} />}><input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} type="tel" placeholder="e.g. +60123456789" autoComplete="tel" /></Field>
       <div><p className={labelClass}>Date of birth</p><DOBPicker value={dob} onChange={setDob} /></div>
       <Field label="Job position" icon={<BriefcaseBusiness className={iconClass} />}><span className="relative block"><select value={position} onChange={(e) => setPosition(e.target.value)} className={`${inputClass} appearance-none`}><option value="">-- Select Position --</option>{DENTAL_POSITIONS.map((item) => <option key={item} value={item}>{item}</option>)}<option value="Other">Other</option></select><ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-300" /></span></Field>
