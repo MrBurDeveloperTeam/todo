@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, Sun, Moon, Monitor, LayoutGrid, Check, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { logActivityToOdoo } from '../../lib/logActivityToOdoo';
 import { AppUser } from '../../types';
 import { type ThemePreference } from '../../lib/themeSync';
 import { ACCENTS } from '../../utils';
@@ -303,6 +304,15 @@ export function SettingsView({
                   // 1. Delete from DB
                   await supabase.from('tasks').delete().eq('user_id', user.user_id);
                   await supabase.from('task-categories').delete().eq('user_id', user.user_id);
+                  logActivityToOdoo({
+                    logId: crypto.randomUUID(),
+                    actorEmail: user.email || null,
+                    actorName: user.name || null,
+                    supabaseUserId: user.user_id || null,
+                    action: 'data_cleared',
+                    details: 'Cleared all tasks and lists',
+                    occurredAt: new Date().toISOString(),
+                  });
                 }
 
                 // 2. Clear local state

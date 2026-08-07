@@ -26,6 +26,7 @@ import { Toast } from '../components/Toast';
 import { toLocalDateStr, todayStr, ACCENTS, updateThemeIcon } from '../utils';
 import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
+import { logActivityToOdoo } from '../lib/logActivityToOdoo';
 
 const DEFAULT_CATEGORIES = [
   { id: 'work', name: 'Work', color: '#3b82f6' },
@@ -118,6 +119,23 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
     }
   };
 
+  // Best-effort: every task/list mutation also gets pushed to Odoo (see
+  // lib/logActivityToOdoo.ts + TODO_ACTIVITY_TRACKER_ODOO_SYNC.md), mirroring
+  // the same sync built for the inventory and appointment apps. Fire-and-
+  // forget so a slow/unreachable worker or Odoo instance never blocks or
+  // fails the local Supabase write, which stays the source of truth either way.
+  const logTodoActivity = (action: string, details: string) => {
+    logActivityToOdoo({
+      logId: crypto.randomUUID(),
+      actorEmail: user.email || null,
+      actorName: user.name || null,
+      supabaseUserId: user.user_id || null,
+      action,
+      details,
+      occurredAt: new Date().toISOString(),
+    });
+  };
+
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [newListColor, setNewListColor] = useState('#3b82f6');
@@ -180,15 +198,19 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         .update(payload)
         .eq('user_id', user.user_id)
         .eq('id', cat.id);
+      logTodoActivity('list_updated', `Updated list: ${cat.name}`);
       return;
     }
 
     await supabase.from('task-categories').insert(payload);
+    logTodoActivity('list_added', `Added list: ${cat.name}`);
   };
 
   const deleteCategoryDB = async (id: string) => {
     if (!supabase) return;
+    const list = userLists.find(l => l.id === id);
     await supabase.from('task-categories').delete().eq('user_id', user.user_id).eq('id', id);
+    logTodoActivity('list_deleted', `Deleted list: ${list?.name || id}`);
   };
 
   // Persistence removed (no localStorage)
@@ -289,21 +311,24 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
       showCompletionToast(id, `"${task.title}" has been completed.`);
     }
     
-    await supabase.from('tasks').update({ 
+    await supabase.from('tasks').update({
       status: nextDone ? 'done' : 'todo',
-      is_completed: nextDone 
+      is_completed: nextDone
     }).eq('id', id);
+    logTodoActivity(nextDone ? 'task_completed' : 'task_reopened', `"${task.title}" marked ${nextDone ? 'complete' : 'not done'}`);
   };
 
   const handleUndoCompletedTask = async () => {
     if (!supabase || !completionToast) return;
     const { taskId } = completionToast;
+    const undoneTask = tasks.find(t => t.id === taskId);
     clearCompletionToast();
     setTasks(prev => prev.map(task => task.id === taskId ? { ...task, done: false } : task));
     await supabase.from('tasks').update({
       status: 'todo',
       is_completed: false
     }).eq('id', taskId);
+    logTodoActivity('task_reopened', `Undid completion of "${undoneTask?.title || taskId}"`);
   };
 
   const handleDeleteTask = async (id: string) => {
@@ -320,6 +345,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         if (selectedTaskId === id) setSelectedTaskId(null);
         if (supabase) {
           await supabase.from('tasks').delete().eq('id', id);
+          logTodoActivity('task_deleted', `Deleted "${taskToDelete.title}"`);
         }
       }
     });
@@ -373,6 +399,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         status: updated.done ? 'done' : 'todo',
         is_completed: updated.done
       }).eq('id', editingTask.id);
+      logTodoActivity('task_updated', `Updated "${updated.title}"`);
     } else {
       const id = crypto.randomUUID();
       const resolvedListId = resolveTaskListId(newTask.list);
@@ -413,6 +440,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
       });
       if (error) {
         console.error('SUPABASE MODAL INSERT ERROR:', error);
+      } else {
+        logTodoActivity(`${item.type}_added`, `Added ${item.type}: ${item.title}`);
       }
     }
 
@@ -460,6 +489,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
     });
     if (error) {
       console.error('SUPABASE INSERT ERROR:', error);
+    } else {
+      logTodoActivity(`${type}_added`, `Added ${type}: ${title}`);
     }
   };
 
