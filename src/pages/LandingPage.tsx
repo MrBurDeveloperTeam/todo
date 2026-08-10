@@ -211,10 +211,10 @@ export function LandingPage({
             className="px-4 py-2 text-sm font-semibold transition-all"
             style={{ color: 'var(--landing-nav-muted)' }}
           >
-            Sign in
+            Log In    
           </button>
           <button onClick={() => setAuthMode('signup')} className="hidden sm:flex items-center gap-2 px-5 py-2.5 text-white rounded-lg text-sm font-bold shadow-lg shadow-black/10 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all" style={{ backgroundColor: 'var(--accent)' }}>
-            Join Us
+            Sign Up
             <ArrowRight size={14} />
           </button>
         </div>
