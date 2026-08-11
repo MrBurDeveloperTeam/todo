@@ -664,7 +664,7 @@ export const PetRoom: React.FC<PetRoomProps> = ({ onNavigateToGame }) => {
                 />
               )}
 
-              <div className="absolute bottom-[120px] left-1/2 z-10 -translate-x-1/2">
+              <div className="absolute bottom-[140px] left-1/2 z-10 -translate-x-1/2">
                 <Pet
                   ref={petRef}
                   stats={stats}
