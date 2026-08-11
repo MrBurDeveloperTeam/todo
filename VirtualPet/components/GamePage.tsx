@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { TiArrowBack } from 'react-icons/ti';
 import { useGameState } from '../hooks/useGameState';
 
 const GAME_CONFIG: Record<string, { title: string; url: string; icon: string; gradient: string }> = {
@@ -66,9 +67,10 @@ const AnimatedCounter: React.FC<{ value: number }> = ({ value }) => {
 interface GamePageProps {
     gameId: string;
     onClose: () => void;
+    onExitApp: () => void;
 }
 
-export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose }) => {
+export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose, onExitApp }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isPortrait, setIsPortrait] = useState(false);
     const { stats, setStats } = useGameState();
@@ -182,8 +184,20 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose }) => {
             {/* Container - Full Screen */}
             <div className="relative w-full h-full animate-in zoom-in-95 fade-in duration-300">
 
+                {!(requiresLandscape && isPortrait) && (
+                    <button
+                        type="button"
+                        onClick={onExitApp}
+                        className="absolute left-[calc(env(safe-area-inset-left)_+_1.5rem)] top-[calc(env(safe-area-inset-top)_+_1.5rem)] z-[70] flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/10 bg-white/75 p-0 text-slate-700 shadow-lg backdrop-blur-sm transition-all hover:-translate-x-0.5 hover:scale-110 hover:bg-white active:scale-95"
+                        title="Back to main page"
+                        aria-label="Back to main page"
+                    >
+                        <TiArrowBack className="h-9 w-9" strokeWidth={0} />
+                    </button>
+                )}
+
                 {/* Top UI Area */}
-                <div className="absolute top-6 right-6 z-50 flex flex-col items-end gap-2">
+                <div className="absolute right-[calc(env(safe-area-inset-right)_+_1.5rem)] top-[calc(env(safe-area-inset-top)_+_1.5rem)] z-50 flex flex-col items-end gap-2">
                     <div className="flex items-center gap-3">
                         {/* Session Progress (Pending Coins) */}
                         {sessionCoins > 0 && (
@@ -238,11 +252,10 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose }) => {
                                     <span className="text-4xl">📱</span>
                                     <span className="inline-block animate-spin text-4xl [animation-duration:2s]">↻</span>
                                 </div>
-                                <h2 className="text-xl font-black tracking-wide text-sky-400">请旋转你的设备</h2>
+                                <h2 className="text-xl font-black tracking-wide text-sky-400">Rotate your device</h2>
                                 <p className="mt-3 text-sm font-semibold leading-relaxed text-white/80">
-                                    {config.title} 需要横屏游玩。请将手机旋转至横屏以继续游戏。
+                                    {config.title} is designed for landscape mode. Rotate your phone to continue playing.
                                 </p>
-                                <p className="mt-2 text-xs text-white/45">Rotate your device to landscape mode to play.</p>
                                 <button
                                     type="button"
                                     onPointerDown={(event) => event.stopPropagation()}
@@ -252,7 +265,7 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose }) => {
                                     }}
                                     className="mt-5 rounded-xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-black text-white transition hover:bg-white/20 active:scale-95"
                                 >
-                                    返回游戏列表
+                                    Back to games
                                 </button>
                             </div>
                         </div>
