@@ -71,14 +71,14 @@ const BottomControls: React.FC<BottomControlsProps> = ({
         `relative group flex flex-col items-center justify-center w-[65px] h-[65px] rounded-xl transition-all duration-300 cursor-pointer ${
             isActive 
             ? 'bg-[#ffffff] shadow-lg scale-105 z-10'
-            : 'bg-[#ffffff] hover:bg-slate-50 hover:scale-105'
+            : 'bg-transparent hover:bg-white/30 hover:scale-105'
         }`;
     
     const getIconClass = (isActive: boolean, color: string) => 
-        `w-6 h-6 mb-1 transition-colors duration-300 ${isActive ? color : 'text-slate-500'}`;
+        `w-6 h-6 mb-1 transition-colors duration-300 ${isActive ? color : 'text-white'}`;
 
     const getLabelClass = (isActive: boolean, color: string) =>
-        `text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 ${isActive ? color : 'text-slate-500'}`;
+        `text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 ${isActive ? color : 'text-white/80'}`;
 
     const handleFeedClick = () => {
         if (currentRoom !== RoomType.KITCHEN) {
@@ -133,7 +133,7 @@ const BottomControls: React.FC<BottomControlsProps> = ({
                <span className="text-[11px] font-bold uppercase tracking-widest text-white">Shop</span>
             </button>
 
-            <div className="flex flex-col gap-3 p-3 bg-[#ffffff] backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl scale-95 origin-left">
+            <div className="flex flex-col gap-3 rounded-2xl border border-white/20 bg-[rgba(255,255,255,0.22)] p-3 shadow-2xl backdrop-blur-xl scale-95 origin-left">
                 
                 <button 
                   onClick={handleFeedClick}
