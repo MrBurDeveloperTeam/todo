@@ -48,7 +48,7 @@ const DragLayer: React.FC<DragLayerProps> = ({ draggedItem, draggedTool, dragPos
         <>
             {draggedItem && (
                 <div
-                    className="fixed pointer-events-none z-50 text-5xl filter drop-shadow-2xl"
+                    className="pointer-events-none fixed z-50 text-5xl"
                     style={{
                         left: dragPos.x,
                         top: dragPos.y,
@@ -61,7 +61,7 @@ const DragLayer: React.FC<DragLayerProps> = ({ draggedItem, draggedTool, dragPos
 
             {draggedTool && (
                 <div
-                    className="fixed pointer-events-none z-50 filter drop-shadow-2xl"
+                    className="pointer-events-none fixed z-50"
                     style={{
                         left: dragPos.x,
                         top: dragPos.y,
@@ -73,7 +73,7 @@ const DragLayer: React.FC<DragLayerProps> = ({ draggedItem, draggedTool, dragPos
                             src={TOOL_ICONS[draggedTool].src}
                             alt={TOOL_ICONS[draggedTool].alt}
                             draggable={false}
-                            className="h-24 w-24 object-contain drop-shadow-md select-none"
+                            className="h-24 w-24 select-none object-contain"
                         />
 
                         {draggedTool === 'shower' && bubbles.length > 0 && isHoveringPet && isSoapedUp && (

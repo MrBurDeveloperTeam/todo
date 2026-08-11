@@ -38,7 +38,7 @@ export const FoodMenu: React.FC<FoodMenuProps> = ({ onDragStart, inventory, onOp
 
     return (
         <div className="absolute bottom-6 left-0 right-0 z-30 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300 pointer-events-none">
-            <div className="pointer-events-auto flex max-w-[min(92vw,430px)] items-center gap-3 rounded-2xl border border-white/50 bg-white/60 backdrop-blur-xl p-2 shadow-2xl shadow-orange-900/10 backdrop-blur-xl">
+            <div className="pointer-events-auto flex max-w-[min(92vw,430px)] items-center gap-3 rounded-2xl border border-white/50 bg-[rgba(255,255,255,0.60)] p-2 shadow-2xl shadow-orange-900/10 backdrop-blur-xl">
                 <div
                     ref={scrollRef}
                     onWheel={handleWheel}
@@ -59,7 +59,7 @@ export const FoodMenu: React.FC<FoodMenuProps> = ({ onDragStart, inventory, onOp
                             onPointerDown={(e) => onDragStart(e, item)}
                             className="relative flex h-16 w-16 shrink-0 snap-center cursor-grab items-center justify-center transition-all hover:-translate-y-0.5 active:cursor-grabbing active:scale-95"
                         >
-                            <div className="select-none touch-none text-4xl drop-shadow-sm">{item.icon}</div>
+                            <div className="select-none touch-none text-4xl">{item.icon}</div>
                             <div className="pointer-events-none absolute -right-0 -top-0 z-10 flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 text-[11px] font-black text-white shadow">
                                 {inventory[item.id]}
                             </div>
@@ -94,7 +94,7 @@ const BATHROOM_TOOL_ICONS: Record<ToolType, { src: string; alt: string }> = {
 
 export const BathroomMenu: React.FC<BathroomMenuProps> = ({ onDragStart, isSoapedUp, isDirty }) => (
     <div className="absolute bottom-6 left-0 right-0 z-20 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300">
-        <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl shadow-xl flex gap-6 border border-white/50 items-end">
+        <div className="flex items-end gap-6 rounded-2xl border border-white/50 bg-[rgba(255,255,255,0.60)] p-4 shadow-xl backdrop-blur-xl">
             {(['soap'] as const).map((tool) => {
                 const disabled = !!isSoapedUp;
                 return (
@@ -112,7 +112,7 @@ export const BathroomMenu: React.FC<BathroomMenuProps> = ({ onDragStart, isSoape
                                 src={BATHROOM_TOOL_ICONS[tool].src}
                                 alt={BATHROOM_TOOL_ICONS[tool].alt}
                                 draggable={false}
-                                className="h-[72px] w-[72px] object-contain drop-shadow-md"
+                                className="h-[72px] w-[72px] object-contain"
                             />
                         </div>
                         <span className={`text-[13px] tracking-wider font-bold uppercase transition-colors ${!disabled ? 'text-pink-500' : 'text-slate-400'}`}>
@@ -135,7 +135,7 @@ export const BathroomMenu: React.FC<BathroomMenuProps> = ({ onDragStart, isSoape
                         src={BATHROOM_TOOL_ICONS.shower.src}
                         alt={BATHROOM_TOOL_ICONS.shower.alt}
                         draggable={false}
-                        className="h-16 w-16 object-contain drop-shadow-md"
+                        className="h-16 w-16 object-contain"
                     />
                 </div>
                 <span className={`text-[13px] pt-1 tracking-wider font-bold uppercase transition-colors ${isSoapedUp ? 'text-cyan-600' : 'text-slate-400'}`}>

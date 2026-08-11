@@ -70,15 +70,15 @@ const BottomControls: React.FC<BottomControlsProps> = ({
     const getButtonStyle = (isActive: boolean) => 
         `relative group flex flex-col items-center justify-center w-[65px] h-[65px] rounded-xl transition-all duration-300 cursor-pointer ${
             isActive 
-            ? 'bg-white shadow-lg scale-105 z-10' 
-            : 'bg-white/20 hover:bg-white/30 hover:scale-105'
+            ? 'bg-[#ffffff] shadow-lg scale-105 z-10'
+            : 'bg-[rgba(100,116,139,0.82)] hover:bg-[rgba(100,116,139,0.95)] hover:scale-105'
         }`;
     
     const getIconClass = (isActive: boolean, color: string) => 
-        `w-6 h-6 mb-1 transition-colors duration-300 ${isActive ? color : 'text-white'}`;
+        `w-6 h-6 mb-1 transition-colors duration-300 ${isActive ? color : 'text-[#ffffff]'}`;
 
     const getLabelClass = (isActive: boolean, color: string) =>
-        `text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 ${isActive ? color : 'text-white/80'}`;
+        `text-[10px] font-bold uppercase tracking-widest transition-colors duration-300 ${isActive ? color : 'text-[#ffffff]'}`;
 
     const handleFeedClick = () => {
         if (currentRoom !== RoomType.KITCHEN) {
@@ -129,11 +129,11 @@ const BottomControls: React.FC<BottomControlsProps> = ({
               className="relative group flex h-[70px] w-[70px] cursor-pointer flex-col items-center justify-center rounded-xl bg-gradient-to-br from-orange-300 to-orange-500 text-white shadow-lg shadow-orange-900/20 transition-all duration-300 hover:scale-105 active:scale-95"
               title="Shop"
             >
-               <AiOutlineShop className="mb-0.5 h-8 w-8 drop-shadow-sm transition-transform duration-300 group-hover:-rotate-6" strokeWidth={10}/>
+               <AiOutlineShop className="mb-0.5 h-8 w-8 transition-transform duration-300 group-hover:-rotate-6" strokeWidth={10}/>
                <span className="text-[11px] font-bold uppercase tracking-widest text-white">Shop</span>
             </button>
 
-            <div className="flex flex-col gap-3 p-3 bg-black/20 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl scale-95 origin-left">
+            <div className="flex flex-col gap-3 rounded-2xl border border-white/20 bg-[rgba(71,85,105,0.78)] p-3 shadow-2xl backdrop-blur-xl scale-95 origin-left">
                 
                 <button 
                   onClick={handleFeedClick}

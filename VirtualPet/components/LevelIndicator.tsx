@@ -23,13 +23,13 @@ const LevelIndicator: React.FC<LevelIndicatorProps> = ({ stats }) => {
   const fillY = fillBottomY - (xpPercent * fillHeightRange);
 
   return (
-    <div className="absolute top-3 right-6 z-40 flex flex-col items-end animate-in fade-in slide-in-from-right-4 duration-700">
+    <div className="relative flex h-full flex-col items-end animate-in fade-in slide-in-from-right-4 duration-700">
         <button
             onClick={() => setIsOpen(!isOpen)}
-            className="relative w-20 h-20 shrink-0 group transition-transform hover:scale-105 active:scale-95 duration-200 outline-none cursor-pointer"
+            className="group relative h-full aspect-square shrink-0 cursor-pointer border-0 bg-transparent p-0 outline-none transition-transform duration-200 hover:scale-105 active:scale-95"
             title={`Level ${stats.level}`}
         >
-            <svg viewBox="0 0 200 200" className="w-full h-full overflow-visible drop-shadow-xl">
+            <svg viewBox="0 0 200 200" className="h-full w-full overflow-visible">
                 <defs>
                     <clipPath id="body-mask-lvl">
                         <path d={bodyPath} />
@@ -86,7 +86,7 @@ const LevelIndicator: React.FC<LevelIndicatorProps> = ({ stats }) => {
         </button>
 
         {isOpen && (
-            <div className="absolute top-24 right-0 bg-white/90 backdrop-blur-xl rounded-2xl p-5 shadow-2xl w-64 border border-white/50 animate-in fade-in zoom-in-95 origin-top-right">
+            <div className="absolute right-0 top-[calc(100%_+_0.5rem)] w-[min(16rem,calc(100vw_-_1.5rem))] rounded-2xl border border-white/50 bg-white/90 p-5 shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 origin-top-right">
                 <div className="text-center">
                     <h3 className="text-xl font-bold text-slate-800">Level {stats.level}</h3>
                     <div className="text-sm font-semibold text-slate-500 mt-1">
