@@ -71,7 +71,7 @@ const BottomControls: React.FC<BottomControlsProps> = ({
         `relative group flex flex-col items-center justify-center w-[65px] h-[65px] rounded-xl transition-all duration-300 cursor-pointer ${
             isActive 
             ? 'bg-[#ffffff] shadow-lg scale-105 z-10'
-            : 'bg-transparent hover:bg-white/30 hover:scale-105'
+            : 'bg-[rgba(203,213,225,0.38)] hover:bg-[rgba(203,213,225,0.58)] hover:scale-105'
         }`;
     
     const getIconClass = (isActive: boolean, color: string) => 
