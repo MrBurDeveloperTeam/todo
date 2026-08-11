@@ -503,17 +503,17 @@ h3 {
 }
 
 #panel #message {
-	top: 505px;
+	top: 407px;
 	left: 360px;
 }
 
 /* Solid four-way controller in the stage's lower-right black area. */
 #panel #control {
 	display: block;
-	top: auto;
-	right: 12px;
-	bottom: 42px;
-	left: auto;
+	top: var(--pac-cat-control-top, 494px);
+	right: auto;
+	bottom: auto;
+	left: var(--pac-cat-control-left, 744px);
 	width: 174px;
 	height: 174px;
 	margin: 0;

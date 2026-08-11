@@ -68,6 +68,14 @@
 				var stageScale = Math.min((viewportWidth - 32) / 930, (viewportHeight - 20) / 710, 1);
 				stageScale = Math.max(0.3, stageScale);
 				document.documentElement.style.setProperty('--pac-cat-stage-scale', stageScale);
+
+				var stageLeft = (viewportWidth - (930 * stageScale)) / 2;
+				var controlSize = 174;
+				var edgeGap = 24;
+				var controlLeft = (viewportWidth - edgeGap - (controlSize * stageScale) - stageLeft) / stageScale;
+				var controlTop = (viewportHeight - edgeGap - (controlSize * stageScale) - 10) / stageScale;
+				document.documentElement.style.setProperty('--pac-cat-control-left', controlLeft + 'px');
+				document.documentElement.style.setProperty('--pac-cat-control-top', controlTop + 'px');
 			}
 
 			resizeGameStage();
