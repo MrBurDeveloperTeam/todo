@@ -173,7 +173,7 @@ function placePipes() {
     let randomPipeY = pipeY - pipeHeight / 4 - Math.random() * (pipeHeight / 2);
     // Keep the playable opening consistent across tall/narrow phones.
     // Using board.height / 5 made the gap grow too large as viewport height increased.
-    let openingSpace = Math.max(88, Math.min(120, 118 * scale));
+    let openingSpace = Math.max(110, Math.min(145, 138 * scale));
 
     let spawnX = boardWidth; // start at the right edge
 

@@ -426,3 +426,145 @@ h3 {
 		top: 347px;
 	}
 }
+
+/* Unified responsive game stage ------------------------------------------------
+   Every gameplay element uses #panel as its coordinate system. The complete
+   stage is scaled as one unit so HUD, maze, footer and controls cannot drift. */
+#panel {
+	zoom: 1 !important;
+	top: 10px;
+	left: 50%;
+	right: auto;
+	width: 780px;
+	height: 710px;
+	margin: 0;
+	padding: 0;
+	overflow: visible;
+	transform: translateX(-50%) scale(var(--pac-cat-stage-scale, 1));
+	transform-origin: top center;
+}
+
+#panel > h1 {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 250px;
+	height: 32px;
+	margin: 0;
+	font-size: 24px;
+	line-height: 32px;
+	text-align: left;
+	visibility: visible !important;
+	display: block !important;
+}
+
+#panel #score,
+#panel #highscore {
+	top: 38px;
+	width: 150px;
+	height: 48px;
+}
+#panel #score {
+	left: 0;
+}
+#panel #highscore {
+	left: 155px;
+}
+#panel #score h2,
+#panel #score span,
+#panel #highscore h2,
+#panel #highscore span {
+	text-align: left;
+	padding-right: 0;
+}
+
+#panel #board {
+	position: absolute;
+	top: 92px;
+	left: 0;
+	width: 550px;
+	height: 550px;
+	margin: 0;
+}
+
+#panel #canvas-lifes,
+#panel #canvas-level-fruits {
+	top: 650px;
+	height: 30px;
+}
+#panel #canvas-lifes {
+	left: 0;
+	width: 120px;
+}
+#panel #canvas-level-fruits {
+	left: 285px;
+	right: auto;
+	width: 265px;
+}
+
+#panel #message {
+	top: 505px;
+	left: 170px;
+}
+
+/* Solid four-way controller in the stage's lower-right black area. */
+#panel #control {
+	display: block;
+	top: auto;
+	right: 12px;
+	bottom: 42px;
+	left: auto;
+	width: 174px;
+	height: 174px;
+	margin: 0;
+	background: transparent;
+	opacity: 1;
+}
+#panel #control-up,
+#panel #control-down,
+#panel #control-left,
+#panel #control-right {
+	display: block;
+	box-sizing: border-box;
+	width: 56px;
+	height: 56px;
+	padding: 0;
+	border: 2px solid #b9c1cb;
+	border-radius: 12px;
+	background-color: #f7f7f7;
+	background-size: 46px;
+	box-shadow: inset 0 -4px 0 #c7cbd1, 0 4px 0 #737983;
+	opacity: 1;
+}
+#panel #control-up {
+	top: 0;
+	left: 59px;
+	right: auto;
+	bottom: auto;
+}
+#panel #control-down {
+	top: auto;
+	left: 59px;
+	right: auto;
+	bottom: 0;
+}
+#panel #control-left {
+	top: 59px;
+	left: 0;
+	right: auto;
+	bottom: auto;
+}
+#panel #control-right {
+	top: 59px;
+	right: 0;
+	left: auto;
+	bottom: auto;
+}
+#panel #control-up-second,
+#panel #control-down-second,
+#panel #control-up-big,
+#panel #control-down-big,
+#panel #control-left-big,
+#panel #control-right-big {
+	display: none !important;
+}
