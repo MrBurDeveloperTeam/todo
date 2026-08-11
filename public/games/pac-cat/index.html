@@ -65,7 +65,7 @@
 			function resizeGameStage() {
 				var viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
 				var viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-				var stageScale = Math.min((viewportWidth - 32) / 780, (viewportHeight - 20) / 710, 1);
+				var stageScale = Math.min((viewportWidth - 32) / 930, (viewportHeight - 20) / 710, 1);
 				stageScale = Math.max(0.3, stageScale);
 				document.documentElement.style.setProperty('--pac-cat-stage-scale', stageScale);
 			}
