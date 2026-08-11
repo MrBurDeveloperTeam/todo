@@ -29,7 +29,7 @@ const LevelIndicator: React.FC<LevelIndicatorProps> = ({ stats }) => {
             className="group relative h-full aspect-square shrink-0 cursor-pointer border-0 bg-transparent p-0 outline-none transition-transform duration-200 hover:scale-105 active:scale-95"
             title={`Level ${stats.level}`}
         >
-            <svg viewBox="0 0 200 200" className="w-full h-full overflow-visible drop-shadow-xl">
+            <svg viewBox="0 0 200 200" className="h-full w-full overflow-visible">
                 <defs>
                     <clipPath id="body-mask-lvl">
                         <path d={bodyPath} />
@@ -40,7 +40,7 @@ const LevelIndicator: React.FC<LevelIndicatorProps> = ({ stats }) => {
                     </linearGradient>
                 </defs>
 
-                <path d={bodyPath} className="fill-transparent stroke-transparent stroke-[4]" />
+                <path d={bodyPath} className="fill-white/30 backdrop-blur-md stroke-white/60 stroke-[4]" />
 
                 <g clipPath="url(#body-mask-lvl)">
                     <rect
