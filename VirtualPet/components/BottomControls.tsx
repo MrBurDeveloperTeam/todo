@@ -70,7 +70,7 @@ const BottomControls: React.FC<BottomControlsProps> = ({
     const getButtonStyle = (isActive: boolean) => 
         `relative group flex flex-col items-center justify-center w-[65px] h-[65px] rounded-xl transition-all duration-300 cursor-pointer ${
             isActive 
-            ? 'bg-[#ffffff] shadow-lg scale-105 z-10' 
+            ? 'bg-[#ffffff] shadow-lg scale-105 z-10'
             : 'bg-[#ffffff] hover:bg-slate-50 hover:scale-105'
         }`;
     
