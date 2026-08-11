@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useProfileImage } from '../hooks/useProfileImage';
 import { 
   CheckCircle2, 
   Calendar as CalendarIcon, 
@@ -58,6 +59,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null);
   const [modalType, setModalType] = useState<ItemType>('task');
   const [newTask, setNewTask] = useState<Partial<TaskItem>>({});
+  const { profileImageUrl } = useProfileImage(true);
 
   // Confirmation state
   const [confirmState, setConfirmState] = useState<{
@@ -773,7 +775,15 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
           
           <div className={`mt-3 flex items-center gap-2.5 px-2 py-2.5 rounded-lg bg-[var(--bg3)] overflow-hidden ${isSidebarCollapsed ? 'justify-center' : ''}`}>
             <div className="h-7 w-7 flex-shrink-0 rounded-full bg-accent flex items-center justify-center text-white font-bold text-xs uppercase">
-              {user.name.charAt(0)}
+              {profileImageUrl ? (
+                <img
+                  src={profileImageUrl}
+                  alt={`${user.name} profile`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                user.name.charAt(0)
+              )}
             </div>
             {!isSidebarCollapsed && (
               <>
