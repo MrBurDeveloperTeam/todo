@@ -386,7 +386,7 @@ h3 {
 	#home .help-button, #panel .help-button, #home .github, #sound, .sound { 
 		display: none;
 	}
-	h1, #canvas-panel-title-pacman { 
+	#canvas-panel-title-pacman {
 		visibility: hidden;
 	}
 }
@@ -397,7 +397,7 @@ h3 {
 	#control-up-big, #control-down-big, #control-left-big, #control-right-big { 
 		display: inline; 
 	} 
-	h1, #canvas-panel-title-pacman, #control-up-second, #control-down-second, #home .help-button, #panel .help-button, #home .github, #sound, .sound { 
+	#canvas-panel-title-pacman, #control-up-second, #control-down-second, #home .help-button, #panel .help-button, #home .github, #sound, .sound {
 		display: none;
 	}
 	#score, #highscore { 

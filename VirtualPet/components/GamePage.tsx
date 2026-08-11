@@ -70,8 +70,64 @@ interface GamePageProps {
 
 export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose }) => {
     const [isLoading, setIsLoading] = useState(true);
+    const [isPortrait, setIsPortrait] = useState(false);
     const { stats, setStats } = useGameState();
     const [sessionCoins, setSessionCoins] = useState(0);
+    const requiresLandscape = gameId === 'paccat' || gameId === 'tetris';
+
+    const requestImmersiveMode = async () => {
+        if (!requiresLandscape) return;
+
+        try {
+            if (!document.fullscreenElement) {
+                await document.documentElement.requestFullscreen?.();
+            }
+        } catch {
+            // iOS Safari and some embedded browsers do not expose page fullscreen.
+        }
+
+        try {
+            const orientation = screen.orientation as ScreenOrientation & {
+                lock?: (orientation: 'landscape') => Promise<void>;
+            };
+            await orientation.lock?.('landscape');
+        } catch {
+            // The portrait guard remains visible when orientation lock is unavailable.
+        }
+    };
+
+    useEffect(() => {
+        if (!requiresLandscape) {
+            setIsPortrait(false);
+            return;
+        }
+
+        const updateOrientation = () => {
+            const width = window.visualViewport?.width || window.innerWidth;
+            const height = window.visualViewport?.height || window.innerHeight;
+            setIsPortrait(height > width);
+        };
+
+        updateOrientation();
+        void requestImmersiveMode();
+        window.addEventListener('resize', updateOrientation);
+        window.addEventListener('orientationchange', updateOrientation);
+        window.visualViewport?.addEventListener('resize', updateOrientation);
+
+        return () => {
+            window.removeEventListener('resize', updateOrientation);
+            window.removeEventListener('orientationchange', updateOrientation);
+            window.visualViewport?.removeEventListener('resize', updateOrientation);
+            try {
+                screen.orientation.unlock?.();
+            } catch {
+                // Orientation unlock is not supported everywhere.
+            }
+            if (document.fullscreenElement) {
+                void document.exitFullscreen?.().catch(() => undefined);
+            }
+        };
+    }, [requiresLandscape]);
 
     // Sync score from games
     useEffect(() => {
@@ -118,7 +174,11 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose }) => {
     const config = GAME_CONFIG[gameId];
 
     return (
-        <div className="fixed inset-0 z-50 bg-black" style={{ fontFamily: "'Fredoka', sans-serif" }}>
+        <div
+            className="fixed inset-0 z-50 bg-black"
+            style={{ fontFamily: "'Fredoka', sans-serif" }}
+            onPointerDown={() => void requestImmersiveMode()}
+        >
             {/* Container - Full Screen */}
             <div className="relative w-full h-full animate-in zoom-in-95 fade-in duration-300">
 
@@ -170,6 +230,33 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose }) => {
                         onLoad={() => setIsLoading(false)}
                         allow="autoplay; fullscreen"
                     />
+
+                    {requiresLandscape && isPortrait && (
+                        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/90 px-6 text-white backdrop-blur-sm">
+                            <div className="flex max-w-sm flex-col items-center text-center">
+                                <div className="mb-3 flex items-center gap-3" aria-hidden="true">
+                                    <span className="text-4xl">📱</span>
+                                    <span className="inline-block animate-spin text-4xl [animation-duration:2s]">↻</span>
+                                </div>
+                                <h2 className="text-xl font-black tracking-wide text-sky-400">请旋转你的设备</h2>
+                                <p className="mt-3 text-sm font-semibold leading-relaxed text-white/80">
+                                    {config.title} 需要横屏游玩。请将手机旋转至横屏以继续游戏。
+                                </p>
+                                <p className="mt-2 text-xs text-white/45">Rotate your device to landscape mode to play.</p>
+                                <button
+                                    type="button"
+                                    onPointerDown={(event) => event.stopPropagation()}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        onClose();
+                                    }}
+                                    className="mt-5 rounded-xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-black text-white transition hover:bg-white/20 active:scale-95"
+                                >
+                                    返回游戏列表
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
