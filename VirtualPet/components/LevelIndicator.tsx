@@ -40,7 +40,7 @@ const LevelIndicator: React.FC<LevelIndicatorProps> = ({ stats }) => {
                     </linearGradient>
                 </defs>
 
-                <path d={bodyPath} className="fill-white/30 backdrop-blur-md stroke-white/60 stroke-[4]" />
+                <path d={bodyPath} className="fill-transparent stroke-transparent stroke-[4]" />
 
                 <g clipPath="url(#body-mask-lvl)">
                     <rect

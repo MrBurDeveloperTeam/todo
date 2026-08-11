@@ -48,7 +48,7 @@ const DragLayer: React.FC<DragLayerProps> = ({ draggedItem, draggedTool, dragPos
         <>
             {draggedItem && (
                 <div
-                    className="fixed pointer-events-none z-50 text-5xl filter drop-shadow-2xl"
+                    className="fixed pointer-events-none z-50 bg-transparent text-5xl filter drop-shadow-2xl"
                     style={{
                         left: dragPos.x,
                         top: dragPos.y,
@@ -61,7 +61,7 @@ const DragLayer: React.FC<DragLayerProps> = ({ draggedItem, draggedTool, dragPos
 
             {draggedTool && (
                 <div
-                    className="fixed pointer-events-none z-50 filter drop-shadow-2xl"
+                    className="fixed pointer-events-none z-50 bg-transparent filter drop-shadow-2xl"
                     style={{
                         left: dragPos.x,
                         top: dragPos.y,

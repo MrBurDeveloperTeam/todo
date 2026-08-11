@@ -38,7 +38,7 @@ export const FoodMenu: React.FC<FoodMenuProps> = ({ onDragStart, inventory, onOp
 
     return (
         <div className="absolute bottom-6 left-0 right-0 z-30 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300 pointer-events-none">
-            <div className="pointer-events-auto flex max-w-[min(92vw,430px)] items-center gap-3 rounded-2xl border border-white/50 bg-[rgba(255,255,255,0.60)] p-2 shadow-2xl shadow-orange-900/10 backdrop-blur-xl">
+            <div className="pointer-events-auto flex max-w-[min(92vw,430px)] items-center gap-3 bg-transparent p-2 shadow-none">
                 <div
                     ref={scrollRef}
                     onWheel={handleWheel}
@@ -69,7 +69,7 @@ export const FoodMenu: React.FC<FoodMenuProps> = ({ onDragStart, inventory, onOp
                         <button
                             type="button"
                             onClick={onOpenShop}
-                            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl mb-2 border border-dashed border-slate-300 bg-white/70 text-slate-400 transition-all hover:border-orange-300 hover:text-orange-500 active:scale-95"
+                            className="mb-2 flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-dashed border-slate-400 bg-transparent text-slate-500 transition-all hover:border-orange-400 hover:text-orange-500 active:scale-95"
                             aria-label="Buy more food"
                         >
                             <Plus className="h-8 w-8" strokeWidth={3} />
@@ -94,7 +94,7 @@ const BATHROOM_TOOL_ICONS: Record<ToolType, { src: string; alt: string }> = {
 
 export const BathroomMenu: React.FC<BathroomMenuProps> = ({ onDragStart, isSoapedUp, isDirty }) => (
     <div className="absolute bottom-6 left-0 right-0 z-20 flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-300">
-        <div className="flex items-end gap-6 rounded-2xl border border-white/50 bg-[rgba(255,255,255,0.60)] p-4 shadow-xl backdrop-blur-xl">
+        <div className="flex items-end gap-6 bg-transparent p-4 shadow-none">
             {(['soap'] as const).map((tool) => {
                 const disabled = !!isSoapedUp;
                 return (

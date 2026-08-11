@@ -542,7 +542,7 @@ export const PetRoom: React.FC<PetRoomProps> = ({ onNavigateToGame }) => {
           <button
             onClick={() => setIsSleeping(!isSleeping)}
             // Added 'rotate-180' to flip the emoji upside down
-            className="text-6xl -mt-2 transition-all duration-300 hover:scale-110 active:scale-95 outline-none rotate-180"
+            className="-mt-2 rotate-180 border-0 bg-transparent p-0 text-6xl shadow-none outline-none transition-all duration-300 hover:scale-110 active:scale-95"
             title={isSleeping ? "Turn On" : "Turn Off"}
           >
             <div className={`transition-all duration-500 ${isSleeping ? 'grayscale opacity-50 blur-[1px]' : 'filter drop-shadow-[0_0_25px_rgba(255,235,59,0.8)]'}`}>
@@ -693,7 +693,7 @@ export const PetRoom: React.FC<PetRoomProps> = ({ onNavigateToGame }) => {
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
             onClick={handlePoopClick}
-            className="absolute left-1/2 top-1/2 z-40 translate-x-[140px] translate-y-[110px] rounded-2xl p-2 transition-transform duration-200 hover:scale-110 active:scale-95"
+            className="absolute left-1/2 top-1/2 z-40 translate-x-[140px] translate-y-[110px] border-0 bg-transparent p-0 shadow-none transition-transform duration-200 hover:scale-110 active:scale-95"
             aria-label="Collect poop for 5 coins"
             title="+5 coins"
           >
