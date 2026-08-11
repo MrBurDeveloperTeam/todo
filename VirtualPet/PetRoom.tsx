@@ -556,7 +556,7 @@ export const PetRoom: React.FC<PetRoomProps> = ({ onNavigateToGame }) => {
 
       {/* Bedroom Lamp Switch */}
       {currentRoom === RoomType.BEDROOM && (
-        <div className="absolute top-0 left-1/3 z-10 flex flex-col items-center">
+        <div className="absolute right-1/3 top-0 z-10 flex flex-col items-center">
           {/* Lamp Cord - Changed h-32 to h-48 */}
           <div className="w-1 h-48 bg-slate-800/80" />
           {/* Lamp Bulb */}
@@ -664,7 +664,7 @@ export const PetRoom: React.FC<PetRoomProps> = ({ onNavigateToGame }) => {
                 />
               )}
 
-              <div className="absolute bottom-[72px] left-1/2 z-10 -translate-x-1/2">
+              <div className="absolute bottom-[120px] left-1/2 z-10 -translate-x-1/2">
                 <Pet
                   ref={petRef}
                   stats={stats}
