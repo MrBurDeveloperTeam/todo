@@ -72,6 +72,7 @@ export const PetRoom: React.FC<PetRoomProps> = ({ onNavigateToGame }) => {
   const [draggedItem, setDraggedItem] = useState<FoodItem | null>(null);
   const [draggedTool, setDraggedTool] = useState<ToolType | null>(null);
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
+  const [bedroomSceneScale, setBedroomSceneScale] = useState(0.9);
   const [isHoveringPet, setIsHoveringPet] = useState(false);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [isSoapedUp, setIsSoapedUp] = useState(false);
@@ -96,6 +97,26 @@ export const PetRoom: React.FC<PetRoomProps> = ({ onNavigateToGame }) => {
   const activeSoapType = useRef<'soap' | null>(null);
   const soapConsumedOnRinse = useRef(false);
   const activeSoapMultiplier = useRef(1);
+
+  useEffect(() => {
+    const updateBedroomSceneScale = () => {
+      const viewportWidth = window.visualViewport?.width || window.innerWidth;
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const widthScale = (viewportWidth - 72) / 454;
+      const heightScale = (viewportHeight - 230) / 350;
+
+      setBedroomSceneScale(clamp(Math.min(widthScale, heightScale), 0.48, 0.9));
+    };
+
+    updateBedroomSceneScale();
+    window.addEventListener('resize', updateBedroomSceneScale);
+    window.visualViewport?.addEventListener('resize', updateBedroomSceneScale);
+
+    return () => {
+      window.removeEventListener('resize', updateBedroomSceneScale);
+      window.visualViewport?.removeEventListener('resize', updateBedroomSceneScale);
+    };
+  }, []);
 
   useEffect(() => {
     outsidePetPosRef.current = outsidePetPos;
@@ -626,38 +647,48 @@ export const PetRoom: React.FC<PetRoomProps> = ({ onNavigateToGame }) => {
             />
           </div>
         ) : currentRoom === RoomType.BEDROOM ? (
-          <div className="relative flex h-[430px] w-[min(92vw,560px)] items-center justify-center">
-            {activeBed && (
-              <img
-                src={activeBed.src}
-                alt=""
-                draggable={false}
-                className="pointer-events-none absolute -bottom-32 left-1/2 z-0 w-[min(85vw,550px)] -translate-x-1/2 select-none"
-              />
-            )}
-            <div className="relative z-10">
-              <Pet
-                ref={petRef}
-                stats={stats}
-                isSleeping={isSleeping}
-                isEating={isEating}
-                isPlaying={isPlaying}
-                isHoveredWithFood={isHoveringPet && !!draggedItem}
-                bubbles={bubbles}
-                lookAt={pointerState.isDown ? { x: pointerState.x, y: pointerState.y } : null}
-                sleepVisualOffsetY={72}
-                sleepLabelClassName="top-24 right-14"
-                spriteSheetUrl={activePet.spriteSheetUrl}
-                mouthPosition={activePet.mouthPosition}
-                idleFrames={activePet.idleFrames}
-                idleDuration={activePet.idleDuration}
-                sleepInFrames={activePet.sleepInFrames}
-                sleepHoldFrame={activePet.sleepHoldFrame}
-                clickRow={activePet.clickRow}
-                clickFrames={activePet.clickFrames}
-                clickDuration={activePet.clickDuration}
-                onClick={handlePetClick}
-              />
+          <div className="relative flex h-[min(430px,60vh)] w-full items-center justify-center translate-y-[clamp(3rem,8vh,6rem)]">
+            <div
+              className="relative h-[350px] w-[454px] shrink-0"
+              style={{
+                transform: `scale(${bedroomSceneScale})`,
+                transformOrigin: 'center center',
+              }}
+            >
+              {activeBed && (
+                <img
+                  src={activeBed.src}
+                  alt=""
+                  draggable={false}
+                  className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none object-contain"
+                />
+              )}
+
+              <div className="absolute bottom-[72px] left-1/2 z-10 -translate-x-1/2">
+                <Pet
+                  ref={petRef}
+                  stats={stats}
+                  isSleeping={isSleeping}
+                  isEating={isEating}
+                  isPlaying={isPlaying}
+                  isHoveredWithFood={isHoveringPet && !!draggedItem}
+                  bubbles={bubbles}
+                  lookAt={pointerState.isDown ? { x: pointerState.x, y: pointerState.y } : null}
+                  displayScale={0.95}
+                  sleepVisualOffsetY={52}
+                  sleepLabelClassName="top-20 right-10"
+                  spriteSheetUrl={activePet.spriteSheetUrl}
+                  mouthPosition={activePet.mouthPosition}
+                  idleFrames={activePet.idleFrames}
+                  idleDuration={activePet.idleDuration}
+                  sleepInFrames={activePet.sleepInFrames}
+                  sleepHoldFrame={activePet.sleepHoldFrame}
+                  clickRow={activePet.clickRow}
+                  clickFrames={activePet.clickFrames}
+                  clickDuration={activePet.clickDuration}
+                  onClick={handlePetClick}
+                />
+              </div>
             </div>
           </div>
         ) : (
