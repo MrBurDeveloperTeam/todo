@@ -26,6 +26,8 @@ import { Toast } from '../components/Toast';
 import { toLocalDateStr, todayStr, ACCENTS, updateThemeIcon } from '../utils';
 import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
+import { useTodoPersonalizedInsight } from '../aiExperience/hooks/useTodoPersonalizedInsight';
+import { PersonalizedInsight } from '../aiExperience/components/PersonalizedInsight';
 
 const DEFAULT_CATEGORIES = [
   { id: 'work', name: 'Work', color: '#3b82f6' },
@@ -49,6 +51,11 @@ interface HomeProps {
 
 export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
+  // Phase-2A first slice: Overdue High Task / High Task Today only. Pure,
+  // synchronous, reevaluates whenever `tasks` (already owned by App.tsx)
+  // changes — no new Supabase query, no dedupe, no polling. See
+  // ../aiExperience/hooks/useTodoPersonalizedInsight.ts.
+  const personalizedInsight = useTodoPersonalizedInsight(tasks);
   const [currentFilter, setCurrentFilter] = useState<string>('all');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -816,6 +823,14 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         </header>
 
         <main className="flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-5 lg:px-10 scroll-smooth no-scrollbar">
+          {currentView === 'todo' && personalizedInsight && (
+            <PersonalizedInsight
+              candidate={personalizedInsight}
+              onAction={() => {
+                if (personalizedInsight.action) setCurrentView(personalizedInsight.action.view);
+              }}
+            />
+          )}
           {renderContent()}
         </main>
       </div>
