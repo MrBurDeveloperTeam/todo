@@ -90,12 +90,37 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose, onExitApp }
 
         try {
             const orientation = screen.orientation as ScreenOrientation & {
-                lock?: (orientation: 'landscape') => Promise<void>;
+                lock?: (orientation: 'landscape' | 'portrait-primary') => Promise<void>;
             };
             await orientation.lock?.('landscape');
         } catch {
             // The portrait guard remains visible when orientation lock is unavailable.
         }
+    };
+
+    const leaveGame = async (onFinished: () => void) => {
+        if (requiresLandscape) {
+            try {
+                const orientation = screen.orientation as ScreenOrientation & {
+                    lock?: (orientation: 'landscape' | 'portrait-primary') => Promise<void>;
+                };
+                // Request portrait while fullscreen is still active. Several browsers only
+                // allow orientation locking during a fullscreen session.
+                await orientation.lock?.('portrait-primary');
+            } catch {
+                // iOS Safari does not expose orientation locking, so exit gracefully there.
+            }
+        }
+
+        try {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen?.();
+            }
+        } catch {
+            // Leaving the game must still work when fullscreen APIs are unavailable.
+        }
+
+        onFinished();
     };
 
     useEffect(() => {
@@ -120,11 +145,6 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose, onExitApp }
             window.removeEventListener('resize', updateOrientation);
             window.removeEventListener('orientationchange', updateOrientation);
             window.visualViewport?.removeEventListener('resize', updateOrientation);
-            try {
-                screen.orientation.unlock?.();
-            } catch {
-                // Orientation unlock is not supported everywhere.
-            }
             if (document.fullscreenElement) {
                 void document.exitFullscreen?.().catch(() => undefined);
             }
@@ -187,8 +207,8 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose, onExitApp }
                 {!(requiresLandscape && isPortrait) && (
                     <button
                         type="button"
-                        onClick={onExitApp}
-                        className="absolute left-[calc(env(safe-area-inset-left)_+_1.5rem)] top-[calc(env(safe-area-inset-top)_+_1.5rem)] z-[70] flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/10 bg-white/75 p-0 text-slate-700 shadow-lg backdrop-blur-sm transition-all hover:-translate-x-0.5 hover:scale-110 hover:bg-white active:scale-95"
+                        onClick={() => void leaveGame(onExitApp)}
+                        className="absolute left-[calc(env(safe-area-inset-left)_+_1.5rem)] top-[calc(env(safe-area-inset-top)_+_1.5rem)] z-[70] flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/10 bg-white/75 p-0 text-black shadow-lg backdrop-blur-sm transition-all hover:-translate-x-0.5 hover:scale-110 hover:bg-white active:scale-95"
                         title="Back to main page"
                         aria-label="Back to main page"
                     >
@@ -217,7 +237,7 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose, onExitApp }
 
                         {/* Floating Close Button */}
                         <button
-                            onClick={onClose}
+                            onClick={() => void leaveGame(onClose)}
                             className="w-12 h-12 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/80 text-white/70 hover:text-white border-2 border-white/10 backdrop-blur-sm transition-all hover:scale-110 active:scale-95 shadow-lg"
                             title="Exit Game"
                         >
@@ -261,7 +281,7 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose, onExitApp }
                                     onPointerDown={(event) => event.stopPropagation()}
                                     onClick={(event) => {
                                         event.stopPropagation();
-                                        onClose();
+                                        void leaveGame(onClose);
                                     }}
                                     className="mt-5 rounded-xl border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-black text-white transition hover:bg-white/20 active:scale-95"
                                 >

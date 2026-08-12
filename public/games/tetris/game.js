@@ -868,6 +868,23 @@ function moveDown() {
     return true;
 }
 
+// Direct horizontal controls used by mobile-controls.js. A quick synthetic
+// keydown/keyup pair is too short for the keyboard state loop to observe.
+window.tetrisMobileApi = {
+    moveLeft: function () {
+        if (!gameState.running || gameState.paused || gameState.isCountingDown) return false;
+        const moved = moveLeft();
+        if (moved) draw();
+        return moved;
+    },
+    moveRight: function () {
+        if (!gameState.running || gameState.paused || gameState.isCountingDown) return false;
+        const moved = moveRight();
+        if (moved) draw();
+        return moved;
+    }
+};
+
 /**
  * Start new game
  */
