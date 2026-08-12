@@ -188,7 +188,7 @@ export const GamePage: React.FC<GamePageProps> = ({ gameId, onClose, onExitApp }
                     <button
                         type="button"
                         onClick={onExitApp}
-                        className="absolute left-[calc(env(safe-area-inset-left)_+_1.5rem)] top-[calc(env(safe-area-inset-top)_+_1.5rem)] z-[70] flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/10 bg-white/75 p-0 text-slate-700 shadow-lg backdrop-blur-sm transition-all hover:-translate-x-0.5 hover:scale-110 hover:bg-white active:scale-95"
+                        className="absolute left-[calc(env(safe-area-inset-left)_+_1.5rem)] top-[calc(env(safe-area-inset-top)_+_1.5rem)] z-[70] flex h-12 w-12 items-center justify-center rounded-full border-2 border-white/10 bg-white/75 p-0 text-black shadow-lg backdrop-blur-sm transition-all hover:-translate-x-0.5 hover:scale-110 hover:bg-white active:scale-95"
                         title="Back to main page"
                         aria-label="Back to main page"
                     >

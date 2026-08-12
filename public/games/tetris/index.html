@@ -194,6 +194,31 @@
       </div>
     </div>
 
+    <script>
+      (function () {
+        function resizeTetrisStage() {
+          var viewportWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+          var viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+          var stageScale = Math.min((viewportWidth - 48) / 870, (viewportHeight - 140) / 650, 1);
+          stageScale = Math.max(0.2, stageScale);
+          document.documentElement.style.setProperty('--tetris-stage-scale', stageScale);
+        }
+
+        resizeTetrisStage();
+        window.addEventListener('resize', resizeTetrisStage);
+        window.addEventListener('orientationchange', resizeTetrisStage);
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', resizeTetrisStage);
+        }
+
+        document.addEventListener('touchmove', function (event) {
+          event.preventDefault();
+        }, { passive: false });
+        document.addEventListener('wheel', function (event) {
+          event.preventDefault();
+        }, { passive: false });
+      }());
+    </script>
     <script src="game.js"></script>
 </body>
 
