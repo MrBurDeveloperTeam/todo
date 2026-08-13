@@ -29,13 +29,20 @@
  *  concept can't silently misuse this field. */
 export type InsightApp = 'todo';
 
-/** Canonical trigger identity for this first slice. Extend only when a new
- *  provider is actually implemented — never speculatively. */
-export type InsightTriggerId = 'todo_overdue_high' | 'todo_high_today';
+/** Canonical trigger identity. Extend only when a new provider is actually
+ *  implemented — never speculatively. `todo_normal_tasks_today` and
+ *  `todo_nothing_today` were added in the second Phase-2A slice. */
+export type InsightTriggerId =
+  | 'todo_overdue_high'
+  | 'todo_high_today'
+  | 'todo_normal_tasks_today'
+  | 'todo_nothing_today';
 
 /** Local-only severity scale for To-Do's own resolver — NOT Gallery's
- *  global DialoguePriority. */
-export type InsightPriority = 'HIGH' | 'MEDIUM';
+ *  global DialoguePriority. `LOW` (Normal Tasks Today: informational, still
+ *  task-related) and `INFO` (Nothing Today: neutral positive fallback, not
+ *  an alert) were added in the second Phase-2A slice. */
+export type InsightPriority = 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 
 /**
  * A real, already-existing local navigation target — never a fabricated

@@ -5,7 +5,7 @@
 // ../providers and ../resolver, never here.
 
 import React from 'react';
-import { AlertTriangle, Clock } from 'lucide-react';
+import { AlertTriangle, Clock, ListChecks, CheckCircle2 } from 'lucide-react';
 import type { InsightCandidate, InsightPriority } from '../contracts/insightCandidate';
 
 interface PersonalizedInsightProps {
@@ -21,6 +21,19 @@ const PRIORITY_STYLES: Record<InsightPriority, { icon: React.ReactNode; wrapperC
   MEDIUM: {
     icon: <Clock size={16} />,
     wrapperClass: 'border-accent/25 bg-accent/8 text-accent',
+  },
+  // Normal Tasks Today — informational, non-critical, deliberately neutral
+  // (not red/accent like the two urgent tiers above).
+  LOW: {
+    icon: <ListChecks size={16} />,
+    wrapperClass: 'border-slate-400/25 bg-slate-400/8 text-slate-500 dark:text-slate-400',
+  },
+  // Nothing Today — a positive fallback, not an alert; reuses the same
+  // emerald "success" tokens Toast.tsx already uses for its own completed
+  // state, rather than introducing a new color convention.
+  INFO: {
+    icon: <CheckCircle2 size={16} />,
+    wrapperClass: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400',
   },
 };
 
