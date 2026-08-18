@@ -33,7 +33,10 @@ export interface NormalTasksTodayFacts {
   date: string;
 }
 
-function isTaskLikeType(type: TaskItem['type'] | null | undefined): boolean {
+/** Exported (Phase-3 addition — purely additive, no behavior change) so
+ *  aiExperience/dataChat/ providers can reuse this exact task-like
+ *  classification instead of reimplementing a second copy of it. */
+export function isTaskLikeType(type: TaskItem['type'] | null | undefined): boolean {
   if (!type) return true;
   return type === 'task';
 }

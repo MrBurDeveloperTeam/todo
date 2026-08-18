@@ -2,14 +2,23 @@ import { useState, useRef, useEffect } from 'react';
 import { MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MolarChat from './MolarChat';
-import { chatWithMolarAI } from '../services/geminiService';
+import { chatWithMolarAI, chatWithGroundedTodoFacts } from '../services/geminiService';
 import { supabase } from '../lib/supabase';
+import { isTaskMutationRequest } from '../aiExperience/dataChat/router/isTaskMutationRequest';
+import { classifyTodoDataIntent } from '../aiExperience/dataChat/router/classifyTodoDataIntent';
+import { resolveTodoDataQuery } from '../aiExperience/dataChat/resolver/resolveTodoDataQuery';
+import {
+  buildUnsupportedParameterMessage,
+  buildUnsupportedScopeMessage,
+} from '../aiExperience/dataChat/utils/unsupportedParameterMessage';
+import { formatGroundedTodoFallback } from '../aiExperience/dataChat/utils/formatGroundedTodoFallback';
+import { composeGroundedTodoResponse } from '../aiExperience/dataChat/utils/composeGroundedTodoResponse';
 
 /**
  * Self-contained floating Molar AI button + chat panel.
  * Drop this anywhere in the layout.
  */
-export default function MolarAIFloat({ userContext, disabled = false, onPetToggle }) {
+export default function MolarAIFloat({ userContext, disabled = false, onPetToggle, tasks = [], taskDataStatus = 'loading' }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatHistory, setChatHistory] = useState([]);
   const [chatInput, setChatInput] = useState('');
@@ -44,6 +53,88 @@ export default function MolarAIFloat({ userContext, disabled = false, onPetToggl
     setIsChatLoading(true);
 
     try {
+      // ── Phase-3 Data-Driven Chat (read-only pilot) ──────────────────
+      // Runs BEFORE the existing predefined-response/General Chat
+      // pipeline below, and is fully separate from it: a matched request
+      // here never calls the DB-backed predefined-keyword lookup or
+      // `chatWithMolarAI`, and its output is never scanned for the
+      // fenced ```json action block / never reaches
+      // `window.__MOLAR_ACTIONS__`. See src/aiExperience/dataChat/ for
+      // the deterministic router/provider/resolver pipeline this reuses.
+
+      // 1. Explicit task MUTATION requests are intercepted with a
+      // deterministic refusal — zero Gemini calls, zero mutation. This is
+      // defense-in-depth: `window.__MOLAR_ACTIONS__` is unwired today
+      // (see isTaskMutationRequest.ts's file header), but the read-only
+      // guarantee must not depend on that remaining true forever.
+      if (isTaskMutationRequest(msg)) {
+        setChatHistory(prev => [
+          ...prev,
+          { role: 'model', parts: [{ text: "This data chat can check your to-do information, but it can't make task changes." }] },
+        ]);
+        // `finally` below still runs setIsChatLoading(false) + the scroll.
+        return;
+      }
+
+      // 2. Deterministic LOCAL intent classification (no Gemini call).
+      const dataRoute = classifyTodoDataIntent(msg);
+
+      if (dataRoute.kind === 'unsupported_scope') {
+        setChatHistory(prev => [
+          ...prev,
+          { role: 'model', parts: [{ text: buildUnsupportedScopeMessage(dataRoute.reason) }] },
+        ]);
+        return;
+      }
+
+      if (dataRoute.kind === 'unsupported_parameter') {
+        setChatHistory(prev => [
+          ...prev,
+          { role: 'model', parts: [{ text: buildUnsupportedParameterMessage(dataRoute.reason) }] },
+        ]);
+        return;
+      }
+
+      if (dataRoute.kind === 'matched') {
+        const result = resolveTodoDataQuery(dataRoute.intent, tasks, taskDataStatus);
+
+        let dataChatResponseText;
+        if (result.status === 'unavailable') {
+          // Unknown/unavailable task state is never reinterpreted as a
+          // zero-result answer, and a matched grounded intent owns this
+          // request even when its provider is temporarily unavailable —
+          // it does not fall through to General Chat.
+          dataChatResponseText = "I couldn't check your to-do data right now.";
+        } else {
+          try {
+            // 3. Grounded Gemini phrasing — receives ONLY the question,
+            // the approved intent, and the already-minimized, title-free
+            // facts. Plain text only; never scanned for action blocks.
+            // Gemini supplies only the generic overview/header; the
+            // authoritative sanitized task list is always appended locally
+            // afterward (composeGroundedTodoResponse is a no-op for
+            // non-list intents like todo_summary) — success and failure
+            // paths must render the SAME local task-detail layer.
+            const modelOverview = await chatWithGroundedTodoFacts(msg, result.intent, result.facts);
+            dataChatResponseText = composeGroundedTodoResponse(result.intent, modelOverview, result.localDisplay);
+          } catch (groundedErr) {
+            // Mandatory deterministic fallback — never falls through to
+            // General Chat on a Gemini failure at this stage. Builds
+            // BOTH the summary wording and the sanitized local task list
+            // from local structured data only.
+            console.error('Grounded todo response failed:', groundedErr);
+            dataChatResponseText = formatGroundedTodoFallback(result.intent, result.facts, result.localDisplay);
+          }
+        }
+
+        setChatHistory(prev => [
+          ...prev,
+          { role: 'model', parts: [{ text: dataChatResponseText }] },
+        ]);
+        return;
+      }
+      // ── End Phase-3 Data-Driven Chat (dataRoute.kind === 'no_match') ─
+
       let response = null;
 
       // 1. Check custom responses first

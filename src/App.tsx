@@ -7,6 +7,7 @@ import { Home } from './pages/Home';
 import { api, checkSession } from './lib/api';
 import CatMascot from './components/CatMascot.jsx';
 import MolarAIFloat from './components/MolarAIFloat.jsx';
+import type { TaskDataStatus } from './aiExperience/dataChat/contracts/groundedDataResult';
 import { VirtualPetContainer } from '../VirtualPet/VirtualPetContainer';
 import {
   normalizeTheme,
@@ -114,6 +115,14 @@ export default function App() {
   };
   // State
   const [tasks, setTasks] = useState<TaskItem[]>(SEED_DATA);
+  // Phase-3 Data-Driven Chat readiness gate. Instruments the EXISTING
+  // task-loading flow only — no new Supabase query. Distinguishes
+  // "still loading" / "successfully loaded (including zero tasks)" /
+  // "fetch failed", which `tasks` alone cannot (it starts as `[]` and
+  // stays whatever it was on a failed fetch). See
+  // aiExperience/dataChat/contracts/groundedDataResult.ts's
+  // `TaskDataStatus` doc comment.
+  const [taskDataStatus, setTaskDataStatus] = useState<TaskDataStatus>('loading');
   const [user, setUser] = useState<AppUser>(DEFAULT_USER);
 
   const [session, setSession] = useState<any>(null);
@@ -158,6 +167,11 @@ export default function App() {
     let initialCheckDone = false;
 
     const syncUserAndDataFromDatabase = async () => {
+      // Phase-3 readiness reset — a re-sync (auth change, retry) must not
+      // leave a stale previous 'ready'/'error' status visible while a new
+      // fetch is in flight. See TaskDataStatus's doc comment.
+      if (isMounted) setTaskDataStatus('loading');
+
       try {
         // Use the SSO exchange from api.ts
         const session = await checkSession(!initialCheckDone);
@@ -168,6 +182,10 @@ export default function App() {
             setSession(null);
             setUser(DEFAULT_USER);
             setTasks(SEED_DATA);
+            // No session means "no tasks" is a real, deterministically
+            // resolved state (not an in-flight fetch) — genuinely ready,
+            // known-empty.
+            setTaskDataStatus('ready');
             setIsAuthChecking(false);
           }
           return;
@@ -235,7 +253,14 @@ export default function App() {
             done: t.status === 'done' || t.is_completed === true,
             created: new Date(t.created_at).getTime(),
           }));
-          if (isMounted) setTasks(mappedTasks);
+          if (isMounted) {
+            setTasks(mappedTasks);
+            setTaskDataStatus('ready');
+          }
+        } else if (isMounted) {
+          // Query failed (or returned no data despite no thrown error) —
+          // genuinely unknown, never treated as "zero tasks".
+          setTaskDataStatus('error');
         }
 
         if (isMounted) {
@@ -244,6 +269,7 @@ export default function App() {
         }
       } catch (err) {
         console.error('[auth] Error in syncUserAndDataFromDatabase:', err);
+        if (isMounted) setTaskDataStatus('error');
       } finally {
         if (isMounted) {
           setIsAuthChecking(false);
@@ -259,6 +285,13 @@ export default function App() {
       if (!session) {
         setUser(DEFAULT_USER);
         setIsAuthChecking(false);
+        // Phase-3 safety: this branch does not clear `tasks` itself
+        // (pre-existing behavior, unchanged here — see `handleLogout` for
+        // the explicit-logout path that does). Marking readiness back to
+        // 'loading' ensures Data-Driven Chat never treats a possibly-stale
+        // previous user's task list as authorizing a grounded answer,
+        // without altering that pre-existing tasks-array behavior.
+        setTaskDataStatus('loading');
         return;
       }
       syncUserAndDataFromDatabase();
@@ -306,6 +339,10 @@ export default function App() {
     setSession(null);
     setUser(DEFAULT_USER);
     setTasks(SEED_DATA);
+    // Explicit logout deterministically resolves to "no tasks" — genuinely
+    // ready, known-empty, matching the no-session path in
+    // syncUserAndDataFromDatabase.
+    setTaskDataStatus('ready');
   };
 
   if (isAuthChecking) {
@@ -350,6 +387,8 @@ export default function App() {
         <MolarAIFloat
           userContext={aiContext}
           onPetToggle={() => setIsVirtualPetOpen(true)}
+          tasks={tasks}
+          taskDataStatus={taskDataStatus}
         />
       </div>
       <VirtualPetContainer
