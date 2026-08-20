@@ -28,6 +28,15 @@ import { toLocalDateStr, todayStr, ACCENTS, updateThemeIcon } from '../utils';
 import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
 import { logActivityToOdoo } from '../lib/logActivityToOdoo';
+import usePageDurationTracker, { type PageViewLogMeta } from '../hooks/usePageDurationTracker';
+
+const VIEW_LABELS: Record<ViewType, string> = {
+  todo: 'My Tasks',
+  calendar: 'Calendar',
+  today: 'Today',
+  upcoming: 'Upcoming',
+  settings: 'Settings',
+};
 
 const DEFAULT_CATEGORIES = [
   { id: 'work', name: 'Work', color: '#3b82f6' },
@@ -126,7 +135,11 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
   // the same sync built for the inventory and appointment apps. Fire-and-
   // forget so a slow/unreachable worker or Odoo instance never blocks or
   // fails the local Supabase write, which stays the source of truth either way.
-  const logTodoActivity = (action: string, details: string) => {
+  const logTodoActivity = (
+    action: string,
+    details: string,
+    meta: { pagePath?: string; pageDurationSeconds?: number } = {}
+  ) => {
     logActivityToOdoo({
       logId: crypto.randomUUID(),
       actorEmail: user.email || null,
@@ -135,8 +148,25 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
       action,
       details,
       occurredAt: new Date().toISOString(),
+      pagePath: meta.pagePath ?? null,
+      pageDurationSeconds: meta.pageDurationSeconds ?? null,
     });
   };
+
+  // Logs how long the user spent on each view (My Tasks, Calendar, Today,
+  // Upcoming, Settings) as a "page_view" activity once they navigate away,
+  // hide the tab, or leave the page — see hooks/usePageDurationTracker.ts.
+  usePageDurationTracker(
+    currentView,
+    VIEW_LABELS[currentView],
+    Boolean(user.email),
+    (description: string, pageMeta: PageViewLogMeta) => {
+      logTodoActivity('page_view', description, {
+        pagePath: pageMeta.pagePath,
+        pageDurationSeconds: pageMeta.pageDurationSeconds,
+      });
+    }
+  );
 
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');

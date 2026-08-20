@@ -29,6 +29,8 @@ export interface TodoActivityPayload {
   action: string;              // e.g. "task_added", "task_completed", "list_deleted", ...
   details: string;
   occurredAt: string;          // ISO timestamp
+  pagePath?: string | null;            // e.g. "/calendar" — set for "page_view" duration events
+  pageDurationSeconds?: number | null; // seconds spent on pagePath before it was logged
 }
 
 export async function logActivityToOdoo(params: TodoActivityPayload): Promise<boolean> {
@@ -47,6 +49,8 @@ export async function logActivityToOdoo(params: TodoActivityPayload): Promise<bo
     action: params.action,
     details: params.details,
     occurred_at: params.occurredAt,
+    ...(params.pagePath != null ? { page_path: params.pagePath } : {}),
+    ...(params.pageDurationSeconds != null ? { page_duration_seconds: params.pageDurationSeconds } : {}),
   };
 
   try {
