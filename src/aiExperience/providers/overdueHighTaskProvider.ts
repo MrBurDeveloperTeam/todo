@@ -38,16 +38,11 @@ function compareForSelection(a: TaskItem, b: TaskItem): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-export function evaluateOverdueHighTask(tasks: TaskItem[]): InsightCandidate<OverdueHighTaskFacts> | null {
-  const today = todayStr();
+function qualifyingOverdueHigh(tasks: TaskItem[], today: string): TaskItem[] {
+  return tasks.filter((t) => !t.done && t.priority === 'high' && !!t.date && t.date < today);
+}
 
-  const qualifying = tasks.filter(
-    (t) => !t.done && t.priority === 'high' && !!t.date && t.date < today
-  );
-
-  if (qualifying.length === 0) return null;
-
-  const winner = [...qualifying].sort(compareForSelection)[0];
+function buildCandidateFromTask(winner: TaskItem): InsightCandidate<OverdueHighTaskFacts> {
   const safeTitle = sanitizeTaskTitle(winner.title);
   const message = safeTitle ? `Your urgent task "${safeTitle}" is overdue.` : 'You have an overdue urgent task.';
 
@@ -65,9 +60,31 @@ export function evaluateOverdueHighTask(tasks: TaskItem[]): InsightCandidate<Ove
     facts,
     messageTemplate: 'Your urgent task "{title}" is overdue.',
     message,
-    action: { label: 'View Today', view: 'today' },
+    action: { label: 'View Overdue', view: 'overdue' },
     dedupeKey: `todo_overdue_high:${winner.id}:date:${winner.date}`,
     sourceRecordId: winner.id,
     evaluatedAt: new Date().toISOString(),
   };
+}
+
+export function evaluateOverdueHighTask(tasks: TaskItem[]): InsightCandidate<OverdueHighTaskFacts> | null {
+  const qualifying = qualifyingOverdueHigh(tasks, todayStr());
+  if (qualifying.length === 0) return null;
+
+  const winner = [...qualifying].sort(compareForSelection)[0];
+  return buildCandidateFromTask(winner);
+}
+
+/**
+ * Additive: every independently eligible Overdue High task, in the exact
+ * same business order compareForSelection already produces —
+ * `evaluateOverdueHighTaskCandidates(tasks)[0]` is always identical to
+ * `evaluateOverdueHighTask(tasks)`. Used only by the dialogue-layer pool
+ * selector (see aiExperience/petDialogue/) so a Cat-dismissed overdue task
+ * can reveal the next still-eligible one instead of the whole family
+ * silently disappearing — the inline PersonalizedInsight banner keeps using
+ * evaluateOverdueHighTask above, unaffected.
+ */
+export function evaluateOverdueHighTaskCandidates(tasks: TaskItem[]): InsightCandidate<OverdueHighTaskFacts>[] {
+  return [...qualifyingOverdueHigh(tasks, todayStr())].sort(compareForSelection).map(buildCandidateFromTask);
 }

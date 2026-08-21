@@ -8,6 +8,7 @@ import { api, checkSession } from './lib/api';
 import CatMascot from './components/CatMascot.jsx';
 import MolarAIFloat from './components/MolarAIFloat.jsx';
 import type { TaskDataStatus } from './aiExperience/dataChat/contracts/groundedDataResult';
+import { PersonalizedInsightBridgeProvider } from './aiExperience/petDialogue/PersonalizedInsightBridge';
 import { VirtualPetContainer } from '../VirtualPet/VirtualPetContainer';
 import {
   normalizeTheme,
@@ -372,7 +373,11 @@ export default function App() {
   }
 
   return (
-    <>
+    // Home (Phase-2's own consumer/publisher) and CatMascot (the proactive
+    // reminder's reader) are direct siblings here — this Provider just
+    // wraps the existing fragment so CatMascot can read the candidate Home
+    // already resolved. See PersonalizedInsightBridge.tsx.
+    <PersonalizedInsightBridgeProvider>
       <Home
         tasks={tasks}
         setTasks={setTasks}
@@ -381,6 +386,7 @@ export default function App() {
         handleLogout={handleLogout}
         theme={theme}
         setTheme={handleSetTheme}
+        taskDataStatus={taskDataStatus}
       />
       <div className={isVirtualPetOpen ? 'hidden' : 'contents'}>
         <CatMascot onCatClick={() => setIsVirtualPetOpen(true)} />
@@ -395,6 +401,6 @@ export default function App() {
         isOpen={isVirtualPetOpen}
         onClose={() => setIsVirtualPetOpen(false)}
       />
-    </>
+    </PersonalizedInsightBridgeProvider>
   );
 }

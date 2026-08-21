@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { 
   CheckCircle2, 
   Calendar as CalendarIcon, 
@@ -28,6 +28,10 @@ import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
 import { useTodoPersonalizedInsight } from '../aiExperience/hooks/useTodoPersonalizedInsight';
 import { PersonalizedInsight } from '../aiExperience/components/PersonalizedInsight';
+import { usePublishPersonalizedInsight, type PersonalizedInsightBridgeState } from '../aiExperience/petDialogue/PersonalizedInsightBridge';
+import { buildTodoDialoguePool } from '../aiExperience/petDialogue/buildTodoDialoguePool';
+import type { InsightCandidate } from '../aiExperience/contracts/insightCandidate';
+import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
 
 const DEFAULT_CATEGORIES = [
   { id: 'work', name: 'Work', color: '#3b82f6' },
@@ -47,15 +51,58 @@ interface HomeProps {
   handleLogout: () => void;
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  /** App.tsx's already-owned task-fetch readiness signal (same one already
+   *  piped to MolarAIFloat for Phase-3 Data Chat) — reused here so the
+   *  proactive Cat reminder bridge can tell "tasks still loading" apart
+   *  from "tasks resolved, deterministically no candidate." Not a new
+   *  query; App.tsx already maintains this state. */
+  taskDataStatus: TaskDataStatus;
 }
 
-export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme }: HomeProps) {
+export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   // Phase-2A first slice: Overdue High Task / High Task Today only. Pure,
   // synchronous, reevaluates whenever `tasks` (already owned by App.tsx)
   // changes — no new Supabase query, no dedupe, no polling. See
   // ../aiExperience/hooks/useTodoPersonalizedInsight.ts.
   const personalizedInsight = useTodoPersonalizedInsight(tasks);
+  // Dismissal-aware ordered candidate pool for Cat only (starvation fix) —
+  // reuses the same already-loaded `tasks`, no second computation source.
+  // See ../aiExperience/petDialogue/buildTodoDialoguePool.ts. Pure business
+  // ordering only; CatMascot itself does the actual seen/dismissed
+  // suppression scan once it knows the current userId — see
+  // personalizedInsightBridgeState.candidates below.
+  const todoDialoguePool = useMemo(() => buildTodoDialoguePool(tasks), [tasks]);
+  // Takes the candidate to act on explicitly — never closes over
+  // `personalizedInsight` — so this stays correct even when the caller is
+  // Cat showing a different (dismissal-revealed) candidate than the inline
+  // banner's current winner. See PersonalizedInsightBridge.tsx's onAction
+  // doc for why this matters.
+  const handlePersonalizedInsightAction = useCallback((candidate: InsightCandidate<unknown>) => {
+    if (!candidate?.action) return;
+    // 'overdue' is not a ViewType — it's the existing currentFilter value
+    // TodoView.tsx's filter sidebar already uses (see the identical
+    // setCurrentView('todo') + setCurrentFilter(list.id) pairing at this
+    // file's own filter-sidebar click handler). Every other action.view
+    // value is a real ViewType, applied via setCurrentView alone exactly
+    // as before.
+    if (candidate.action.view === 'overdue') {
+      setCurrentView('todo');
+      setCurrentFilter('overdue');
+      return;
+    }
+    setCurrentView(candidate.action.view);
+  }, []);
+  // Publishes readiness (not_ready while tasks are loading/errored | ready
+  // + candidate/candidates once resolved) + this exact action handler to
+  // CatMascot (a sibling in App.tsx) via a read-only context — no new
+  // query, no duplicated resolver/action logic. See
+  // ../aiExperience/petDialogue/PersonalizedInsightBridge.tsx.
+  const personalizedInsightBridgeState: PersonalizedInsightBridgeState =
+    taskDataStatus === 'ready'
+      ? { status: 'ready', candidate: personalizedInsight, candidates: todoDialoguePool, onAction: handlePersonalizedInsightAction }
+      : { status: 'not_ready' }
+  usePublishPersonalizedInsight(personalizedInsightBridgeState);
   const [currentFilter, setCurrentFilter] = useState<string>('all');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -826,9 +873,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
           {currentView === 'todo' && personalizedInsight && (
             <PersonalizedInsight
               candidate={personalizedInsight}
-              onAction={() => {
-                if (personalizedInsight.action) setCurrentView(personalizedInsight.action.view);
-              }}
+              onAction={() => handlePersonalizedInsightAction(personalizedInsight)}
             />
           )}
           {renderContent()}

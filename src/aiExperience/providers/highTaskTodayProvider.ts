@@ -30,16 +30,11 @@ function compareForSelection(a: TaskItem, b: TaskItem): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-export function evaluateHighTaskToday(tasks: TaskItem[]): InsightCandidate<HighTaskTodayFacts> | null {
-  const today = todayStr();
+function qualifyingHighToday(tasks: TaskItem[], today: string): TaskItem[] {
+  return tasks.filter((t) => !t.done && t.priority === 'high' && t.date === today);
+}
 
-  const qualifying = tasks.filter(
-    (t) => !t.done && t.priority === 'high' && t.date === today
-  );
-
-  if (qualifying.length === 0) return null;
-
-  const winner = [...qualifying].sort(compareForSelection)[0];
+function buildCandidateFromTask(winner: TaskItem): InsightCandidate<HighTaskTodayFacts> {
   const safeTitle = sanitizeTaskTitle(winner.title);
   const message = safeTitle
     ? `Your important task "${safeTitle}" is due today.`
@@ -64,4 +59,20 @@ export function evaluateHighTaskToday(tasks: TaskItem[]): InsightCandidate<HighT
     sourceRecordId: winner.id,
     evaluatedAt: new Date().toISOString(),
   };
+}
+
+export function evaluateHighTaskToday(tasks: TaskItem[]): InsightCandidate<HighTaskTodayFacts> | null {
+  const qualifying = qualifyingHighToday(tasks, todayStr());
+  if (qualifying.length === 0) return null;
+
+  const winner = [...qualifying].sort(compareForSelection)[0];
+  return buildCandidateFromTask(winner);
+}
+
+/** Additive ordered pool — see overdueHighTaskProvider.ts's
+ *  evaluateOverdueHighTaskCandidates for the same design intent.
+ *  `evaluateHighTaskTodayCandidates(tasks)[0]` is always identical to
+ *  `evaluateHighTaskToday(tasks)`. */
+export function evaluateHighTaskTodayCandidates(tasks: TaskItem[]): InsightCandidate<HighTaskTodayFacts>[] {
+  return [...qualifyingHighToday(tasks, todayStr())].sort(compareForSelection).map(buildCandidateFromTask);
 }

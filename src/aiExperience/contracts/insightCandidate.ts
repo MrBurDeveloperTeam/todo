@@ -46,12 +46,17 @@ export type InsightPriority = 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 
 /**
  * A real, already-existing local navigation target — never a fabricated
- * URL route. `view` is one of this repo's own `ViewType` values (see
+ * URL route. `'today'` is one of this repo's own `ViewType` values (see
  * src/types.ts), applied via Home.tsx's existing `setCurrentView`.
+ * `'overdue'` is not a `ViewType` — it's the existing `currentFilter`
+ * value TodoView.tsx already recognizes (see its `standardFilters`/filter
+ * sidebar) — Home.tsx's action handler special-cases it to
+ * `setCurrentView('todo')` + `setCurrentFilter('overdue')`, the same two
+ * calls the existing sidebar filter click already makes.
  */
 export interface InsightAction {
   label: string;
-  view: 'today';
+  view: 'today' | 'overdue';
 }
 
 export interface InsightCandidate<TFacts = unknown> {
