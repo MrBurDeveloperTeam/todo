@@ -9,7 +9,7 @@ import CatMascot from './components/CatMascot.jsx';
 import MolarAIFloat from './components/MolarAIFloat.jsx';
 import type { TaskDataStatus } from './aiExperience/dataChat/contracts/groundedDataResult';
 import { PersonalizedInsightBridgeProvider } from './aiExperience/petDialogue/PersonalizedInsightBridge';
-import { VirtualPetContainer } from '../VirtualPet/VirtualPetContainer';
+import TodoVirtualPet from './petExperience/TodoVirtualPet';
 import {
   normalizeTheme,
   readStoredTheme,
@@ -397,7 +397,7 @@ export default function App() {
           taskDataStatus={taskDataStatus}
         />
       </div>
-      <VirtualPetContainer
+      <TodoVirtualPet
         isOpen={isVirtualPetOpen}
         onClose={() => setIsVirtualPetOpen(false)}
       />
