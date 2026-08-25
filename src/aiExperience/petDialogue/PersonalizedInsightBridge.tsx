@@ -29,7 +29,7 @@
 // exists while Home is mounted and publishing (see
 // usePublishPersonalizedInsight below, called only from Home.tsx).
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { InsightCandidate } from '../contracts/insightCandidate';
 
 export type PersonalizedInsightBridgeState =
@@ -66,8 +66,12 @@ const PersonalizedInsightBridgeContext = createContext<PersonalizedInsightBridge
 
 export function PersonalizedInsightBridgeProvider({ children }: { children: ReactNode }) {
   const [entry, setEntry] = useState<PersonalizedInsightBridgeState | null>(null);
+  const contextValue = useMemo(
+    () => ({ entry, publish: setEntry }),
+    [entry]
+  );
   return (
-    <PersonalizedInsightBridgeContext.Provider value={{ entry, publish: setEntry }}>
+    <PersonalizedInsightBridgeContext.Provider value={contextValue}>
       {children}
     </PersonalizedInsightBridgeContext.Provider>
   );

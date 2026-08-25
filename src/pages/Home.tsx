@@ -98,10 +98,13 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
   // CatMascot (a sibling in App.tsx) via a read-only context — no new
   // query, no duplicated resolver/action logic. See
   // ../aiExperience/petDialogue/PersonalizedInsightBridge.tsx.
-  const personalizedInsightBridgeState: PersonalizedInsightBridgeState =
-    taskDataStatus === 'ready'
-      ? { status: 'ready', candidate: personalizedInsight, candidates: todoDialoguePool, onAction: handlePersonalizedInsightAction }
-      : { status: 'not_ready' }
+  const personalizedInsightBridgeState: PersonalizedInsightBridgeState = useMemo(
+    () =>
+      taskDataStatus === 'ready'
+        ? { status: 'ready', candidate: personalizedInsight, candidates: todoDialoguePool, onAction: handlePersonalizedInsightAction }
+        : { status: 'not_ready' },
+    [taskDataStatus, personalizedInsight, todoDialoguePool, handlePersonalizedInsightAction]
+  );
   usePublishPersonalizedInsight(personalizedInsightBridgeState);
   const [currentFilter, setCurrentFilter] = useState<string>('all');
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
