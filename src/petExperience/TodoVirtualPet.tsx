@@ -26,6 +26,7 @@ import { useEffect, useRef, useState } from 'react';
 import { SharedVirtualPet } from '@mrburdeveloperteam/molar-experience/pet';
 import { supabase as supabaseClient } from '../lib/supabase';
 import { todoPetRepository } from './todoPetRepository';
+import { PET_ASSET_URLS } from '../aiExperience/molarExperienceAssets';
 
 const supabase = supabaseClient as NonNullable<typeof supabaseClient>;
 
@@ -180,6 +181,7 @@ export default function TodoVirtualPet({ isOpen, onClose }: TodoVirtualPetProps)
       repository={todoPetRepository}
       userId={userId}
       currencyCode={detectedCurrency}
+      assetUrls={PET_ASSET_URLS}
     />
   );
 }

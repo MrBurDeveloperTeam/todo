@@ -23,6 +23,7 @@ import { SharedCatMascot, useSharedCatDialogueRuntime } from '@mrburdevelopertea
 import { supabase } from '../lib/supabase';
 import { normalizePetId } from '../../VirtualPet/petOptions';
 import { usePersonalizedInsightBridge } from '../aiExperience/petDialogue/PersonalizedInsightBridge';
+import { CAT_SPRITE_SHEET_URLS } from '../aiExperience/molarExperienceAssets';
 
 const PET_SLEEPING_KEY = 'pet_is_sleeping';
 const PET_SLEEPING_UPDATED_AT_KEY = 'pet_is_sleeping_updated_at';
@@ -558,6 +559,7 @@ export default function CatMascot({ onCatClick, disabled = false }) {
       dialogue={dialogue}
       meowMessage={meowMsg}
       onCatClick={handleCatClick}
+      spriteSheetUrls={CAT_SPRITE_SHEET_URLS}
     />
   );
 }

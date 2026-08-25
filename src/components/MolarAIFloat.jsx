@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { SharedMolarAI } from '@mrburdeveloperteam/molar-experience/ai';
 import { supabase } from '../lib/supabase';
 import { createTodoMolarAdapter } from '../aiExperience/todoMolarAdapter';
+import { MOLAR_LOGO_URL } from '../aiExperience/molarExperienceAssets';
 
 // PHASE 5C NOTE (Molar AI extraction): this file is now a LOCAL adapter
 // only — the floating button, chat panel, message rendering, markdown,
@@ -81,6 +82,7 @@ export default function MolarAIFloat({ userContext, disabled = false, onPetToggl
       disabled={disabled}
       onPetToggle={onPetToggle}
       emptyState={emptyState}
+      logoUrl={MOLAR_LOGO_URL}
     />
   );
 }
