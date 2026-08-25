@@ -23,6 +23,7 @@ import {
   Monitor
 } from 'lucide-react';
 import { AuthForm } from '../components/AuthForm';
+import { SNABBB_SIGNUP_URL } from '../constants/authLinks';
 import {
   applyThemeToDocument,
   persistTheme,
@@ -213,10 +214,10 @@ export function LandingPage({
           >
             Log In    
           </button>
-          <button onClick={() => setAuthMode('signup')} className="hidden sm:flex items-center gap-2 px-5 py-2.5 text-white rounded-lg text-sm font-bold shadow-lg shadow-black/10 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all" style={{ backgroundColor: 'var(--accent)' }}>
+          <a href={SNABBB_SIGNUP_URL} className="hidden sm:flex items-center gap-2 px-5 py-2.5 text-white rounded-lg text-sm font-bold shadow-lg shadow-black/10 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all" style={{ backgroundColor: 'var(--accent)' }}>
             Sign Up
             <ArrowRight size={14} />
-          </button>
+          </a>
         </div>
       </nav>
 
@@ -245,9 +246,9 @@ export function LandingPage({
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-4 animate-reveal [animation-delay:600ms]">
-            <button onClick={() => setAuthMode('signup')} className="w-full sm:w-auto h-16 px-10 text-white rounded-xl text-base font-bold shadow-2xl shadow-ink/20 hover:-translate-y-1 hover:shadow-3xl active:translate-y-0 transition-all flex items-center justify-center gap-3" style={{ backgroundColor: 'var(--accent)' }}>
+            <a href={SNABBB_SIGNUP_URL} className="w-full sm:w-auto h-16 px-10 text-white rounded-xl text-base font-bold shadow-2xl shadow-ink/20 hover:-translate-y-1 hover:shadow-3xl active:translate-y-0 transition-all flex items-center justify-center gap-3" style={{ backgroundColor: 'var(--accent)' }}>
               Join Us <ArrowRight size={20} />
-            </button>
+            </a>
             <a href="#features" className="w-full sm:w-auto h-16 px-10 bg-white/80 border-2 border-paper3 rounded-xl text-base font-semibold text-ink hover:border-ink4 transition-all flex items-center justify-center gap-3 backdrop-blur-sm">
               Explore Demo
             </a>
@@ -669,9 +670,9 @@ export function LandingPage({
             <div className="relative z-10">
                <h2 className="font-serif text-5xl md:text-8xl tracking-tight leading-none mb-10" style={{ color: THEME_VARS.ctaText }}>Ready to get<br /><em className="italic opacity-50">organized?</em></h2>
                <p className="text-xl font-medium max-w-lg mx-auto mb-14" style={{ color: THEME_VARS.ctaMuted }}>Open your workspace right now. No signup. No friction. Pure execution.</p>
-               <button onClick={() => setAuthMode('signup')} className="h-20 px-12 rounded-2xl text-xl font-black shadow-3xl hover:-translate-y-2 transition-all flex items-center justify-center gap-4 mx-auto" style={{ backgroundColor: THEME_VARS.ctaButtonBg, color: THEME_VARS.ctaButtonText, border: '2px solid var(--accent)' }}>
+               <a href={SNABBB_SIGNUP_URL} className="h-20 px-12 rounded-2xl text-xl font-black shadow-3xl hover:-translate-y-2 transition-all flex items-center justify-center gap-4 mx-auto" style={{ backgroundColor: THEME_VARS.ctaButtonBg, color: THEME_VARS.ctaButtonText, border: '2px solid var(--accent)' }}>
                   Join Us <ArrowRight size={24} style={{ color: 'var(--accent)' }} />
-               </button>
+               </a>
                <p className="mt-8 text-sm font-bold tracking-widest uppercase opacity-60" style={{ color: THEME_VARS.ctaMuted }}>Free session · Local persistence · 100% Privacy</p>
             </div>
          </div>
