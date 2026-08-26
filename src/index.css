@@ -419,3 +419,56 @@ html {
 :root[data-theme="dark"] .group-hover\:text-emerald-800:hover {
   color: var(--snabbb-accent) !important;
 }
+
+/* SNAI support shortcut */
+.todo-support-region {
+  background: transparent;
+  border-top: 0;
+}
+
+.todo-support-link {
+  cursor: pointer;
+  background: var(--app-surface);
+  border-color: var(--app-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.todo-support-link:hover {
+  background: color-mix(in srgb, var(--snabbb-accent) 9%, var(--app-surface));
+  border-color: color-mix(in srgb, var(--snabbb-accent) 42%, var(--app-border));
+  box-shadow: var(--shadow-md);
+}
+
+.todo-support-link:focus-visible {
+  outline: 2px solid var(--snabbb-accent);
+  outline-offset: 2px;
+}
+
+.todo-support-icon {
+  color: var(--snabbb-accent);
+  background: color-mix(in srgb, var(--snabbb-accent) 12%, var(--app-surface));
+  border-color: color-mix(in srgb, var(--snabbb-accent) 30%, var(--app-border));
+}
+
+.todo-support-title {
+  color: var(--app-text-soft);
+}
+
+.todo-support-meta {
+  color: var(--app-text-muted);
+}
+
+.todo-support-link:hover .todo-support-title {
+  color: var(--snabbb-accent);
+}
+
+:root[data-theme="dark"] .molar-chat-panel .todo-support-link {
+  background: var(--app-surface) !important;
+  border-color: var(--app-border) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.24);
+}
+
+:root[data-theme="dark"] .molar-chat-panel .todo-support-link:hover {
+  background: color-mix(in srgb, var(--snabbb-accent) 10%, var(--app-surface)) !important;
+  border-color: color-mix(in srgb, var(--snabbb-accent) 48%, var(--app-border)) !important;
+}
