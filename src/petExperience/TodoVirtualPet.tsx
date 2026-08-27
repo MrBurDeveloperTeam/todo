@@ -10,18 +10,18 @@
 //     `virtual_pet_visits` writes) — confirmed byte-identical to Content
 //     Studio's/Profit Calculator's original `detectAndLogVisit`, ported
 //     mechanically.
-//   - Resolving the authenticated user id via `supabase.auth.getSession()`
-//     internally, exactly as the original `GameStateContext`/
-//     `VirtualPetContainer` did — deliberately NOT threaded down from
-//     `App.tsx`'s own `user` state here, because that state's declared
-//     type (`AppUser`) defaults to a non-null placeholder object
-//     (`DEFAULT_USER`, a hardcoded UUID) before the real session/profile
-//     resolves, unlike Profit Calculator's `useAuth().user` (which is
-//     `null` until authenticated). Threading `user.user_id` down as-is
-//     would risk briefly reading/writing pet data against that
-//     placeholder id during the loading window — a real behavior
-//     regression the original component never had, since it always
-//     resolved its own session directly.
+// PHASE TODO-PERSIST-HOST: `userId` is now supplied by `App.tsx` as a
+// prop (sourced from `session.user.id`, not the `user.user_id` app-state
+// field — see App.tsx's call site for why), instead of this component
+// independently re-resolving `supabase.auth.getSession()` on its own
+// mount. That independent resolution used to guarantee a `userId = null`
+// render on every fresh mount (before its own fetch settled) and, since
+// its resolution effect had an empty dependency array, never updated
+// again after a direct account switch that didn't pass through a
+// `session === null` state — leaving `SharedVirtualPet` operating under a
+// stale previous user's id. `App.tsx` now also keys this component by
+// `session.user.id`, so a full remount happens on every real identity
+// change instead.
 import { useEffect, useRef, useState } from 'react';
 import { SharedVirtualPet } from '@mrburdeveloperteam/molar-experience/pet';
 import { supabase as supabaseClient } from '../lib/supabase';
@@ -140,25 +140,14 @@ async function detectAndLogVisit(): Promise<string> {
 interface TodoVirtualPetProps {
   isOpen: boolean;
   onClose: () => void;
+  /** To-Do's own authenticated user id (`session.user.id`) — see this
+   *  file's header for why no additional auth lookup happens here. */
+  userId: string;
 }
 
-export default function TodoVirtualPet({ isOpen, onClose }: TodoVirtualPetProps) {
+export default function TodoVirtualPet({ isOpen, onClose, userId }: TodoVirtualPetProps) {
   const hasLoggedRef = useRef(false);
   const [detectedCurrency, setDetectedCurrency] = useState(DEFAULT_CURRENCY_CODE);
-  const [userId, setUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!cancelled) setUserId(session?.user?.id || null);
-      } catch (err) {
-        console.error('Error fetching session in TodoVirtualPet:', err);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     if (isOpen) {

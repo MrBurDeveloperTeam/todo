@@ -389,7 +389,13 @@ export default function App() {
         taskDataStatus={taskDataStatus}
       />
       <div className={isVirtualPetOpen ? 'hidden' : 'contents'}>
-        <CatMascot onCatClick={() => setIsVirtualPetOpen(true)} />
+        {/* PHASE TODO-CAT-CACHE: keyed + userId-sourced from
+            session.user.id, same rationale as TodoVirtualPet above —
+            CatMascot's own account-sensitive presentation cache
+            (snabbb_cat:<userId>:<key>) must never bleed across a direct
+            A -> B account switch, and `key` forces the clean remount that
+            guarantees it. */}
+        <CatMascot key={session.user.id} userId={session.user.id} onCatClick={() => setIsVirtualPetOpen(true)} />
         <MolarAIFloat
           userContext={aiContext}
           onPetToggle={() => setIsVirtualPetOpen(true)}
@@ -398,8 +404,26 @@ export default function App() {
         />
       </div>
       <TodoVirtualPet
+        // Keyed and userId-sourced from `session.user.id` (the raw
+        // Supabase auth identity), NOT `user.user_id` — `user` starts as
+        // `DEFAULT_USER`'s hardcoded placeholder UUID and only catches up
+        // to the real identity via the separate async profile fetch in
+        // `syncUserAndDataFromDatabase`, while `session` is set
+        // immediately/atomically on every real auth transition (including
+        // a direct account switch via `onAuthStateChange`, which sets
+        // `session` synchronously before that same async fetch even
+        // starts). This component only ever renders past the `!session`
+        // early return above, so `session.user.id` is always a real,
+        // stable id here. `key` forces a full unmount/remount of
+        // `TodoVirtualPet` (and therefore `SharedVirtualPet`) on any
+        // identity change — including a direct A -> B swap that never
+        // passes through a `session === null` state — so no stale
+        // previous-user repository/cache identity can persist once a
+        // different user becomes active.
+        key={session.user.id}
         isOpen={isVirtualPetOpen}
         onClose={() => setIsVirtualPetOpen(false)}
+        userId={session.user.id}
       />
     </PersonalizedInsightBridgeProvider>
   );

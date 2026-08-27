@@ -28,6 +28,25 @@ import { CAT_SPRITE_SHEET_URLS } from '../aiExperience/molarExperienceAssets';
 const PET_SLEEPING_KEY = 'pet_is_sleeping';
 const PET_SLEEPING_UPDATED_AT_KEY = 'pet_is_sleeping_updated_at';
 const APP_ID = 'todo';
+// PHASE TODO-CAT-CACHE: this Cat presentation cache is host-owned and
+// account-sensitive (pet name/mood/sleep state), so it must never bleed
+// across accounts on a shared browser profile. Own namespace —
+// `snabbb_cat:<userId>:<key>` — deliberately distinct from Shared's own
+// `snabbb_pet:<userId>:<key>` (no shared contract for reusing that one).
+// `userId` absent -> no-op/null: presentation optimization only, never a
+// guest-mode persistent store.
+const CAT_CACHE_PREFIX = 'snabbb_cat';
+const getCatStorageKey = (userId, key) => (userId ? `${CAT_CACHE_PREFIX}:${userId}:${key}` : null);
+const readCatStorage = (userId, key) => {
+  const storageKey = getCatStorageKey(userId, key);
+  if (!storageKey) return null;
+  try { return localStorage.getItem(storageKey); } catch { return null; }
+};
+const writeCatStorage = (userId, key, value) => {
+  const storageKey = getCatStorageKey(userId, key);
+  if (!storageKey) return;
+  try { localStorage.setItem(storageKey, value); } catch { /* ignore */ }
+};
 // Format preserved EXACTLY — matches the shared runtime's own internal
 // `cat/internal/introCompletion.ts` key (user-scoped, no appId segment).
 // Used here ONLY to skip an unnecessary Supabase query for a user who has
@@ -42,12 +61,13 @@ const introCompletedLocally = (uid) => {
   }
 };
 
-export default function CatMascot({ onCatClick, disabled = false }) {
-  const [isPetSleeping, setIsPetSleeping] = useState(() => {
-    try { return localStorage.getItem(PET_SLEEPING_KEY) === 'true'; } catch { return false; }
-  });
-  const [selectedPetId, setSelectedPetId] = useState(() => normalizePetId(localStorage.getItem('pet_name')));
-  const [currentUserId, setCurrentUserId] = useState(null);
+// `userId` is To-Do's own authenticated Supabase auth id (`session.user.id`
+// in App.tsx), threaded down the same way TodoVirtualPet's is — never a
+// second independent `getSession()` lifecycle. `null` for the pre-login
+// `disabled` instance, where no account-sensitive cache should be touched.
+export default function CatMascot({ onCatClick, disabled = false, userId = null }) {
+  const [isPetSleeping, setIsPetSleeping] = useState(() => readCatStorage(userId, PET_SLEEPING_KEY) === 'true');
+  const [selectedPetId, setSelectedPetId] = useState(() => normalizePetId(readCatStorage(userId, 'pet_name')));
 
   const [meowMsg, setMeowMsg] = useState(null);
   const [petStates, setPetStates] = useState(['Normal']);
@@ -109,22 +129,22 @@ export default function CatMascot({ onCatClick, disabled = false }) {
     };
 
     // 1. Initial check from localStorage (with 5-min freshness check)
-    const saved = localStorage.getItem('pet_stats');
-    const lastSavedAt = localStorage.getItem('pet_last_saved_at');
+    const saved = readCatStorage(userId, 'pet_stats');
+    const lastSavedAt = readCatStorage(userId, 'pet_last_saved_at');
     const isFresh = lastSavedAt && (Date.now() - new Date(lastSavedAt).getTime() < 300000);
     if (saved && isFresh) {
       try { updateStateFromStats(JSON.parse(saved), lastSavedAt); } catch (e) { /* ignore */ }
     }
 
     const readLocalSleepState = () => {
-      const savedSleeping = localStorage.getItem(PET_SLEEPING_KEY);
+      const savedSleeping = readCatStorage(userId, PET_SLEEPING_KEY);
       if (savedSleeping !== null) {
         setIsPetSleeping(savedSleeping === 'true');
       }
     };
 
     readLocalSleepState();
-    setSelectedPetId(normalizePetId(localStorage.getItem('pet_name')));
+    setSelectedPetId(normalizePetId(readCatStorage(userId, 'pet_name')));
 
     const handlePetSleepChange = (event) => {
       setIsPetSleeping(!!event.detail);
@@ -135,10 +155,13 @@ export default function CatMascot({ onCatClick, disabled = false }) {
     };
 
     const handleStorage = (event) => {
-      if (event.key === PET_SLEEPING_KEY) {
+      // Cross-tab sync for THIS user only — compares against this user's
+      // own scoped keys, not the bare legacy names, so a stray legacy
+      // write (or another user's tab) can never trigger it.
+      if (event.key === getCatStorageKey(userId, PET_SLEEPING_KEY)) {
         setIsPetSleeping(event.newValue === 'true');
       }
-      if (event.key === 'pet_name') {
+      if (event.key === getCatStorageKey(userId, 'pet_name')) {
         setSelectedPetId(normalizePetId(event.newValue));
       }
     };
@@ -163,8 +186,8 @@ export default function CatMascot({ onCatClick, disabled = false }) {
         if (data && !error) {
           const nextSleeping = !!data.is_sleeping;
           setIsPetSleeping(nextSleeping);
-          localStorage.setItem(PET_SLEEPING_KEY, String(nextSleeping));
-          localStorage.setItem(PET_SLEEPING_UPDATED_AT_KEY, data.updated_at || new Date().toISOString());
+          writeCatStorage(userId, PET_SLEEPING_KEY, String(nextSleeping));
+          writeCatStorage(userId, PET_SLEEPING_UPDATED_AT_KEY, data.updated_at || new Date().toISOString());
           setSelectedPetId(normalizePetId(data.pet_name));
           updateStateFromStats(data, data.updated_at);
         }
@@ -186,21 +209,7 @@ export default function CatMascot({ onCatClick, disabled = false }) {
       window.removeEventListener('virtual-pet-selection-change', handlePetSelectionChange);
       window.removeEventListener('storage', handleStorage);
     };
-  }, [disabled]);
-
-  // --- Resolve current user id (needed by the shared dialogue runtime) ---
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!cancelled) setCurrentUserId(session?.user?.id || null);
-      } catch (err) {
-        console.error('Error fetching session in CatMascot:', err);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  }, [disabled, userId]);
 
   // --- Intro content (To-Do's own AIBoard config) ---
   const [introState, setIntroState] = useState({ status: 'not_ready' });
@@ -211,10 +220,10 @@ export default function CatMascot({ onCatClick, disabled = false }) {
     const fetchIntro = async () => {
       // Skip the query entirely if this user has already completed Intro —
       // matches the pre-migration optimization exactly. Pre-login
-      // (disabled=true, currentUserId=null) always proceeds, since the
+      // (disabled=true, userId=null) always proceeds, since the
       // pre-login intro sequence is never marked complete either (see
       // introCompletedLocally's own comment).
-      if (!disabled && currentUserId && introCompletedLocally(currentUserId)) return;
+      if (!disabled && userId && introCompletedLocally(userId)) return;
 
       try {
         const { data: configs, error: configsError } = await supabase
@@ -259,7 +268,7 @@ export default function CatMascot({ onCatClick, disabled = false }) {
 
     fetchIntro();
     return () => { cancelled = true; };
-  }, [disabled, currentUserId]);
+  }, [disabled, userId]);
 
   // --- Welcome Back content (To-Do's own AIBoard config + name interpolation) ---
   const [welcomeBackState, setWelcomeBackState] = useState({ status: 'not_ready' });
@@ -277,7 +286,7 @@ export default function CatMascot({ onCatClick, disabled = false }) {
       // — a known, accepted timing seam (one extra, harmless read), since
       // the runtime itself still only ever SHOWS this once it
       // independently determines Welcome Back is appropriate.
-      if (disabled || !currentUserId || !introCompletedLocally(currentUserId)) return;
+      if (disabled || !userId || !introCompletedLocally(userId)) return;
 
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -300,7 +309,7 @@ export default function CatMascot({ onCatClick, disabled = false }) {
             const { data: profile } = await supabase
               .from('profiles')
               .select('name, full_name')
-              .eq('user_id', currentUserId)
+              .eq('user_id', userId)
               .maybeSingle();
             displayName = profile?.name || profile?.full_name || null;
           } catch (err) {
@@ -333,7 +342,7 @@ export default function CatMascot({ onCatClick, disabled = false }) {
 
     fetchWelcomeBack();
     return () => { cancelled = true; };
-  }, [disabled, currentUserId]);
+  }, [disabled, userId]);
 
   // --- Personalized (Overdue/High/Today task) reminder — unchanged bridge read ---
   const bridgeEntry = usePersonalizedInsightBridge();
@@ -366,7 +375,7 @@ export default function CatMascot({ onCatClick, disabled = false }) {
 
   const { dialogue, closeActiveDialogue } = useSharedCatDialogueRuntime({
     appId: APP_ID,
-    userId: currentUserId,
+    userId,
     disabled,
     intro: introState,
     personalized: { state: personalizedState, onAction: personalizedOnAction },
