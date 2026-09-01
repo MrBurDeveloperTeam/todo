@@ -2,12 +2,18 @@
 // @google/genai, construct a GoogleGenAI client, read
 // VITE_GEMINI_API_KEY, or call generateContent directly — all of that now
 // lives exclusively in the server-only Supabase Edge Function at
-// supabase/functions/molar-chat/index.ts, which this file calls via
+// supabase/functions/molar-chat-todo/index.ts, which this file calls via
 // supabase.functions.invoke(). That invocation automatically carries the
 // browser's current authenticated Supabase session as the Authorization
 // bearer token — no token is ever placed into the request body/prompt
 // here. Public function signatures are preserved so
 // src/aiExperience/todoMolarAdapter.ts requires no change.
+//
+// Namespaced as "molar-chat-todo", NOT the generic "molar-chat" slug —
+// this shared Supabase project also hosts separate, differently-prompted
+// molar-chat functions for Appointment, Calculator, and App Gallery; a
+// shared name let one app's deploy silently overwrite another's system
+// prompt (confirmed to have actually happened to this app).
 import { supabase } from '../lib/supabase';
 
 type ChatPart = { text: string };
@@ -18,7 +24,7 @@ async function invokeMolarChat(payload: Record<string, unknown>): Promise<string
     throw new Error('AI service is not configured');
   }
 
-  const { data, error } = await supabase.functions.invoke('molar-chat', {
+  const { data, error } = await supabase.functions.invoke('molar-chat-todo', {
     body: payload,
   });
 

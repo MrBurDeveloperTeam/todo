@@ -2,9 +2,22 @@
 // ONLY place in this project that imports @google/genai, constructs a
 // Gemini client, reads the Gemini provider credential, or calls
 // generateContent — see src/services/geminiService.ts, which now only
-// forwards requests here via supabase.functions.invoke('molar-chat', ...)
-// (using the browser's already-authenticated Supabase session) and never
-// touches the SDK/credential itself.
+// forwards requests here via
+// supabase.functions.invoke('molar-chat-todo', ...) (using the browser's
+// already-authenticated Supabase session) and never touches the SDK/
+// credential itself.
+//
+// Namespaced as "molar-chat-todo", NOT the generic "molar-chat" slug:
+// this shared Supabase project (opdotszsldcgwjqtvgul) also hosts
+// separate, differently-prompted molar-chat functions for Appointment
+// ("molar-chat-appointment"), Calculator ("molar-chat-calculator"), and
+// App Gallery ("molar-chat-app-gallery"). Function slugs are unique per
+// project — a shared generic name would let one app's deploy silently
+// overwrite another's system prompt (confirmed to have actually
+// happened: the old shared "molar-chat" slug was serving Appointment's
+// own prompt to every other app's invocations before this namespacing,
+// including this one — this app's real deployed content had been
+// invisibly replaced).
 //
 // Requires a real authenticated Supabase user for every request — this is
 // NOT an anonymous public provider endpoint. Rejects with 401 if the
@@ -117,7 +130,7 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
   if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("[molar-chat] Missing SUPABASE_URL/SUPABASE_ANON_KEY runtime configuration.");
+    console.error("[molar-chat-todo] Missing SUPABASE_URL/SUPABASE_ANON_KEY runtime configuration.");
     return json({ ok: false, error: "Server is not configured." }, 500);
   }
 
@@ -136,7 +149,7 @@ Deno.serve(async (req: Request) => {
 
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) {
-    console.error("[molar-chat] Missing server-side GEMINI_API_KEY configuration.");
+    console.error("[molar-chat-todo] Missing server-side GEMINI_API_KEY configuration.");
     return json({ ok: false, error: "AI service is not configured." }, 500);
   }
 
@@ -197,7 +210,7 @@ Deno.serve(async (req: Request) => {
 
       return json({ ok: true, text });
     } catch (error) {
-      console.error("[molar-chat] General chat provider error:", error);
+      console.error("[molar-chat-todo] General chat provider error:", error);
       return json({ ok: false, error: "AI service request failed." }, 502);
     }
   }
@@ -241,7 +254,7 @@ Deno.serve(async (req: Request) => {
 
     return json({ ok: true, text: text.trim() });
   } catch (error) {
-    console.error("[molar-chat] Grounded chat provider error:", error);
+    console.error("[molar-chat-todo] Grounded chat provider error:", error);
     return json({ ok: false, error: "AI service request failed." }, 502);
   }
 });
