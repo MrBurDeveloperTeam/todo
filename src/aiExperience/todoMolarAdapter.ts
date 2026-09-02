@@ -39,6 +39,10 @@ import {
 } from './dataChat/utils/unsupportedParameterMessage';
 import { formatGroundedTodoFallback } from './dataChat/utils/formatGroundedTodoFallback';
 import { composeGroundedTodoResponse } from './dataChat/utils/composeGroundedTodoResponse';
+import { resolveTodoFollowUp } from './dataChat/router/resolveTodoFollowUp';
+import type { GroundedConversationContext } from './dataChat/context/groundedConversationContext';
+import type { TaskItem } from '../types';
+import type { TaskDataStatus } from './dataChat/contracts/groundedDataResult';
 
 interface CreateTodoMolarAdapterDeps {
   tasks: unknown[];
@@ -47,7 +51,16 @@ interface CreateTodoMolarAdapterDeps {
 }
 
 export function createTodoMolarAdapter({ tasks, taskDataStatus, userContext }: CreateTodoMolarAdapterDeps) {
+  // Grounded conversation context — lives only inside this closure (one
+  // per `useMemo`-created adapter instance; see
+  // dataChat/context/groundedConversationContext.ts's header for why this
+  // already gives session scoping and account-switch isolation for free).
+  let groundedContext: GroundedConversationContext | null = null;
+
   return {
+    reset: () => {
+      groundedContext = null;
+    },
     sendMessage: async ({ text: msg, history }: { text: string; history: { role: 'user' | 'model'; text: string }[] }) => {
       // ── Phase-3 Data-Driven Chat (read-only pilot) ──────────────────
       // Runs BEFORE the legacy General Chat pipeline below, fully
@@ -85,6 +98,19 @@ export function createTodoMolarAdapter({ tasks, taskDataStatus, userContext }: C
           return { text: "I couldn't check your to-do data right now.", meta: { source: 'fallback' as const } };
         }
 
+        // A new explicit grounded question always starts a fresh
+        // conversation context (Section 5B) — never merged with whatever
+        // was active before, even if the previous intent was also a list
+        // intent.
+        groundedContext = {
+          appId: 'todo',
+          lastIntent: result.intent,
+          presentedOrder: 'display',
+          lastUserQuestion: msg,
+          generation: (groundedContext?.generation ?? 0) + 1,
+          createdAt: new Date().toISOString(),
+        };
+
         try {
           // 3. Grounded Gemini phrasing — receives ONLY the question, the
           // approved intent, and the already-minimized, title-free facts.
@@ -104,6 +130,24 @@ export function createTodoMolarAdapter({ tasks, taskDataStatus, userContext }: C
           console.error('Grounded todo response failed:', groundedErr);
           return { text: formatGroundedTodoFallback(result.intent, result.facts, result.localDisplay), meta: { source: 'fallback' as const } };
         }
+      }
+
+      // ── Tier C: Grounded conversational follow-up ───────────────────
+      // Tried BEFORE falling through to General Chat — a question like
+      // "which one should I do first?" or "what about the second one?"
+      // never matches classifyTodoDataIntent's own phrase tables (it
+      // isn't a NEW grounded question), but is answerable deterministically
+      // from the active groundedContext, revalidated against the CURRENT
+      // live `tasks` array (see resolveTodoFollowUp.ts).
+      const followUp = resolveTodoFollowUp(msg, groundedContext, tasks as TaskItem[], taskDataStatus as TaskDataStatus);
+      if (followUp && groundedContext) {
+        groundedContext = {
+          ...groundedContext,
+          presentedOrder: followUp.presentedOrder,
+          lastUserQuestion: msg,
+          generation: groundedContext.generation + 1,
+        };
+        return { text: followUp.text, meta: { source: 'data-chat' as const } };
       }
       // ── End Phase-3 Data-Driven Chat (dataRoute.kind === 'no_match') ─
 
