@@ -20,6 +20,7 @@
 import { hasMalformedTaskDate } from '../utils/checkTaskDataIntegrity';
 import { buildOverdueHighDataFacts } from '../providers/overdueHighDataProvider';
 import { buildOverdueDataFacts } from '../providers/overdueDataProvider';
+import { buildUpcomingDataFacts } from '../providers/upcomingDataProvider';
 import { buildHighTodayDataFacts } from '../providers/highTodayDataProvider';
 import { buildTodayDataFacts } from '../providers/todayDataProvider';
 import { buildSummaryDataFacts } from '../providers/summaryDataProvider';
@@ -60,6 +61,10 @@ export function resolveTodoDataQuery(
       }
       case 'todo_today': {
         const { facts, localDisplay, sourceRecordIds } = buildTodayDataFacts(tasks);
+        return { status: 'ok', intent, facts, localDisplay, evaluatedAt, sourceRecordIds };
+      }
+      case 'todo_upcoming': {
+        const { facts, localDisplay, sourceRecordIds } = buildUpcomingDataFacts(tasks);
         return { status: 'ok', intent, facts, localDisplay, evaluatedAt, sourceRecordIds };
       }
       case 'todo_summary': {

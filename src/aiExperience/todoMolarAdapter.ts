@@ -40,9 +40,19 @@ import {
 import { formatGroundedTodoFallback } from './dataChat/utils/formatGroundedTodoFallback';
 import { composeGroundedTodoResponse } from './dataChat/utils/composeGroundedTodoResponse';
 import { resolveTodoFollowUp } from './dataChat/router/resolveTodoFollowUp';
+import { matchTodoCapability } from './dataChat/semantic/matchTodoCapability';
 import type { GroundedConversationContext } from './dataChat/context/groundedConversationContext';
 import type { TaskItem } from '../types';
-import type { TaskDataStatus } from './dataChat/contracts/groundedDataResult';
+import type { TaskDataStatus, TodoDataIntent } from './dataChat/contracts/groundedDataResult';
+
+const CLARIFICATION_LABEL: Record<TodoDataIntent, string> = {
+  todo_overdue_high: 'overdue high-priority tasks',
+  todo_overdue: 'overdue tasks',
+  todo_high_today: "today's high-priority tasks",
+  todo_today: "today's tasks",
+  todo_summary: 'a summary of your tasks',
+  todo_upcoming: 'upcoming tasks',
+};
 
 interface CreateTodoMolarAdapterDeps {
   tasks: unknown[];
@@ -56,6 +66,37 @@ export function createTodoMolarAdapter({ tasks, taskDataStatus, userContext }: C
   // dataChat/context/groundedConversationContext.ts's header for why this
   // already gives session scoping and account-switch isolation for free).
   let groundedContext: GroundedConversationContext | null = null;
+
+  // Shared by both the fast-path classifier match AND the semantic
+  // capability matcher below — a matched capability is executed
+  // identically regardless of which tier selected it, and always starts
+  // a FRESH conversation context (Section 5B/19: a new grounded question
+  // always replaces whatever follow-up context was active before).
+  async function executeGroundedIntent(intent: TodoDataIntent, msg: string) {
+    const result = resolveTodoDataQuery(intent, tasks, taskDataStatus);
+
+    if (result.status === 'unavailable') {
+      return { text: "I couldn't check your to-do data right now.", meta: { source: 'fallback' as const } };
+    }
+
+    groundedContext = {
+      appId: 'todo',
+      lastIntent: result.intent,
+      presentedOrder: 'display',
+      lastUserQuestion: msg,
+      generation: (groundedContext?.generation ?? 0) + 1,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const modelOverview = await chatWithGroundedTodoFacts(msg, result.intent, result.facts);
+      const text = composeGroundedTodoResponse(result.intent, modelOverview, result.localDisplay);
+      return { text, meta: { source: 'data-chat' as const } };
+    } catch (groundedErr) {
+      console.error('Grounded todo response failed:', groundedErr);
+      return { text: formatGroundedTodoFallback(result.intent, result.facts, result.localDisplay), meta: { source: 'fallback' as const } };
+    }
+  }
 
   return {
     reset: () => {
@@ -88,48 +129,7 @@ export function createTodoMolarAdapter({ tasks, taskDataStatus, userContext }: C
       }
 
       if (dataRoute.kind === 'matched') {
-        const result = resolveTodoDataQuery(dataRoute.intent, tasks, taskDataStatus);
-
-        if (result.status === 'unavailable') {
-          // Unknown/unavailable task state is never reinterpreted as a
-          // zero-result answer, and a matched grounded intent owns this
-          // request even when its provider is temporarily unavailable —
-          // it does not fall through to General Chat.
-          return { text: "I couldn't check your to-do data right now.", meta: { source: 'fallback' as const } };
-        }
-
-        // A new explicit grounded question always starts a fresh
-        // conversation context (Section 5B) — never merged with whatever
-        // was active before, even if the previous intent was also a list
-        // intent.
-        groundedContext = {
-          appId: 'todo',
-          lastIntent: result.intent,
-          presentedOrder: 'display',
-          lastUserQuestion: msg,
-          generation: (groundedContext?.generation ?? 0) + 1,
-          createdAt: new Date().toISOString(),
-        };
-
-        try {
-          // 3. Grounded Gemini phrasing — receives ONLY the question, the
-          // approved intent, and the already-minimized, title-free facts.
-          // Gemini supplies only the generic overview/header; the
-          // authoritative sanitized task list is always appended locally
-          // afterward (composeGroundedTodoResponse is a no-op for
-          // non-list intents) — success and failure paths render the
-          // SAME local task-detail layer.
-          const modelOverview = await chatWithGroundedTodoFacts(msg, result.intent, result.facts);
-          const text = composeGroundedTodoResponse(result.intent, modelOverview, result.localDisplay);
-          return { text, meta: { source: 'data-chat' as const } };
-        } catch (groundedErr) {
-          // Mandatory deterministic fallback — never falls through to
-          // General Chat on a Gemini failure at this stage. Builds BOTH
-          // the summary wording and the sanitized local task list from
-          // local structured data only.
-          console.error('Grounded todo response failed:', groundedErr);
-          return { text: formatGroundedTodoFallback(result.intent, result.facts, result.localDisplay), meta: { source: 'fallback' as const } };
-        }
+        return executeGroundedIntent(dataRoute.intent, msg);
       }
 
       // ── Tier C: Grounded conversational follow-up ───────────────────
@@ -148,6 +148,27 @@ export function createTodoMolarAdapter({ tasks, taskDataStatus, userContext }: C
           generation: groundedContext.generation + 1,
         };
         return { text: followUp.text, meta: { source: 'data-chat' as const } };
+      }
+      // ── Tier D: Semantic capability router ───────────────────────────
+      // The fast-path phrase table above (classifyTodoDataIntent) is an
+      // optimization/compatibility layer, not the only entry point — a
+      // question that means the same thing in different words (e.g. "Is
+      // there any up coming task?", "Anything I've been putting off?")
+      // is matched here by keyword-overlap scoring against the
+      // capability registry (see semantic/matchTodoCapability.ts's
+      // header for why this is a LOCAL, network-free matcher rather than
+      // a Gemini-based router). Never receives live task data — only the
+      // message and the static capability descriptions.
+      const semanticRoute = matchTodoCapability(msg);
+      if (semanticRoute.type === 'grounded_capability') {
+        return executeGroundedIntent(semanticRoute.capability, msg);
+      }
+      if (semanticRoute.type === 'clarification') {
+        const [a, b] = semanticRoute.candidates;
+        return {
+          text: `Do you mean ${CLARIFICATION_LABEL[a]} or ${CLARIFICATION_LABEL[b]}?`,
+          meta: { source: 'fallback' as const },
+        };
       }
       // ── End Phase-3 Data-Driven Chat (dataRoute.kind === 'no_match') ─
 

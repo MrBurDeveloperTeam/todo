@@ -17,7 +17,8 @@ export type TodoDataIntent =
   | 'todo_overdue'
   | 'todo_high_today'
   | 'todo_today'
-  | 'todo_summary';
+  | 'todo_summary'
+  | 'todo_upcoming';
 
 /**
  * `status: 'ok'` — the deterministic provider evaluated successfully.

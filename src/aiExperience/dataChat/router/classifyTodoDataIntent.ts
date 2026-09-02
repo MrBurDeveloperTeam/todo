@@ -37,6 +37,28 @@ function mentionsToday(normalized: string): boolean {
   return normalized.includes('today');
 }
 
+/** Fast-path phrases for the future-due-date capability (Semantic
+ *  Grounded Routing Enhancement's flagship regression case) — a
+ *  compatibility layer only; the semantic capability matcher
+ *  (../semantic/matchTodoCapability.ts) is what actually generalizes
+ *  beyond these exact strings (e.g. "Is there any up coming task?" after
+ *  local whitespace normalization below). */
+const UPCOMING_PHRASES = [
+  'upcoming task',
+  'upcoming tasks',
+  'anything upcoming',
+  'any upcoming',
+  'due soon',
+  'coming up',
+  'what do i have next',
+  "what's next",
+  'whats next',
+];
+
+function mentionsUpcoming(normalized: string): boolean {
+  return mentionsAny(normalized, UPCOMING_PHRASES);
+}
+
 const SUMMARY_PHRASES = [
   'task summary',
   'summarize my',
@@ -100,8 +122,17 @@ export type TodoDataRouteResult =
   | { kind: 'unsupported_scope'; reason: 'completion_history' }
   | { kind: 'no_match' };
 
+/** Local whitespace/spelling normalization for obvious variants — NOT a
+ *  synonym engine (Section 17 of the Semantic Grounded Routing
+ *  Enhancement explicitly asks for this to stay lightweight). The
+ *  broader "not the exact word" cases are handled by the semantic
+ *  capability matcher, not by growing this list. */
+function normalizeSpacingVariants(message: string): string {
+  return message.replace(/\bup\s+coming\b/g, 'upcoming');
+}
+
 export function classifyTodoDataIntent(message: string): TodoDataRouteResult {
-  const normalized = message.trim().toLowerCase();
+  const normalized = normalizeSpacingVariants(message.trim().toLowerCase());
   if (!normalized) return { kind: 'no_match' };
 
   // Completion-history is checked FIRST — "What did I complete today?"
@@ -137,6 +168,10 @@ export function classifyTodoDataIntent(message: string): TodoDataRouteResult {
     // Section 4/12 of the flexibility refinement phase explicitly asks
     // for this to be answerable.
     return { kind: 'matched', intent: 'todo_overdue' };
+  }
+
+  if (mentionsUpcoming(normalized)) {
+    return { kind: 'matched', intent: 'todo_upcoming' };
   }
 
   if (mentionsToday(normalized) && mentionsHighQualifier(normalized)) {

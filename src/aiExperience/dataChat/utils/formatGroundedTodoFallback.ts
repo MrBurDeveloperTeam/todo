@@ -12,6 +12,7 @@
 import type { TodoDataIntent } from '../contracts/groundedDataResult';
 import type { OverdueHighDataFacts } from '../providers/overdueHighDataProvider';
 import type { OverdueDataFacts } from '../providers/overdueDataProvider';
+import type { UpcomingDataFacts } from '../providers/upcomingDataProvider';
 import type { HighTodayDataFacts } from '../providers/highTodayDataProvider';
 import type { TodayDataFacts } from '../providers/todayDataProvider';
 import type { SummaryDataFacts } from '../providers/summaryDataProvider';
@@ -58,6 +59,15 @@ function formatToday(facts: TodayDataFacts, localDisplay: LocalTaskListDisplay |
   return `You have ${pluralize(facts.count, 'incomplete task')} due today.${truncationNote(facts.count, facts.shownCount)}${formatLocalTaskList(localDisplay)}`;
 }
 
+function formatUpcoming(facts: UpcomingDataFacts, localDisplay: LocalTaskListDisplay | undefined): string {
+  if (facts.count === 0) return "You don't have any upcoming tasks.";
+  const breakdownParts = (['high', 'med', 'low', 'none'] as const)
+    .filter((k) => facts.byPriority[k] > 0)
+    .map((k) => `${facts.byPriority[k]} ${k === 'none' ? 'unprioritized' : k}`);
+  const breakdown = breakdownParts.length > 0 ? ` (${breakdownParts.join(', ')})` : '';
+  return `You have ${pluralize(facts.count, 'upcoming task')}${breakdown}.${truncationNote(facts.count, facts.shownCount)}${formatLocalTaskList(localDisplay)}`;
+}
+
 function formatSummary(facts: SummaryDataFacts): string {
   return (
     `Task summary: ${pluralize(facts.openTaskCount, 'open task')}, ` +
@@ -81,6 +91,8 @@ export function formatGroundedTodoFallback(
       return formatHighToday(facts as HighTodayDataFacts, localDisplay as LocalTaskListDisplay | undefined);
     case 'todo_today':
       return formatToday(facts as TodayDataFacts, localDisplay as LocalTaskListDisplay | undefined);
+    case 'todo_upcoming':
+      return formatUpcoming(facts as UpcomingDataFacts, localDisplay as LocalTaskListDisplay | undefined);
     case 'todo_summary':
       return formatSummary(facts as SummaryDataFacts);
     default:

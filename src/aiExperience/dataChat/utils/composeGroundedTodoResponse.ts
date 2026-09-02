@@ -17,6 +17,7 @@ const LIST_INTENTS: ReadonlySet<TodoDataIntent> = new Set([
   'todo_overdue',
   'todo_high_today',
   'todo_today',
+  'todo_upcoming',
 ]);
 
 export function composeGroundedTodoResponse(
