@@ -41,6 +41,7 @@ import { formatGroundedTodoFallback } from './dataChat/utils/formatGroundedTodoF
 import { composeGroundedTodoResponse } from './dataChat/utils/composeGroundedTodoResponse';
 import { resolveTodoFollowUp } from './dataChat/router/resolveTodoFollowUp';
 import { matchTodoCapability } from './dataChat/semantic/matchTodoCapability';
+import { matchTodoCapabilityLLM } from './dataChat/semantic/matchTodoCapabilityLLM';
 import type { GroundedConversationContext } from './dataChat/context/groundedConversationContext';
 import type { TaskItem } from '../types';
 import type { TaskDataStatus, TodoDataIntent } from './dataChat/contracts/groundedDataResult';
@@ -149,26 +150,69 @@ export function createTodoMolarAdapter({ tasks, taskDataStatus, userContext }: C
         };
         return { text: followUp.text, meta: { source: 'data-chat' as const } };
       }
-      // ── Tier D: Semantic capability router ───────────────────────────
-      // The fast-path phrase table above (classifyTodoDataIntent) is an
-      // optimization/compatibility layer, not the only entry point — a
-      // question that means the same thing in different words (e.g. "Is
-      // there any up coming task?", "Anything I've been putting off?")
-      // is matched here by keyword-overlap scoring against the
-      // capability registry (see semantic/matchTodoCapability.ts's
-      // header for why this is a LOCAL, network-free matcher rather than
-      // a Gemini-based router). Never receives live task data — only the
-      // message and the static capability descriptions.
-      const semanticRoute = matchTodoCapability(msg);
-      if (semanticRoute.type === 'grounded_capability') {
-        return executeGroundedIntent(semanticRoute.capability, msg);
+      // ── Tier D: Server-side LLM semantic capability router ───────────
+      // For genuinely natural wording the fast path/follow-up tier can't
+      // resolve (e.g. "What should I be preparing for over the next
+      // couple of days?"). Sends ONLY the message, capability
+      // descriptions, and a few of the USER's OWN recent messages (never
+      // rendered assistant text, which may contain the local sanitized
+      // task list) to the Edge Function's capability_route mode — see
+      // matchTodoCapabilityLLM.ts's header for the independent
+      // client-side re-validation this never skips. Any failure
+      // (network, invalid shape) resolves to 'unavailable', never an
+      // error the user sees directly — it falls through to the local
+      // keyword router below instead.
+      const recentUserContext = history
+        .filter((m) => m.role === 'user')
+        .slice(-3)
+        .map((m) => m.text);
+      const llmRoute = await matchTodoCapabilityLLM(msg, recentUserContext, groundedContext?.lastIntent ?? null);
+
+      if (llmRoute.type === 'grounded_capability') {
+        return executeGroundedIntent(llmRoute.capability, msg);
       }
-      if (semanticRoute.type === 'clarification') {
-        const [a, b] = semanticRoute.candidates;
-        return {
-          text: `Do you mean ${CLARIFICATION_LABEL[a]} or ${CLARIFICATION_LABEL[b]}?`,
-          meta: { source: 'fallback' as const },
-        };
+      if (llmRoute.type === 'analytical_followup' && groundedContext) {
+        // Section 10: "What if I only have 30 minutes?"-style reasoning
+        // over the SAME already-active capability — re-resolve its facts
+        // fresh (never a stale snapshot) and let Gemini explain using
+        // ONLY those facts (no task titles, same boundary as every other
+        // grounded call). Rendered as a bare answer, no list re-appended.
+        const result = resolveTodoDataQuery(llmRoute.capability, tasks, taskDataStatus);
+        if (result.status === 'ok') {
+          groundedContext = { ...groundedContext, lastUserQuestion: msg, generation: groundedContext.generation + 1 };
+          try {
+            const text = await chatWithGroundedTodoFacts(msg, result.intent, result.facts);
+            return { text, meta: { source: 'data-chat' as const } };
+          } catch (groundedErr) {
+            console.error('Grounded todo analytical follow-up failed:', groundedErr);
+            return { text: formatGroundedTodoFallback(result.intent, result.facts, result.localDisplay), meta: { source: 'fallback' as const } };
+          }
+        }
+      }
+      if (llmRoute.type === 'clarification') {
+        return { text: llmRoute.text, meta: { source: 'fallback' as const } };
+      }
+      if (llmRoute.type === 'general_chat') {
+        // The LLM router itself determined this isn't a grounded
+        // question — trust that over re-running the (weaker) local
+        // keyword matcher, and go straight to General Chat below.
+      } else {
+        // ── Tier E: Local keyword capability router (fallback) ────────
+        // Only reached when the LLM router was unavailable (network
+        // failure, invalid response) — a Gemini routing outage must
+        // never make a previously-supported grounded question stop
+        // working. Same local, network-free matcher as before.
+        const semanticRoute = matchTodoCapability(msg);
+        if (semanticRoute.type === 'grounded_capability') {
+          return executeGroundedIntent(semanticRoute.capability, msg);
+        }
+        if (semanticRoute.type === 'clarification') {
+          const [a, b] = semanticRoute.candidates;
+          return {
+            text: `Do you mean ${CLARIFICATION_LABEL[a]} or ${CLARIFICATION_LABEL[b]}?`,
+            meta: { source: 'fallback' as const },
+          };
+        }
       }
       // ── End Phase-3 Data-Driven Chat (dataRoute.kind === 'no_match') ─
 

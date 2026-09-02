@@ -75,3 +75,65 @@ export async function chatWithGroundedTodoFacts(
 ): Promise<string> {
   return invokeMolarChat({ mode: 'grounded', question, intent, facts });
 }
+
+// ─────────────────────────────────────────────────────────────
+// SEMANTIC CAPABILITY ROUTING — selection only, never data.
+//
+// Calls the Edge Function's "capability_route" mode: the message, a
+// small set of {id, description} capability descriptors, a few recent
+// model-safe conversation turns, and the previously-selected capability
+// id (if any). The Edge Function NEVER sees a task row and returns
+// structured JSON, already validated server-side against the supplied
+// capability id allowlist — this function does NOT re-parse prose, it
+// only forwards `data` through after Supabase's own JSON parsing.
+//
+// THROWS on any failure (network error, invalid response shape) exactly
+// like chatWithGroundedTodoFacts — the caller (see
+// dataChat/semantic/matchTodoCapabilityLLM.ts) must fall back to the
+// local keyword capability matcher on any throw, never treat a routing
+// failure as "no grounded capability applies."
+export interface CapabilityRouteResult {
+  route: 'grounded' | 'general_chat' | 'clarification' | 'analytical_followup';
+  capability: string | null;
+  confidence: 'high' | 'low';
+  clarification: string | null;
+}
+
+interface CapabilityDescriptor {
+  id: string;
+  description: string;
+}
+
+export async function routeTodoCapability(
+  message: string,
+  capabilities: CapabilityDescriptor[],
+  recentContext: string[],
+  previousCapability: string | null
+): Promise<CapabilityRouteResult> {
+  if (!supabase) {
+    throw new Error('AI service is not configured');
+  }
+
+  const { data, error } = await supabase.functions.invoke('molar-chat-todo', {
+    body: { mode: 'capability_route', message, capabilities, recentContext, previousCapability },
+  });
+
+  if (error || !data?.ok) {
+    throw new Error(data?.error || error?.message || 'Capability routing failed');
+  }
+
+  const { route, capability, confidence, clarification } = data as CapabilityRouteResult;
+  if (route !== 'grounded' && route !== 'general_chat' && route !== 'clarification' && route !== 'analytical_followup') {
+    throw new Error('Capability routing returned an unsupported route');
+  }
+  if (confidence !== 'high' && confidence !== 'low') {
+    throw new Error('Capability routing returned an invalid confidence');
+  }
+
+  return {
+    route,
+    capability: route === 'grounded' || route === 'analytical_followup' ? capability : null,
+    confidence,
+    clarification: clarification ?? null,
+  };
+}
