@@ -36,24 +36,16 @@ export type PersonalizedInsightBridgeState =
   | { status: 'not_ready' }
   | {
       status: 'ready';
-      candidate: InsightCandidate<unknown> | null;
-      /** Additive (starvation fix): ordered dialogue pool across Overdue
-       *  High > High Today > Normal Tasks Today > Nothing Today — see
-       *  buildTodoDialoguePool.ts. `candidates[0] ?? null` is always
-       *  identical to `candidate` above when no suppression applies. Cat
-       *  scans this via selectFirstEligibleDialogueCandidate instead of
-       *  only ever seeing the single inline winner; the inline banner
-       *  keeps reading `candidate` only, unaffected. */
+      /** Ordered dialogue pool across Overdue High > High Today > Normal
+       *  Tasks Today > Nothing Today — see buildTodoDialoguePool.ts. Cat
+       *  scans this via selectFirstEligibleDialogueCandidate. */
       candidates: InsightCandidate<unknown>[];
       /** Home's own existing action logic (setCurrentView via
        *  candidate.action.view) — reused verbatim, never reimplemented
-       *  here. Takes the candidate to act on explicitly (rather than
-       *  closing over whichever candidate resolveTodoInsight most recently
-       *  picked) so a caller — Cat included — always executes the action
-       *  belonging to the exact candidate it is currently showing, even
-       *  when that differs from the inline banner's own current winner
-       *  (e.g. Cat is showing a dismissal-revealed second overdue task
-       *  while the inline banner still shows the first). */
+       *  here. Takes the candidate to act on explicitly so Cat always
+       *  executes the action belonging to the exact candidate it is
+       *  currently showing (e.g. a dismissal-revealed second overdue
+       *  task). */
       onAction: (candidate: InsightCandidate<unknown>) => void;
     };
 

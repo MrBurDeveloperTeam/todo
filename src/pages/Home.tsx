@@ -26,8 +26,6 @@ import { Toast } from '../components/Toast';
 import { toLocalDateStr, todayStr, ACCENTS, updateThemeIcon } from '../utils';
 import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
-import { useTodoPersonalizedInsight } from '../aiExperience/hooks/useTodoPersonalizedInsight';
-import { PersonalizedInsight } from '../aiExperience/components/PersonalizedInsight';
 import { usePublishPersonalizedInsight, type PersonalizedInsightBridgeState } from '../aiExperience/petDialogue/PersonalizedInsightBridge';
 import { buildTodoDialoguePool } from '../aiExperience/petDialogue/buildTodoDialoguePool';
 import type { InsightCandidate } from '../aiExperience/contracts/insightCandidate';
@@ -61,23 +59,16 @@ interface HomeProps {
 
 export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
-  // Phase-2A first slice: Overdue High Task / High Task Today only. Pure,
-  // synchronous, reevaluates whenever `tasks` (already owned by App.tsx)
-  // changes — no new Supabase query, no dedupe, no polling. See
-  // ../aiExperience/hooks/useTodoPersonalizedInsight.ts.
-  const personalizedInsight = useTodoPersonalizedInsight(tasks);
   // Dismissal-aware ordered candidate pool for Cat only (starvation fix) —
-  // reuses the same already-loaded `tasks`, no second computation source.
-  // See ../aiExperience/petDialogue/buildTodoDialoguePool.ts. Pure business
+  // reuses the already-loaded `tasks`, no second computation source. See
+  // ../aiExperience/petDialogue/buildTodoDialoguePool.ts. Pure business
   // ordering only; CatMascot itself does the actual seen/dismissed
   // suppression scan once it knows the current userId — see
   // personalizedInsightBridgeState.candidates below.
   const todoDialoguePool = useMemo(() => buildTodoDialoguePool(tasks), [tasks]);
-  // Takes the candidate to act on explicitly — never closes over
-  // `personalizedInsight` — so this stays correct even when the caller is
-  // Cat showing a different (dismissal-revealed) candidate than the inline
-  // banner's current winner. See PersonalizedInsightBridge.tsx's onAction
-  // doc for why this matters.
+  // Takes the candidate to act on explicitly — invoked by CatMascot with
+  // whichever candidate it is currently showing (its own dismissal-aware
+  // scan over `todoDialoguePool` above).
   const handlePersonalizedInsightAction = useCallback((candidate: InsightCandidate<unknown>) => {
     if (!candidate?.action) return;
     // 'overdue' is not a ViewType — it's the existing currentFilter value
@@ -94,16 +85,16 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
     setCurrentView(candidate.action.view);
   }, []);
   // Publishes readiness (not_ready while tasks are loading/errored | ready
-  // + candidate/candidates once resolved) + this exact action handler to
-  // CatMascot (a sibling in App.tsx) via a read-only context — no new
-  // query, no duplicated resolver/action logic. See
+  // + candidates once resolved) + this exact action handler to CatMascot
+  // (a sibling in App.tsx) via a read-only context — no new query, no
+  // duplicated resolver/action logic. See
   // ../aiExperience/petDialogue/PersonalizedInsightBridge.tsx.
   const personalizedInsightBridgeState: PersonalizedInsightBridgeState = useMemo(
     () =>
       taskDataStatus === 'ready'
-        ? { status: 'ready', candidate: personalizedInsight, candidates: todoDialoguePool, onAction: handlePersonalizedInsightAction }
+        ? { status: 'ready', candidates: todoDialoguePool, onAction: handlePersonalizedInsightAction }
         : { status: 'not_ready' },
-    [taskDataStatus, personalizedInsight, todoDialoguePool, handlePersonalizedInsightAction]
+    [taskDataStatus, todoDialoguePool, handlePersonalizedInsightAction]
   );
   usePublishPersonalizedInsight(personalizedInsightBridgeState);
   const [currentFilter, setCurrentFilter] = useState<string>('all');
@@ -873,12 +864,6 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         </header>
 
         <main className="flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-5 lg:px-10 scroll-smooth no-scrollbar">
-          {currentView === 'todo' && personalizedInsight && (
-            <PersonalizedInsight
-              candidate={personalizedInsight}
-              onAction={() => handlePersonalizedInsightAction(personalizedInsight)}
-            />
-          )}
           {renderContent()}
         </main>
       </div>

@@ -359,9 +359,7 @@ export default function CatMascot({ onCatClick, disabled = false, userId = null 
   const personalizedState = useMemo(() => {
     if (bridgeEntry === null) return null;
     if (bridgeEntry.status === 'not_ready') return { status: 'not_ready' };
-    const candidates = Array.isArray(bridgeEntry.candidates)
-      ? bridgeEntry.candidates
-      : (bridgeEntry.candidate ? [bridgeEntry.candidate] : []);
+    const candidates = Array.isArray(bridgeEntry.candidates) ? bridgeEntry.candidates : [];
     return { status: 'ready', candidates };
   }, [bridgeEntry]);
 
