@@ -14,6 +14,7 @@
 
 export type TodoDataIntent =
   | 'todo_overdue_high'
+  | 'todo_overdue'
   | 'todo_high_today'
   | 'todo_today'
   | 'todo_summary';

@@ -11,6 +11,7 @@
 
 import type { TodoDataIntent } from '../contracts/groundedDataResult';
 import type { OverdueHighDataFacts } from '../providers/overdueHighDataProvider';
+import type { OverdueDataFacts } from '../providers/overdueDataProvider';
 import type { HighTodayDataFacts } from '../providers/highTodayDataProvider';
 import type { TodayDataFacts } from '../providers/todayDataProvider';
 import type { SummaryDataFacts } from '../providers/summaryDataProvider';
@@ -36,6 +37,15 @@ export function formatLocalTaskList(localDisplay: LocalTaskListDisplay | undefin
 function formatOverdueHigh(facts: OverdueHighDataFacts, localDisplay: LocalTaskListDisplay | undefined): string {
   if (facts.count === 0) return 'No overdue high-priority tasks were found.';
   return `You have ${pluralize(facts.count, 'overdue high-priority task')}.${truncationNote(facts.count, facts.shownCount)}${formatLocalTaskList(localDisplay)}`;
+}
+
+function formatOverdue(facts: OverdueDataFacts, localDisplay: LocalTaskListDisplay | undefined): string {
+  if (facts.count === 0) return "You don't have any overdue tasks.";
+  const breakdownParts = (['high', 'med', 'low', 'none'] as const)
+    .filter((k) => facts.byPriority[k] > 0)
+    .map((k) => `${facts.byPriority[k]} ${k === 'none' ? 'unprioritized' : k}`);
+  const breakdown = breakdownParts.length > 0 ? ` (${breakdownParts.join(', ')})` : '';
+  return `You have ${pluralize(facts.count, 'overdue task')}${breakdown}.${truncationNote(facts.count, facts.shownCount)}${formatLocalTaskList(localDisplay)}`;
 }
 
 function formatHighToday(facts: HighTodayDataFacts, localDisplay: LocalTaskListDisplay | undefined): string {
@@ -65,6 +75,8 @@ export function formatGroundedTodoFallback(
   switch (intent) {
     case 'todo_overdue_high':
       return formatOverdueHigh(facts as OverdueHighDataFacts, localDisplay as LocalTaskListDisplay | undefined);
+    case 'todo_overdue':
+      return formatOverdue(facts as OverdueDataFacts, localDisplay as LocalTaskListDisplay | undefined);
     case 'todo_high_today':
       return formatHighToday(facts as HighTodayDataFacts, localDisplay as LocalTaskListDisplay | undefined);
     case 'todo_today':

@@ -11,9 +11,6 @@ export function buildUnsupportedParameterMessage(reason: 'date_range' | 'priorit
   return "I can't filter tasks by custom priority levels in data chat yet. I can check overdue high-priority tasks, high-priority tasks today, all of today's tasks, or a task summary.";
 }
 
-export function buildUnsupportedScopeMessage(reason: 'broad_overdue' | 'completion_history'): string {
-  if (reason === 'broad_overdue') {
-    return 'I can currently check overdue high-priority tasks, but not all overdue tasks yet.';
-  }
+export function buildUnsupportedScopeMessage(reason: 'completion_history'): string {
   return "Completed-today history isn't available in data chat yet.";
 }

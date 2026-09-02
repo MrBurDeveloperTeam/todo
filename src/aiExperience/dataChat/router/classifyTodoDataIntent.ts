@@ -23,6 +23,16 @@ function mentionsOverdue(normalized: string): boolean {
   return normalized.includes('overdue');
 }
 
+/** Broader natural phrasings for the same "overdue" concept (Section 12
+ *  flexibility pass) — all resolve from the exact same authoritative
+ *  overdueDataProvider.ts dataset as the literal word "overdue" does;
+ *  no new capability, only recognizing more ways of asking for it. */
+const OVERDUE_SYNONYM_PHRASES = ['behind on', 'tasks are late', 'what am i late on', "anything i've missed", 'anything i missed'];
+
+function mentionsOverdueSynonym(normalized: string): boolean {
+  return mentionsOverdue(normalized) || mentionsAny(normalized, OVERDUE_SYNONYM_PHRASES);
+}
+
 function mentionsToday(normalized: string): boolean {
   return normalized.includes('today');
 }
@@ -35,6 +45,8 @@ const SUMMARY_PHRASES = [
   'todo status',
   'task status',
   'give me a summary',
+  'what needs attention',
+  'whats my situation',
 ];
 
 function mentionsSummary(normalized: string): boolean {
@@ -85,7 +97,7 @@ function mentionsUnsupportedPriorityFilter(normalized: string): boolean {
 export type TodoDataRouteResult =
   | { kind: 'matched'; intent: TodoDataIntent }
   | { kind: 'unsupported_parameter'; reason: 'date_range' | 'priority_filter' }
-  | { kind: 'unsupported_scope'; reason: 'broad_overdue' | 'completion_history' }
+  | { kind: 'unsupported_scope'; reason: 'completion_history' }
   | { kind: 'no_match' };
 
 export function classifyTodoDataIntent(message: string): TodoDataRouteResult {
@@ -103,21 +115,28 @@ export function classifyTodoDataIntent(message: string): TodoDataRouteResult {
   // e.g. "What are my low-priority tasks today?" must not be silently
   // answered as plain Today (which means ANY priority), since the
   // priority qualifier changes the actual criterion being asked about.
-  if (mentionsUnsupportedPriorityFilter(normalized)) {
+  // EXEMPT when the question is also about "overdue": todo_overdue's
+  // facts now include a full per-priority breakdown (see
+  // overdueDataProvider.ts), so "overdue low priority tasks" is safely
+  // answerable from that same dataset instead of being blocked.
+  if (mentionsUnsupportedPriorityFilter(normalized) && !mentionsOverdueSynonym(normalized)) {
     return { kind: 'unsupported_parameter', reason: 'priority_filter' };
   }
   if (mentionsUnsupportedDateRange(normalized)) {
     return { kind: 'unsupported_parameter', reason: 'date_range' };
   }
 
-  if (mentionsOverdue(normalized)) {
+  if (mentionsOverdueSynonym(normalized)) {
     if (mentionsHighQualifier(normalized)) {
       return { kind: 'matched', intent: 'todo_overdue_high' };
     }
-    // "What's overdue?" / "Show overdue tasks." — a recognizable To-Do
-    // data question, but broader than the v1 (high-priority-only)
-    // Overdue provider. Never silently narrowed to the HIGH subset.
-    return { kind: 'unsupported_scope', reason: 'broad_overdue' };
+    // Any priority (or a specific non-high priority, or none stated at
+    // all) — todo_overdue's facts include a full priority breakdown so
+    // the response still honestly reflects a low/medium-specific
+    // question. Previously `unsupported_scope('broad_overdue')` —
+    // Section 4/12 of the flexibility refinement phase explicitly asks
+    // for this to be answerable.
+    return { kind: 'matched', intent: 'todo_overdue' };
   }
 
   if (mentionsToday(normalized) && mentionsHighQualifier(normalized)) {
