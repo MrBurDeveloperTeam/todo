@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useProfileImage } from '../hooks/useProfileImage';
 import { 
   CheckCircle2, 
@@ -29,6 +29,10 @@ import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
 import { logActivityToOdoo } from '../lib/logActivityToOdoo';
 import usePageDurationTracker, { type PageViewLogMeta } from '../hooks/usePageDurationTracker';
+import { usePublishPersonalizedInsight, type PersonalizedInsightBridgeState } from '../aiExperience/petDialogue/PersonalizedInsightBridge';
+import { buildTodoDialoguePool } from '../aiExperience/petDialogue/buildTodoDialoguePool';
+import type { InsightCandidate } from '../aiExperience/contracts/insightCandidate';
+import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
 
 const VIEW_LABELS: Record<ViewType, string> = {
   todo: 'My Tasks',
@@ -56,11 +60,56 @@ interface HomeProps {
   handleLogout: () => void;
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  /** App.tsx's already-owned task-fetch readiness signal (same one already
+   *  piped to MolarAIFloat for Phase-3 Data Chat) — reused here so the
+   *  proactive Cat reminder bridge can tell "tasks still loading" apart
+   *  from "tasks resolved, deterministically no candidate." Not a new
+   *  query; App.tsx already maintains this state. */
+  taskDataStatus: TaskDataStatus;
 }
 
-export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme }: HomeProps) {
+export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
+
+  // Dismissal-aware ordered candidate pool for Cat only (starvation fix) —
+  // reuses the already-loaded `tasks`, no second computation source. See
+  // ../aiExperience/petDialogue/buildTodoDialoguePool.ts. Pure business
+  // ordering only; CatMascot itself does the actual seen/dismissed
+  // suppression scan once it knows the current userId — see
+  // personalizedInsightBridgeState.candidates below.
+  const todoDialoguePool = useMemo(() => buildTodoDialoguePool(tasks), [tasks]);
+  // Takes the candidate to act on explicitly — invoked by CatMascot with
+  // whichever candidate it is currently showing (its own dismissal-aware
+  // scan over `todoDialoguePool` above).
+  const handlePersonalizedInsightAction = useCallback((candidate: InsightCandidate<unknown>) => {
+    if (!candidate?.action) return;
+    // 'overdue' is not a ViewType — it's the existing currentFilter value
+    // TodoView.tsx's filter sidebar already uses (see the identical
+    // setCurrentView('todo') + setCurrentFilter(list.id) pairing at this
+    // file's own filter-sidebar click handler). Every other action.view
+    // value is a real ViewType, applied via setCurrentView alone exactly
+    // as before.
+    if (candidate.action.view === 'overdue') {
+      setCurrentView('todo');
+      setCurrentFilter('overdue');
+      return;
+    }
+    setCurrentView(candidate.action.view);
+  }, []);
+  // Publishes readiness (not_ready while tasks are loading/errored | ready
+  // + candidates once resolved) + this exact action handler to CatMascot
+  // (a sibling in App.tsx) via a read-only context — no new query, no
+  // duplicated resolver/action logic. See
+  // ../aiExperience/petDialogue/PersonalizedInsightBridge.tsx.
+  const personalizedInsightBridgeState: PersonalizedInsightBridgeState = useMemo(
+    () =>
+      taskDataStatus === 'ready'
+        ? { status: 'ready', candidates: todoDialoguePool, onAction: handlePersonalizedInsightAction }
+        : { status: 'not_ready' },
+    [taskDataStatus, todoDialoguePool, handlePersonalizedInsightAction]
+  );
+  usePublishPersonalizedInsight(personalizedInsightBridgeState);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
