@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Task } from '../hooks/types';
 import TaskFormModal from '../features/tasks/modals/TaskFormModal';
 import TaskCard from '../features/tasks/components/TaskCard';
@@ -6,6 +6,14 @@ import { useTaskBoardState } from '../features/tasks/hooks/useTaskBoardState';
 import { useTaskGrouping } from '../features/tasks/hooks/useTaskGrouping';
 import { DEFAULT_TASK_FILTERS } from '../features/tasks/types/taskBoard.types';
 import { getDayColumnStyle } from '../features/tasks/utils/taskStyles';
+import { tasksToTaskItems } from '../aiExperience/adaptTaskItem';
+import { buildTodoDialoguePool } from '../aiExperience/petDialogue/buildTodoDialoguePool';
+import {
+  usePublishPersonalizedInsight,
+  type PersonalizedInsightBridgeState,
+} from '../aiExperience/petDialogue/PersonalizedInsightBridge';
+import type { InsightCandidate } from '../aiExperience/contracts/insightCandidate';
+import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
 
 interface TasksPageProps {
   toggleTheme: () => void;
@@ -16,6 +24,11 @@ interface TasksPageProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   userId: string;
+  /** Same signal already piped to MolarAIFloat (see App.tsx's
+   *  `taskDataStatus` state) — reused here, zero new query, so the
+   *  personalized-dialogue pool only ever publishes once real task data
+   *  has resolved (never a `[]`-from-not-yet-fetched false negative). */
+  taskDataStatus: TaskDataStatus;
 }
 
 const TasksPage: React.FC<TasksPageProps> = ({
@@ -27,6 +40,7 @@ const TasksPage: React.FC<TasksPageProps> = ({
   onEditTask,
   onDeleteTask,
   userId: _userId,
+  taskDataStatus,
 }) => {
   const {
     isTaskModalOpen,
@@ -72,6 +86,40 @@ const TasksPage: React.FC<TasksPageProps> = ({
     filters,
     numColumns,
   });
+
+  // Personalized-dialogue candidate pool for Cat (see
+  // aiExperience/petDialogue/buildTodoDialoguePool.ts) — built from this
+  // page's own live `tasks` prop, mapped through the same
+  // adaptTaskItem.ts boundary MolarAIFloat uses, never a stale snapshot.
+  const todoTaskItems = useMemo(() => tasksToTaskItems(tasks), [tasks]);
+  const todoDialoguePool = useMemo(() => buildTodoDialoguePool(todoTaskItems), [todoTaskItems]);
+
+  // Production has no 'overdue' filter dimension of its own — only
+  // `timeframe: 'all'|'past'|'today'|'upcoming'` (see TaskFilters). "View
+  // Overdue" narrowly adapts to `timeframe:'past', status:'active'`
+  // (unresolved work strictly before today); "View Today" to
+  // `timeframe:'today'`. Existing filter values (type/urgency) are left
+  // untouched — this only ever narrows the time/status axes.
+  const handlePersonalizedInsightAction = useCallback(
+    (candidate: InsightCandidate<unknown>) => {
+      if (!candidate.action) return;
+      if (candidate.action.view === 'overdue') {
+        setFilters((prev) => ({ ...prev, status: 'active', timeframe: 'past' }));
+        return;
+      }
+      setFilters((prev) => ({ ...prev, timeframe: 'today' }));
+    },
+    [setFilters]
+  );
+
+  const personalizedInsightBridgeState: PersonalizedInsightBridgeState = useMemo(
+    () =>
+      taskDataStatus === 'ready'
+        ? { status: 'ready', candidates: todoDialoguePool, onAction: handlePersonalizedInsightAction }
+        : { status: 'not_ready' },
+    [taskDataStatus, todoDialoguePool, handlePersonalizedInsightAction]
+  );
+  usePublishPersonalizedInsight(personalizedInsightBridgeState);
 
   return (
     <>

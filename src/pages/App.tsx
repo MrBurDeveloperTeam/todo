@@ -10,6 +10,12 @@ import { Task, WhiteboardNote } from '../hooks/types';
 import { api, apiFetch, checkSession } from '../lib/api';
 import { supabase } from '../lib/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
+import CatMascot from '../components/CatMascot.jsx';
+import MolarAIFloat from '../components/MolarAIFloat.jsx';
+import TodoVirtualPet from '../petExperience/TodoVirtualPet';
+import { PersonalizedInsightBridgeProvider } from '../aiExperience/petDialogue/PersonalizedInsightBridge';
+import { tasksToTaskItems } from '../aiExperience/adaptTaskItem';
+import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
 
 // Seed data to showcase the views without a backend
 const seedTasks: Task[] = [
@@ -97,6 +103,14 @@ function MainApp() {
   const [activeView, setActiveView] = useState<View>('tasks');
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isVirtualPetOpen, setIsVirtualPetOpen] = useState(false);
+  // Mirrors the same readiness gate already proven for Inventory/
+  // Appointment's Shared Experience integrations: 'loading' until the
+  // first /tasks fetch for the current userId settles, 'ready' once it
+  // does (even to an empty list), 'error' only on an actual fetch
+  // failure — never derived from `tasks.length`, so a genuinely empty
+  // task list is still 'ready', not mistaken for not-yet-fetched.
+  const [taskDataStatus, setTaskDataStatus] = useState<TaskDataStatus>('loading');
 
   useEffect(() => { 
     let mounted = true;
@@ -150,6 +164,29 @@ function MainApp() {
 
   const toggleTheme = () => setIsDarkMode((v) => !v);
 
+  // General-Chat context summary — narrowly adapted from the feature
+  // branch's `aiContext` to Production's own `Task` shape (`status`
+  // instead of `done`; no `user.name`/`email` profile object exists in
+  // this component today, so those two lines are simply omitted rather
+  // than fabricated). Never used by the grounded Data-Chat tiers — only
+  // as loose background text for the General Chat Gemini fallback.
+  const aiContext = useMemo(() => {
+    const todayIso = new Date().toLocaleDateString('en-CA');
+    const pendingTasks = tasks.filter((t) => t.status !== 'completed');
+    const completedTasks = tasks.filter((t) => t.status === 'completed');
+    const overdueTasks = pendingTasks.filter((t) => t.date && t.date < todayIso);
+    const todayTasks = pendingTasks.filter((t) => t.date === todayIso);
+
+    return [
+      `Module: To-Do Manager`,
+      `Total items: ${tasks.length}`,
+      `Pending items: ${pendingTasks.length}`,
+      `Completed items: ${completedTasks.length}`,
+      `Overdue items: ${overdueTasks.length}`,
+      `Today's items: ${todayTasks.length}`,
+    ].join('\n');
+  }, [tasks]);
+
   // apiFetch is shared in src/lib/api.ts
 
   // Handlers moved to bottom
@@ -164,6 +201,7 @@ function MainApp() {
       console.log('fetchTasks: Triggered', { userId });
       if (!userId) return;
 
+      setTaskDataStatus('loading');
       try {
         const result = await apiFetch(`/tasks?user_id=${userId}`, { method: 'GET' });
         const data = result?.tasks ?? [];
@@ -183,8 +221,10 @@ function MainApp() {
           progress: t.progress || 0
         }));
         setTasks(mappedTasks);
+        setTaskDataStatus('ready');
       } catch (error) {
         console.error('Error fetching tasks:', error);
+        setTaskDataStatus('error');
       }
     };
 
@@ -296,6 +336,11 @@ function MainApp() {
   };
 
   return (
+    // Home (Phase-2's own consumer/publisher) and CatMascot (the proactive
+    // reminder's reader) are direct siblings here — this Provider just
+    // wraps the existing fragment so CatMascot can read the candidate
+    // TasksPage already resolved. See PersonalizedInsightBridge.tsx.
+    <PersonalizedInsightBridgeProvider>
     <div className={`h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-50`}>
       <header className="sticky top-0 z-20 bg-white/70 dark:bg-[#0f172a]/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 transition-all duration-300">
         <div className="mx-auto w-full max-w-[1440px] px-6 h-20 flex items-center justify-between gap-8">
@@ -399,6 +444,7 @@ function MainApp() {
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
               userId={userId || ''}
+              taskDataStatus={taskDataStatus}
             />
           </div>
         ) : (
@@ -412,7 +458,46 @@ function MainApp() {
           />
         )}
       </main>
+
+      {/* PHASE TODO-CAT-CACHE: keyed + userId-sourced from userId, same
+          rationale as TodoVirtualPet below — CatMascot's own
+          account-sensitive presentation cache (snabbb_cat:<userId>:<key>)
+          must never bleed across a direct A -> B account switch, and
+          `key` forces the clean remount that guarantees it. This block
+          only ever renders past the `!userId` early return above, so
+          `userId` is always a real, stable id here. */}
+      <div className={isVirtualPetOpen ? 'hidden' : 'contents'}>
+        <CatMascot key={userId} userId={userId} onCatClick={() => setIsVirtualPetOpen(true)} />
+        {/* Keyed by userId (not just wrapped by the `!userId` early return
+            above) so a DIRECT account switch — a session change that never
+            passes through `userId === null` — still forces a fresh mount.
+            Without this, MolarAIFloat's own `groundedContextStoreRef`
+            (a useRef, initialized only once per mount) would survive the
+            switch and leak the previous user's grounded Data-Chat
+            follow-up context into the new user's conversation. */}
+        <MolarAIFloat
+          key={userId}
+          userContext={aiContext}
+          onPetToggle={() => setIsVirtualPetOpen(true)}
+          tasks={tasksToTaskItems(tasks)}
+          taskDataStatus={taskDataStatus}
+        />
+      </div>
+      {userId && (
+        <TodoVirtualPet
+          // Keyed and userId-sourced from `userId` (the raw Supabase auth
+          // identity) — `key` forces a full unmount/remount of
+          // `TodoVirtualPet` (and therefore `SharedVirtualPet`) on any
+          // identity change, including a direct A -> B swap, so no stale
+          // previous-user repository/cache identity can persist.
+          key={userId}
+          isOpen={isVirtualPetOpen}
+          onClose={() => setIsVirtualPetOpen(false)}
+          userId={userId}
+        />
+      )}
     </div>
+    </PersonalizedInsightBridgeProvider>
   );
 }
 
