@@ -1,179 +1,128 @@
-import { useState, useRef, useEffect } from 'react';
-import { MessageCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import MolarChat from './MolarChat';
-import { chatWithMolarAI } from '../services/geminiService';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { SharedMolarAI } from '@mrburdeveloperteam/molar-experience/ai';
 import { supabase } from '../lib/supabase';
+import { createTodoMolarAdapter } from '../aiExperience/todoMolarAdapter';
+import { createGroundedContextStore } from '../aiExperience/dataChat/context/groundedConversationContext';
+import { MOLAR_LOGO_URL } from '../aiExperience/molarExperienceAssets';
 
-/**
- * Self-contained floating Molar AI button + chat panel.
- * Drop this anywhere in the layout.
- */
-export default function MolarAIFloat({ userContext, disabled = false, onPetToggle }) {
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [chatHistory, setChatHistory] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [isChatLoading, setIsChatLoading] = useState(false);
-  const chatEndRef = useRef(null);
-  const [isHovered, setIsHovered] = useState(false);
-  const [badgeText, setBadgeText] = useState('Meow! 🐾');
+const SUPPORT_MAILTO_URL = 'https://mail.google.com/mail/?view=cm&fs=1&to=support%40snabbb.com&su=Customer%20Inquiry';
+
+/** Email Support affordance rendered inside the Molar panel via
+ *  molar-experience 0.9.6's `footerContent` — same pattern already
+ *  shipped for Inventory/Appointment. Plain inline SVG (no new icon
+ *  package dependency, even though `lucide-react` IS a direct dependency
+ *  here — kept self-contained the same way as the other apps). */
+function MolarSupportFooter() {
+  return (
+    <a
+      href={SUPPORT_MAILTO_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Email support at support@snabbb.com"
+      className="flex w-full items-center gap-3 rounded-2xl border border-slate-200/80 bg-white/90 px-3 py-2.5 text-left text-slate-700 transition-all duration-200 hover:border-emerald-200 hover:bg-emerald-50/50 active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:border-emerald-800"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="2" y="4" width="20" height="16" rx="2" />
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">Email Support</span>
+        <span className="block truncate text-xs opacity-70">Contact support@snabbb.com</span>
+      </span>
+    </a>
+  );
+}
+
+// PHASE 5C NOTE (Molar AI extraction): this file is now a LOCAL adapter
+// only — the floating button, chat panel, message rendering, markdown,
+// input/loading/error UI, and generic send/scroll/clear lifecycle all
+// live in @mrburdeveloperteam/molar-experience/ai's <SharedMolarAI>. This
+// component's job is: (1) build the AIAdapter To-Do's own business logic
+// implements (see ../aiExperience/todoMolarAdapter.ts — moved
+// mechanically, not rewritten), and (2) fetch the empty-state welcome
+// title/subtitle/prompt-suggestions data this app has always pulled from
+// AIBoard, reactively feeding it to the shared component.
+//
+// KNOWN, ACCEPTED TIMING SEAM (same pattern as Profit Calculator's Phase
+// 4D migration): the empty-state AIBoard config now fetches once on
+// mount rather than only when the panel is first opened, because the
+// shared component's open/closed state is intentionally internal to it,
+// not exposed back to hosts. This is one cheap, harmless, read-only
+// query per page load — it has no effect on anything the user sees.
+export default function MolarAIFloat({ userContext, disabled = false, onPetToggle, tasks = [], taskDataStatus = 'loading' }) {
+  const [emptyState, setEmptyState] = useState(undefined);
 
   useEffect(() => {
-    const texts = disabled 
-      ? ['Log In', 'Get Started']
-      : ['Ask Me', 'Try Me!', 'SNAI'];
-    
-    let i = 0;
-    setBadgeText(texts[0]);
+    let cancelled = false;
+    const fetchSimConfig = async () => {
+      try {
+        const { data: configs } = await supabase
+          .from('aiboard_simulator_configs')
+          .select('id, title, subtitle')
+          .eq('module_name', 'To-Do Manager')
+          .limit(1);
 
-    const interval = setInterval(() => {
-      i = (i + 1) % texts.length;
-      setBadgeText(texts[i]);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [disabled]);
+        const fallbackPrompts = [
+          { label: 'How does it work?', iconName: 'Zap' },
+          { label: 'Show examples', iconName: 'ShieldCheck' },
+          { label: 'Best practices', iconName: 'AlertCircle' },
+          { label: 'Get help', iconName: 'BarChart3' },
+        ];
 
-  const handleSendMessage = async (e) => {
-    if (e) e.preventDefault();
-    if (disabled) return;
-    const msg = chatInput.trim();
-    if (!msg || isChatLoading) return;
+        if (configs && configs.length > 0) {
+          const title = configs[0].title;
+          const subtitle = configs[0].subtitle || 'Ready to assist with tasks, reminders, calendar planning, and productivity workflows.';
 
-    setChatInput('');
-    setChatHistory(prev => [...prev, { role: 'user', parts: [{ text: msg }] }]);
-    setIsChatLoading(true);
+          const { data: promptData } = await supabase
+            .from('aiboard_simulator_prompts')
+            .select('text, icon_name, sort_order')
+            .eq('config_id', configs[0].id)
+            .order('sort_order', { ascending: true });
 
-    try {
-      let response = null;
+          const prompts = promptData && promptData.length > 0
+            ? promptData.map((p) => ({ label: p.text, iconName: p.icon_name }))
+            : fallbackPrompts;
 
-      // 1. Check custom responses first
-      const { data: apps } = await supabase
-        .from('aiboard_response_target_apps')
-        .select('response_id')
-        .in('app_name', ['To-Do Manager', 'All']);
-
-      if (apps && apps.length > 0) {
-        const responseIds = apps.map(a => a.response_id);
-        const { data: keywords } = await supabase
-          .from('aiboard_response_keywords')
-          .select('keyword, response_id')
-          .in('response_id', responseIds);
-
-        if (keywords && keywords.length > 0) {
-          const matchedKeyword = keywords.find(k => msg.toLowerCase().includes(k.keyword.toLowerCase()));
-
-          if (matchedKeyword) {
-            const { data: respData } = await supabase
-              .from('aiboard_responses')
-              .select('response')
-              .eq('id', matchedKeyword.response_id)
-              .single();
-
-            if (respData) {
-              response = respData.response;
-            }
-          }
+          if (!cancelled) setEmptyState({ title, subtitle, prompts });
+        } else if (!cancelled) {
+          setEmptyState({ prompts: fallbackPrompts });
         }
+      } catch (err) {
+        console.error('Error fetching sim configs:', err);
       }
+    };
 
-      // 2. Fallback to Gemini
-      if (!response) {
-        response = await chatWithMolarAI(chatHistory, msg, userContext || '');
-      }
-      
-      // Parse actions from backticks if present
-      let cleanResponse = response;
-      const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || response.match(/```\s*(\{[\s\S]*?\})\s*```/);
-      
-      if (jsonMatch) {
-         try {
-            const actionObj = JSON.parse(jsonMatch[1]);
-            cleanResponse = response.replace(jsonMatch[0], '').trim();
-            
-            if (actionObj.action && window.__MOLAR_ACTIONS__) {
-               const handlers = window.__MOLAR_ACTIONS__;
-               const { action, data, id } = actionObj;
-               
-               console.log('[MolarAI] Executing action:', action, data);
-               
-               switch(action) {
-                  case 'ADD_TASK': handlers.addTask?.(data); break;
-                  case 'UPDATE_TASK': handlers.updateTask?.(id, data); break;
-                  case 'COMPLETE_TASK': handlers.completeTask?.(id); break;
-                  case 'DELETE_TASK': handlers.deleteTask?.(id); break;
-                  default: console.warn('[MolarAI] Unknown action:', action);
-               }
-            }
-         } catch (e) {
-            console.error('[MolarAI] Action parse failed:', e);
-         }
-      }
+    fetchSimConfig();
+    return () => { cancelled = true; };
+  }, []);
 
-      setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: cleanResponse || "SNAI: Action executed." }] }]);
-    } catch (error) {
-      setChatHistory(prev => [...prev, { role: 'model', parts: [{ text: "SNAI Error: Unable to process request." }] }]);
-    } finally {
-      setIsChatLoading(false);
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    }
-  };
+  // Grounded follow-up context store — stable for this component's own
+  // mount (App.tsx keys MolarAIFloat's identity boundary by
+  // session.user.id, so a fresh store is created on account switch) so it
+  // survives `adapter` below being rebuilt on ordinary tasks/
+  // taskDataStatus refreshes.
+  const groundedContextStoreRef = useRef(createGroundedContextStore());
 
-  const handleOpenChat = () => {
-    if (disabled) return;
-    setIsChatOpen(true);
-  };
-
-  const handleClearChat = () => setChatHistory([]);
+  const adapter = useMemo(
+    () => createTodoMolarAdapter({
+      tasks,
+      taskDataStatus,
+      userContext: userContext || '',
+      groundedContextStore: groundedContextStoreRef.current,
+    }),
+    [tasks, taskDataStatus, userContext]
+  );
 
   return (
-    <>
-      {/* Floating trigger button - SuperApp Style */}
-      {!isChatOpen && (
-        <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-center group">
-          <div className="relative flex items-center justify-center">
-            <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-[70] pointer-events-none">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={badgeText}
-                  initial={{ opacity: 0, y: 5, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -5, scale: 0.9 }}
-                  className="bg-white text-emerald-500 text-[10px] sm:text-[12px] font-bold tracking-wider px-2 py-0.5 rounded-full shadow-lg shadow-emerald-500/20 whitespace-nowrap"
-                >
-                  {badgeText}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-            <button
-              onClick={() => setIsChatOpen(true)}
-              disabled={disabled}
-              className={`w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 hover:shadow-xl transition-all shadow-[#1F7A6F]/30 relative overflow-hidden ${disabled ? 'bg-slate-300 grayscale cursor-not-allowed opacity-70' : 'bg-[#1F7A6F]'}`}
-            >
-              
-              <img 
-                src="/images/ai_logo.png" 
-                alt="Molar AI" 
-                className={`w-10 h-10 object-contain drop-shadow-sm transition-transform ${disabled ? 'brightness-80' : ''}`} 
-              />
-            </button>
-          </div>
-        </div>
-      )}
-
-      <MolarChat
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        chatHistory={chatHistory}
-        isChatLoading={isChatLoading}
-        chatInput={chatInput}
-        setChatInput={setChatInput}
-        onSendMessage={handleSendMessage}
-        onClearChat={handleClearChat}
-        onPetToggle={onPetToggle}
-        chatEndRef={chatEndRef}
-      />
-
-
-    </>
+    <SharedMolarAI
+      adapter={adapter}
+      disabled={disabled}
+      onPetToggle={onPetToggle}
+      emptyState={emptyState}
+      logoUrl={MOLAR_LOGO_URL}
+      footerContent={<MolarSupportFooter />}
+    />
   );
 }

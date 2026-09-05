@@ -7,7 +7,10 @@ import { Home } from './pages/Home';
 import { api, checkSession } from './lib/api';
 import CatMascot from './components/CatMascot.jsx';
 import MolarAIFloat from './components/MolarAIFloat.jsx';
-import { VirtualPetContainer } from '../VirtualPet/VirtualPetContainer';
+import type { TaskDataStatus } from './aiExperience/dataChat/contracts/groundedDataResult';
+import { PersonalizedInsightBridgeProvider } from './aiExperience/petDialogue/PersonalizedInsightBridge';
+import TodoVirtualPet from './petExperience/TodoVirtualPet';
+import MeowdokuLauncher from './petExperience/MeowdokuLauncher';
 import {
   normalizeTheme,
   readStoredTheme,
@@ -120,6 +123,16 @@ export default function App() {
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [isVirtualPetOpen, setIsVirtualPetOpen] = useState(false);
   const [isAuthFormActive, setIsAuthFormActive] = useState(false);
+  const [isMeowdokuOpen, setIsMeowdokuOpen] = useState(false);
+
+  // Phase-3 Data-Driven Chat readiness gate. Instruments the EXISTING
+  // task-loading flow only — no new Supabase query. Distinguishes
+  // "still loading" / "successfully loaded (including zero tasks)" /
+  // "fetch failed", which `tasks` alone cannot (it starts as `[]` and
+  // stays whatever it was on a failed fetch). See
+  // aiExperience/dataChat/contracts/groundedDataResult.ts's
+  // `TaskDataStatus` doc comment.
+  const [taskDataStatus, setTaskDataStatus] = useState<TaskDataStatus>('loading');
 
   const aiContext = useMemo(() => {
     const pendingTasks = tasks.filter(task => !task.done);
@@ -158,6 +171,11 @@ export default function App() {
     let initialCheckDone = false;
 
     const syncUserAndDataFromDatabase = async () => {
+      // Phase-3 readiness reset — a re-sync (auth change, retry) must not
+      // leave a stale previous 'ready'/'error' status visible while a new
+      // fetch is in flight. See TaskDataStatus's doc comment.
+      if (isMounted) setTaskDataStatus('loading');
+
       try {
         // Use the SSO exchange from api.ts
         const session = await checkSession(!initialCheckDone);
@@ -168,6 +186,10 @@ export default function App() {
             setSession(null);
             setUser(DEFAULT_USER);
             setTasks(SEED_DATA);
+            // No session means "no tasks" is a real, deterministically
+            // resolved state (not an in-flight fetch) — genuinely ready,
+            // known-empty.
+            setTaskDataStatus('ready');
             setIsAuthChecking(false);
           }
           return;
@@ -235,7 +257,14 @@ export default function App() {
             done: t.status === 'done' || t.is_completed === true,
             created: new Date(t.created_at).getTime(),
           }));
-          if (isMounted) setTasks(mappedTasks);
+          if (isMounted) {
+            setTasks(mappedTasks);
+            setTaskDataStatus('ready');
+          }
+        } else if (isMounted) {
+          // Query failed (or returned no data despite no thrown error) —
+          // genuinely unknown, never treated as "zero tasks".
+          setTaskDataStatus('error');
         }
 
         if (isMounted) {
@@ -244,6 +273,7 @@ export default function App() {
         }
       } catch (err) {
         console.error('[auth] Error in syncUserAndDataFromDatabase:', err);
+        if (isMounted) setTaskDataStatus('error');
       } finally {
         if (isMounted) {
           setIsAuthChecking(false);
@@ -259,6 +289,13 @@ export default function App() {
       if (!session) {
         setUser(DEFAULT_USER);
         setIsAuthChecking(false);
+        // Phase-3 safety: this branch does not clear `tasks` itself
+        // (pre-existing behavior, unchanged here — see `handleLogout` for
+        // the explicit-logout path that does). Marking readiness back to
+        // 'loading' ensures Data-Driven Chat never treats a possibly-stale
+        // previous user's task list as authorizing a grounded answer,
+        // without altering that pre-existing tasks-array behavior.
+        setTaskDataStatus('loading');
         return;
       }
       syncUserAndDataFromDatabase();
@@ -306,6 +343,10 @@ export default function App() {
     setSession(null);
     setUser(DEFAULT_USER);
     setTasks(SEED_DATA);
+    // Explicit logout deterministically resolves to "no tasks" — genuinely
+    // ready, known-empty, matching the no-session path in
+    // syncUserAndDataFromDatabase.
+    setTaskDataStatus('ready');
   };
 
   if (isAuthChecking) {
@@ -335,7 +376,11 @@ export default function App() {
   }
 
   return (
-    <>
+    // Home (Phase-2's own consumer/publisher) and CatMascot (the proactive
+    // reminder's reader) are direct siblings here — this Provider just
+    // wraps the existing fragment so CatMascot can read the candidate Home
+    // already resolved. See PersonalizedInsightBridge.tsx.
+    <PersonalizedInsightBridgeProvider>
       <Home
         tasks={tasks}
         setTasks={setTasks}
@@ -344,18 +389,67 @@ export default function App() {
         handleLogout={handleLogout}
         theme={theme}
         setTheme={handleSetTheme}
+        taskDataStatus={taskDataStatus}
       />
       <div className={isVirtualPetOpen ? 'hidden' : 'contents'}>
-        <CatMascot onCatClick={() => setIsVirtualPetOpen(true)} />
+        {/* PHASE TODO-CAT-CACHE: keyed + userId-sourced from
+            session.user.id, same rationale as TodoVirtualPet below —
+            CatMascot's own account-sensitive presentation cache
+            (snabbb_cat:<userId>:<key>) must never bleed across a direct
+            A -> B account switch, and `key` forces the clean remount that
+            guarantees it. */}
+        <CatMascot key={session.user.id} userId={session.user.id} onCatClick={() => setIsVirtualPetOpen(true)} />
         <MolarAIFloat
+          key={session.user.id}
           userContext={aiContext}
           onPetToggle={() => setIsVirtualPetOpen(true)}
+          tasks={tasks}
+          taskDataStatus={taskDataStatus}
         />
       </div>
-      <VirtualPetContainer
+      <TodoVirtualPet
+        // Keyed and userId-sourced from `session.user.id` (the raw
+        // Supabase auth identity), NOT `user.user_id` — `user` starts as
+        // `DEFAULT_USER`'s hardcoded placeholder UUID and only catches up
+        // to the real identity via the separate async profile fetch in
+        // `syncUserAndDataFromDatabase`, while `session` is set
+        // immediately/atomically on every real auth transition (including
+        // a direct account switch via `onAuthStateChange`, which sets
+        // `session` synchronously before that same async fetch even
+        // starts). This component only ever renders past the `!session`
+        // early return above, so `session.user.id` is always a real,
+        // stable id here. `key` forces a full unmount/remount of
+        // `TodoVirtualPet` (and therefore `SharedVirtualPet`) on any
+        // identity change — including a direct A -> B swap that never
+        // passes through a `session === null` state — so no stale
+        // previous-user repository/cache identity can persist once a
+        // different user becomes active.
+        key={session.user.id}
         isOpen={isVirtualPetOpen}
         onClose={() => setIsVirtualPetOpen(false)}
+        userId={session.user.id}
+        extraGames={[
+          {
+            id: 'meowdoku',
+            title: 'Meowdoku',
+            iconUrl: '/games/meowdoku/cover-148.png',
+            onSelect: () => setIsMeowdokuOpen(true),
+          },
+        ]}
       />
-    </>
+      {/* Meowdoku is already live/user-facing in Production (legacy
+          VirtualPet/{GamePage,RoomMenus}.tsx) — exposed here as a 4th game
+          via SharedVirtualPet's extraGames slot instead. Rendered as a
+          sibling ABOVE SharedVirtualPet's own z-[1000] overlay (z-[1100],
+          the proven value for this exact sibling-hidden-under-
+          SharedVirtualPet bug class) so it never renders invisibly behind
+          it; closing it leaves SharedVirtualPet's Games room still open
+          underneath, matching Production's existing behavior. */}
+      <MeowdokuLauncher
+        isOpen={isMeowdokuOpen}
+        onClose={() => setIsMeowdokuOpen(false)}
+        userId={session.user.id}
+      />
+    </PersonalizedInsightBridgeProvider>
   );
 }

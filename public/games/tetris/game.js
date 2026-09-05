@@ -868,19 +868,48 @@ function moveDown() {
     return true;
 }
 
-// Direct horizontal controls used by mobile-controls.js. A quick synthetic
-// keydown/keyup pair is too short for the keyboard state loop to observe.
+/*
+ * Public mobile-control interface.
+ *
+ * Horizontal swipe controls call these functions directly
+ * because ArrowLeft and ArrowRight are state-based keyboard
+ * inputs. Sending keydown and keyup immediately would clear
+ * the state before the next animation frame.
+ */
 window.tetrisMobileApi = {
     moveLeft: function () {
-        if (!gameState.running || gameState.paused || gameState.isCountingDown) return false;
-        const moved = moveLeft();
-        if (moved) draw();
+        if (
+            !gameState.running ||
+            gameState.paused ||
+            gameState.isCountingDown
+        ) {
+            return false;
+        }
+
+        var moved = moveLeft();
+
+        if (moved) {
+            draw();
+        }
+
         return moved;
     },
+
     moveRight: function () {
-        if (!gameState.running || gameState.paused || gameState.isCountingDown) return false;
-        const moved = moveRight();
-        if (moved) draw();
+        if (
+            !gameState.running ||
+            gameState.paused ||
+            gameState.isCountingDown
+        ) {
+            return false;
+        }
+
+        var moved = moveRight();
+
+        if (moved) {
+            draw();
+        }
+
         return moved;
     }
 };
