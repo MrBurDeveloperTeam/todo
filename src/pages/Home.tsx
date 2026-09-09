@@ -605,7 +605,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
     setCurrentView('todo');
   };
 
-  const renderContent = () => {
+  const renderContent = async () => {
     switch (currentView) {
       case 'todo':
       case 'today':
@@ -644,19 +644,19 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
             theme={resolvedTheme}
           />
         );
-      case 'settings':
-        async () => {
+      case 'settings': {
           const res = await createAppLink({
             app: 'snabbb',
             email: user?.email,
             name: user?.name,
           });
-          
+        
           const supabaseUserId = res.result?.supabase_user_id;
           const w = window.open('', '_blank');
           if (supabaseUserId && w) {
             w.location.href = `https://app.snabbb.com/profile-settings`;
           }
+          break;
         }
         // return (
         //   <SettingsView 
