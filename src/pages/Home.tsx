@@ -613,6 +613,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
       name: user?.name,
     });
     const supabaseUserId = res.result?.supabase_user_id;
+    console.log('handleSettingsClick: supabaseUserId', supabaseUserId, 'window', w);
     if (supabaseUserId && w) {
       w.location.href = `https://app.snabbb.com/profile-settings`;
     } else if (w) {
