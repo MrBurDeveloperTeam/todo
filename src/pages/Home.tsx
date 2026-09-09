@@ -612,6 +612,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
       email: user?.email,
       name: user?.name,
     });
+    console.log('createAppLink result:', res);
     const supabaseUserId = res.result?.supabase_user_id;
     console.log('handleSettingsClick: supabaseUserId', supabaseUserId, 'window', w);
     if (supabaseUserId && w) {
