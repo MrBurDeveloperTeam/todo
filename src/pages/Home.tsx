@@ -659,20 +659,20 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
             theme={resolvedTheme}
           />
         );
-      case 'settings': {
-          const res = await createAppLink({
-            app: 'snabbb',
-            email: user?.email,
-            name: user?.name,
-          });
+      // case 'settings': {
+      //     const res = await createAppLink({
+      //       app: 'snabbb',
+      //       email: user?.email,
+      //       name: user?.name,
+      //     });
         
-          const supabaseUserId = res.result?.supabase_user_id;
-          const w = window.open('', '_blank');
-          if (supabaseUserId && w) {
-            w.location.href = `https://app.snabbb.com/profile-settings`;
-          }
-          break;
-        }
+      //     const supabaseUserId = res.result?.supabase_user_id;
+      //     const w = window.open('', '_blank');
+      //     if (supabaseUserId && w) {
+      //       w.location.href = `https://app.snabbb.com/profile-settings`;
+      //     }
+      //     break;
+      //   }
         // return (
         //   <SettingsView 
         //     user={user}
