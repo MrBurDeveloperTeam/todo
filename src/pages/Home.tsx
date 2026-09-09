@@ -33,7 +33,7 @@ import { usePublishPersonalizedInsight, type PersonalizedInsightBridgeState } fr
 import { buildTodoDialoguePool } from '../aiExperience/petDialogue/buildTodoDialoguePool';
 import type { InsightCandidate } from '../aiExperience/contracts/insightCandidate';
 import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
-import { useCreateAppLink } from '../hooks/useCreateAppLink';
+import { useGetUserId } from '../lib/useGetUserId';
 
 const VIEW_LABELS: Record<ViewType, string> = {
   todo: 'My Tasks',
@@ -72,7 +72,7 @@ interface HomeProps {
 export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
-  const { mutateAsync: createAppLink } = useCreateAppLink();
+  const { mutateAsync: createAppLink } = useGetUserId();
 
   // Dismissal-aware ordered candidate pool for Cat only (starvation fix) —
   // reuses the already-loaded `tasks`, no second computation source. See
