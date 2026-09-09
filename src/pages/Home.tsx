@@ -605,6 +605,21 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
     setCurrentView('todo');
   };
 
+  const handleSettingsClick = async () => {
+    const w = window.open('', '_blank'); // open synchronously in the gesture, avoid popup block
+    const res = await createAppLink({
+      app: 'snabbb',
+      email: user?.email,
+      name: user?.name,
+    });
+    const supabaseUserId = res.result?.supabase_user_id;
+    if (supabaseUserId && w) {
+      w.location.href = `https://app.snabbb.com/profile-settings`;
+    } else if (w) {
+      w.close(); // clean up the blank tab if it failed
+    }
+  };
+
   const renderContent = async () => {
     switch (currentView) {
       case 'todo':
@@ -865,7 +880,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         </div>
 
         <div className="sidebar-bottom pt-2 pb-3 px-1.5 border-t border-[var(--border)]">
-          <NavItem icon={<SettingsIcon size={16} />} label="Settings" active={currentView === 'settings'} onClick={() => { setCurrentView('settings'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
+          <NavItem icon={<SettingsIcon size={16} />} label="Settings" active={currentView === 'settings'} onClick={() => { handleSettingsClick(); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
           
           <div className={`mt-3 flex items-center gap-2.5 px-2 py-2.5 rounded-lg bg-[var(--bg3)] overflow-hidden ${isSidebarCollapsed ? 'justify-center' : ''}`}>
             <div className="h-7 w-7 flex-shrink-0 rounded-full bg-accent flex items-center justify-center text-white font-bold text-xs uppercase">
