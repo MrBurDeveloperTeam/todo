@@ -620,7 +620,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
     }
   };
 
-  const renderContent = async () => {
+  const renderContent = () => {
     switch (currentView) {
       case 'todo':
       case 'today':
