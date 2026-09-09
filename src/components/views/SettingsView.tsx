@@ -144,6 +144,7 @@ export function SettingsView({
               <div>
                 <label className="text-[11px] font-bold text-[var(--text4)] uppercase block mb-1">Account Type</label>
                 <select
+                  disabled
                   value={user.account_type || 'individual'}
                   onChange={(e) => setUser({ ...user, account_type: e.target.value })}
                   className="w-full px-3 pr-8 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] text-[12px] outline-none focus:border-accent select-custom-arrow"
