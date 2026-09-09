@@ -72,7 +72,7 @@ interface HomeProps {
 export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
-  const { mutate: createAppLink } = useCreateAppLink();
+  const { mutateAsync: createAppLink } = useCreateAppLink();
 
   // Dismissal-aware ordered candidate pool for Cat only (starvation fix) —
   // reuses the already-loaded `tasks`, no second computation source. See
