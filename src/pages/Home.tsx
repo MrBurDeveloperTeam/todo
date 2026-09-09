@@ -33,6 +33,7 @@ import { usePublishPersonalizedInsight, type PersonalizedInsightBridgeState } fr
 import { buildTodoDialoguePool } from '../aiExperience/petDialogue/buildTodoDialoguePool';
 import type { InsightCandidate } from '../aiExperience/contracts/insightCandidate';
 import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
+import { useCreateAppLink } from '../hooks/useCreateAppLink';
 
 const VIEW_LABELS: Record<ViewType, string> = {
   todo: 'My Tasks',
@@ -71,6 +72,7 @@ interface HomeProps {
 export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
+  const createAppLink = useCreateAppLink();
 
   // Dismissal-aware ordered candidate pool for Cat only (starvation fix) —
   // reuses the already-loaded `tasks`, no second computation source. See
@@ -643,24 +645,37 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
           />
         );
       case 'settings':
-        return (
-          <SettingsView 
-            user={user}
-            setUser={setUser}
-            theme={theme}
-            setTheme={updateThemeDB}
-            accent={accent}
-            setAccent={updateAccentDB}
-            showCompleted={showCompleted}
-            setShowCompleted={handleSetShowCompleted}
-            handleLogout={handleLogout}
-            setTasks={setTasks}
-            defaultListId={defaultListId}
-            setDefaultListId={handleSetDefaultList}
-            userLists={userLists}
-            setUserLists={setUserLists}
-          />
-        );
+        async () => {
+          const res = await createAppLink({
+            app: 'snabbb',
+            email: user?.email,
+            name: user?.name,
+          });
+          
+          const supabaseUserId = res.result?.supabase_user_id;
+          const w = window.open('', '_blank');
+          if (supabaseUserId && w) {
+            w.location.href = `https://app.snabbb.com/profile-settings`;
+          }
+        }
+        // return (
+        //   <SettingsView 
+        //     user={user}
+        //     setUser={setUser}
+        //     theme={theme}
+        //     setTheme={updateThemeDB}
+        //     accent={accent}
+        //     setAccent={updateAccentDB}
+        //     showCompleted={showCompleted}
+        //     setShowCompleted={handleSetShowCompleted}
+        //     handleLogout={handleLogout}
+        //     setTasks={setTasks}
+        //     defaultListId={defaultListId}
+        //     setDefaultListId={handleSetDefaultList}
+        //     userLists={userLists}
+        //     setUserLists={setUserLists}
+        //   />
+        // );
       default:
         return <div className="p-10 text-center font-bold opacity-50">View not implemented</div>;
     }
