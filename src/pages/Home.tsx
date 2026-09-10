@@ -825,7 +825,16 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         </div>
 
         <div className="sidebar-bottom pt-2 pb-3 px-1.5 border-t border-[var(--border)]">
-          <NavItem icon={<SettingsIcon size={16} />} label="Settings" active={currentView === 'settings'} onClick={() => { setCurrentView('settings'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
+          <NavItem
+            icon={<SettingsIcon size={16} />}
+            label="Settings"
+            active={false}
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              window.location.assign('https://app.snabbb.com/profile-settings');
+            }}
+            collapsed={isSidebarCollapsed}
+          />
           
           <div className={`mt-3 flex items-center gap-2.5 px-2 py-2.5 rounded-lg bg-[var(--bg3)] overflow-hidden ${isSidebarCollapsed ? 'justify-center' : ''}`}>
             <div className="h-7 w-7 flex-shrink-0 rounded-full bg-accent flex items-center justify-center text-white font-bold text-xs uppercase">
