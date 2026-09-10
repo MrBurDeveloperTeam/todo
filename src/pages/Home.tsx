@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useProfileImage } from '../hooks/useProfileImage';
 import { 
   CheckCircle2, 
@@ -14,7 +14,9 @@ import {
   PanelLeftClose, 
   PanelLeftOpen, 
   Activity,
-  LogOut
+  LogOut,
+  Palette,
+  Check
 } from 'lucide-react';
 import { TaskItem, AppUser, ViewType, ItemType } from '../types';
 import { NavItem } from '../components/NavItem';
@@ -29,11 +31,6 @@ import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
 import { logActivityToOdoo } from '../lib/logActivityToOdoo';
 import usePageDurationTracker, { type PageViewLogMeta } from '../hooks/usePageDurationTracker';
-import { usePublishPersonalizedInsight, type PersonalizedInsightBridgeState } from '../aiExperience/petDialogue/PersonalizedInsightBridge';
-import { buildTodoDialoguePool } from '../aiExperience/petDialogue/buildTodoDialoguePool';
-import type { InsightCandidate } from '../aiExperience/contracts/insightCandidate';
-import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
-import { useGetUserId } from '../lib/useGetUserId';
 
 const VIEW_LABELS: Record<ViewType, string> = {
   todo: 'My Tasks',
@@ -61,61 +58,16 @@ interface HomeProps {
   handleLogout: () => void;
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
-  /** App.tsx's already-owned task-fetch readiness signal (same one already
-   *  piped to MolarAIFloat for Phase-3 Data Chat) — reused here so the
-   *  proactive Cat reminder bridge can tell "tasks still loading" apart
-   *  from "tasks resolved, deterministically no candidate." Not a new
-   *  query; App.tsx already maintains this state. */
-  taskDataStatus: TaskDataStatus;
 }
 
-export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
+export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
-  const { mutateAsync: createAppLink } = useGetUserId();
-
-  // Dismissal-aware ordered candidate pool for Cat only (starvation fix) —
-  // reuses the already-loaded `tasks`, no second computation source. See
-  // ../aiExperience/petDialogue/buildTodoDialoguePool.ts. Pure business
-  // ordering only; CatMascot itself does the actual seen/dismissed
-  // suppression scan once it knows the current userId — see
-  // personalizedInsightBridgeState.candidates below.
-  const todoDialoguePool = useMemo(() => buildTodoDialoguePool(tasks), [tasks]);
-  // Takes the candidate to act on explicitly — invoked by CatMascot with
-  // whichever candidate it is currently showing (its own dismissal-aware
-  // scan over `todoDialoguePool` above).
-  const handlePersonalizedInsightAction = useCallback((candidate: InsightCandidate<unknown>) => {
-    if (!candidate?.action) return;
-    // 'overdue' is not a ViewType — it's the existing currentFilter value
-    // TodoView.tsx's filter sidebar already uses (see the identical
-    // setCurrentView('todo') + setCurrentFilter(list.id) pairing at this
-    // file's own filter-sidebar click handler). Every other action.view
-    // value is a real ViewType, applied via setCurrentView alone exactly
-    // as before.
-    if (candidate.action.view === 'overdue') {
-      setCurrentView('todo');
-      setCurrentFilter('overdue');
-      return;
-    }
-    setCurrentView(candidate.action.view);
-  }, []);
-  // Publishes readiness (not_ready while tasks are loading/errored | ready
-  // + candidates once resolved) + this exact action handler to CatMascot
-  // (a sibling in App.tsx) via a read-only context — no new query, no
-  // duplicated resolver/action logic. See
-  // ../aiExperience/petDialogue/PersonalizedInsightBridge.tsx.
-  const personalizedInsightBridgeState: PersonalizedInsightBridgeState = useMemo(
-    () =>
-      taskDataStatus === 'ready'
-        ? { status: 'ready', candidates: todoDialoguePool, onAction: handlePersonalizedInsightAction }
-        : { status: 'not_ready' },
-    [taskDataStatus, todoDialoguePool, handlePersonalizedInsightAction]
-  );
-  usePublishPersonalizedInsight(personalizedInsightBridgeState);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAccentPickerOpen, setIsAccentPickerOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null);
   const [modalType, setModalType] = useState<ItemType>('task');
   const [newTask, setNewTask] = useState<Partial<TaskItem>>({});
@@ -141,6 +93,27 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
   const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || 'personal');
   const [completionToast, setCompletionToast] = useState<CompletionToastState | null>(null);
   const completionToastTimeoutRef = useRef<number | null>(null);
+  const accentPickerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!isAccentPickerOpen) return;
+
+    const closePicker = (event: MouseEvent) => {
+      if (!accentPickerRef.current?.contains(event.target as Node)) {
+        setIsAccentPickerOpen(false);
+      }
+    };
+    const closePickerOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsAccentPickerOpen(false);
+    };
+
+    document.addEventListener('mousedown', closePicker);
+    document.addEventListener('keydown', closePickerOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closePicker);
+      document.removeEventListener('keydown', closePickerOnEscape);
+    };
+  }, [isAccentPickerOpen]);
 
   const clearCompletionToast = () => {
     if (completionToastTimeoutRef.current) {
@@ -605,23 +578,6 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
     setCurrentView('todo');
   };
 
-  const handleSettingsClick = async () => {
-    const w = window.open('', '_blank'); // open synchronously in the gesture, avoid popup block
-    const res = await createAppLink({
-      app: 'snabbb',
-      email: user?.email,
-      name: user?.name,
-    });
-    console.log('createAppLink result:', res);
-    const supabaseUserId = res.result?.supabase_user_id;
-    console.log('handleSettingsClick: supabaseUserId', supabaseUserId, 'window', w);
-    if (supabaseUserId && w) {
-      w.location.href = `https://app.snabbb.com/profile-settings`;
-    } else if (w) {
-      w.close(); // clean up the blank tab if it failed
-    }
-  };
-
   const renderContent = () => {
     switch (currentView) {
       case 'todo':
@@ -661,38 +617,25 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
             theme={resolvedTheme}
           />
         );
-      // case 'settings': {
-      //     const res = await createAppLink({
-      //       app: 'snabbb',
-      //       email: user?.email,
-      //       name: user?.name,
-      //     });
-        
-      //     const supabaseUserId = res.result?.supabase_user_id;
-      //     const w = window.open('', '_blank');
-      //     if (supabaseUserId && w) {
-      //       w.location.href = `https://app.snabbb.com/profile-settings`;
-      //     }
-      //     break;
-      //   }
-        // return (
-        //   <SettingsView 
-        //     user={user}
-        //     setUser={setUser}
-        //     theme={theme}
-        //     setTheme={updateThemeDB}
-        //     accent={accent}
-        //     setAccent={updateAccentDB}
-        //     showCompleted={showCompleted}
-        //     setShowCompleted={handleSetShowCompleted}
-        //     handleLogout={handleLogout}
-        //     setTasks={setTasks}
-        //     defaultListId={defaultListId}
-        //     setDefaultListId={handleSetDefaultList}
-        //     userLists={userLists}
-        //     setUserLists={setUserLists}
-        //   />
-        // );
+      case 'settings':
+        return (
+          <SettingsView 
+            user={user}
+            setUser={setUser}
+            theme={theme}
+            setTheme={updateThemeDB}
+            accent={accent}
+            setAccent={updateAccentDB}
+            showCompleted={showCompleted}
+            setShowCompleted={handleSetShowCompleted}
+            handleLogout={handleLogout}
+            setTasks={setTasks}
+            defaultListId={defaultListId}
+            setDefaultListId={handleSetDefaultList}
+            userLists={userLists}
+            setUserLists={setUserLists}
+          />
+        );
       default:
         return <div className="p-10 text-center font-bold opacity-50">View not implemented</div>;
     }
@@ -882,7 +825,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         </div>
 
         <div className="sidebar-bottom pt-2 pb-3 px-1.5 border-t border-[var(--border)]">
-          <NavItem icon={<SettingsIcon size={16} />} label="Settings" active={currentView === 'settings'} onClick={() => { handleSettingsClick(); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
+          <NavItem icon={<SettingsIcon size={16} />} label="Settings" active={currentView === 'settings'} onClick={() => { setCurrentView('settings'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
           
           <div className={`mt-3 flex items-center gap-2.5 px-2 py-2.5 rounded-lg bg-[var(--bg3)] overflow-hidden ${isSidebarCollapsed ? 'justify-center' : ''}`}>
             <div className="h-7 w-7 flex-shrink-0 rounded-full bg-accent flex items-center justify-center text-white font-bold text-xs uppercase">
@@ -957,6 +900,59 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
           </div>
 
           <div className="flex items-center gap-1.5 ml-auto">
+            <div className="relative" ref={accentPickerRef}>
+              <button
+                type="button"
+                onClick={() => setIsAccentPickerOpen((open) => !open)}
+                className="h-8 w-8 flex items-center justify-center rounded-md border border-[var(--border)] bg-[var(--surface)] text-accent hover:bg-[var(--accent-light)] transition-all active:scale-[0.97]"
+                aria-label="Change accent color"
+                aria-haspopup="dialog"
+                aria-expanded={isAccentPickerOpen}
+                title="Change color"
+              >
+                <Palette size={16} />
+              </button>
+
+              {isAccentPickerOpen && (
+                <div
+                  role="dialog"
+                  aria-label="Choose accent color"
+                  className="absolute right-0 top-full z-50 mt-2 w-[244px] rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-lg)]"
+                >
+                  <p className="mb-3 text-[12px] font-semibold text-[var(--text)]">Accent color</p>
+                  <div className="grid grid-cols-7 gap-2">
+                    {Object.entries(ACCENTS).map(([name, color]) => (
+                      <button
+                        type="button"
+                        key={name}
+                        onClick={() => void updateAccentDB(name)}
+                        className="flex h-7 w-7 items-center justify-center rounded-full border-2 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-[var(--surface)]"
+                        style={{
+                          backgroundColor: color.main,
+                          borderColor: accent === name ? 'var(--text)' : 'transparent',
+                        }}
+                        aria-label={`Use ${name} accent color`}
+                        title={name.charAt(0).toUpperCase() + name.slice(1)}
+                      >
+                        {accent === name && <Check size={14} className="text-white drop-shadow" strokeWidth={3} />}
+                      </button>
+                    ))}
+                  </div>
+                  <label className="mt-3 flex items-center justify-between border-t border-[var(--border)] pt-3 text-[11px] font-medium text-[var(--text2)]">
+                    Custom color
+                    <span className="relative h-7 w-9 overflow-hidden rounded-md border border-[var(--border)]">
+                      <input
+                        type="color"
+                        value={accent.startsWith('#') ? accent : (ACCENTS as Record<string, { main: string }>)[accent]?.main || '#0078d4'}
+                        onChange={(event) => void updateAccentDB(event.target.value)}
+                        className="absolute -inset-2 h-12 w-14 cursor-pointer border-0 bg-transparent"
+                        aria-label="Choose a custom accent color"
+                      />
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
             <button 
               onClick={() => openAddModal('task')}
               className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-white rounded-md text-[12px] sm:text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-all active:scale-[0.97]"
