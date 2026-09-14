@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.0",
-    "@mrburdeveloperteam/molar-experience": "0.9.6",
+    "@mrburdeveloperteam/molar-experience": "github:mrburdeveloperteam/molar-experience#v0.9.6",
     "@supabase/supabase-js": "^2.98.0",
     "axios": "^1.13.5",
     "canvas-confetti": "1.9.2",
