@@ -146,9 +146,9 @@ export const checkSession = async (forceCheck: boolean = false) => {
       const launchUrl = new URL(window.location.href);
       const launchToken = launchUrl.searchParams.get('sso_token') || launchUrl.searchParams.get('token');
       const exchangePath = launchToken
-        ? `/sso/exchange?sso_token=${encodeURIComponent(launchToken)}`
-        : '/sso/exchange';
-      const { data } = await api.get(exchangePath, { timeout: 3000 });
+        ? `https://sso.snabbb.com/api/sso/exchange?sso_token=${encodeURIComponent(launchToken)}`
+        : 'https://sso.snabbb.com/api/sso/exchange';
+      const { data } = await api.get(exchangePath, { timeout: 10000 });
       // exchangeData = res.data;
       // Now securely set the fetched session tokens
       const { data: setResult, error } = await supabase.auth.setSession({
