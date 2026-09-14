@@ -143,7 +143,12 @@ export const checkSession = async (forceCheck: boolean = false) => {
   try {
     // let exchangeData;
     try {
-      const { data } = await api.get('/sso/exchange', { timeout: 3000 });
+      const launchUrl = new URL(window.location.href);
+      const launchToken = launchUrl.searchParams.get('sso_token') || launchUrl.searchParams.get('token');
+      const exchangePath = launchToken
+        ? `/sso/exchange?sso_token=${encodeURIComponent(launchToken)}`
+        : '/sso/exchange';
+      const { data } = await api.get(exchangePath, { timeout: 3000 });
       // exchangeData = res.data;
       // Now securely set the fetched session tokens
       const { data: setResult, error } = await supabase.auth.setSession({
@@ -151,6 +156,12 @@ export const checkSession = async (forceCheck: boolean = false) => {
         refresh_token: data.refresh_token,
       });
       if (error) throw error;
+
+      if (launchToken) {
+        launchUrl.searchParams.delete('sso_token');
+        launchUrl.searchParams.delete('token');
+        window.history.replaceState({}, document.title, `${launchUrl.pathname}${launchUrl.search}${launchUrl.hash}`);
+      }
       return setResult.session ?? null;
     } catch (err: any) {
       // If 401 (cookies stripped by cross-origin SameSite=Lax tracking rules), try hitting the local vite proxy
