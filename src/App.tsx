@@ -195,6 +195,14 @@ export default function App() {
           return;
         }
 
+        // Authentication is complete at this point. Enter the app
+        // immediately instead of keeping the user on the landing/loading
+        // screen while the independent profile and task queries finish.
+        if (isMounted) {
+          setSession(session);
+          setIsAuthChecking(false);
+        }
+
         const authUser = session.user;
         const fallbackName =
           authUser.user_metadata?.name ||
@@ -269,7 +277,6 @@ export default function App() {
 
         if (isMounted) {
           setUser(nextUser);
-          setSession(session);
         }
       } catch (err) {
         console.error('[auth] Error in syncUserAndDataFromDatabase:', err);
@@ -285,6 +292,12 @@ export default function App() {
 
     const { data: authListener } = client.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return;
+
+      // Supabase can emit an initial null auth event while the explicit SSO
+      // token exchange is still in flight. Do not expose the landing page
+      // during that short race; the initial check below owns the UI state.
+      if (!initialCheckDone) return;
+
       setSession(session);
       if (!session) {
         setUser(DEFAULT_USER);
