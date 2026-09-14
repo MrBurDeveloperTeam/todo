@@ -131,11 +131,16 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export const checkSession = async (forceCheck: boolean = false) => {
+export const checkSession = async (_forceCheck: boolean = false) => {
   if (!supabase) return null;
 
-  // If a Supabase session already exists, keep using it (unless we force a check).
-  if (!forceCheck) {
+  const launchUrl = new URL(window.location.href);
+  const launchToken = launchUrl.searchParams.get('sso_token') || launchUrl.searchParams.get('token');
+
+  // A token means an intentional account handoff and must be exchanged.
+  // Otherwise the persisted Supabase session is the fastest authoritative
+  // path; do not block it on a network round-trip to the central SSO worker.
+  if (!launchToken) {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) return session;
   }
@@ -143,12 +148,10 @@ export const checkSession = async (forceCheck: boolean = false) => {
   try {
     // let exchangeData;
     try {
-      const launchUrl = new URL(window.location.href);
-      const launchToken = launchUrl.searchParams.get('sso_token') || launchUrl.searchParams.get('token');
       const exchangePath = launchToken
         ? `https://sso.snabbb.com/api/sso/exchange?sso_token=${encodeURIComponent(launchToken)}`
         : 'https://sso.snabbb.com/api/sso/exchange';
-      const { data } = await api.get(exchangePath, { timeout: 10000 });
+      const { data } = await api.get(exchangePath, { timeout: 3000 });
       // exchangeData = res.data;
       // Now securely set the fetched session tokens
       const { data: setResult, error } = await supabase.auth.setSession({

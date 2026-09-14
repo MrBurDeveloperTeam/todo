@@ -174,7 +174,10 @@ export default function App() {
       // Phase-3 readiness reset — a re-sync (auth change, retry) must not
       // leave a stale previous 'ready'/'error' status visible while a new
       // fetch is in flight. See TaskDataStatus's doc comment.
-      if (isMounted) setTaskDataStatus('loading');
+      if (isMounted) {
+        setTaskDataStatus('loading');
+        setIsAuthChecking(true);
+      }
 
       try {
         // Use the SSO exchange from api.ts
@@ -195,12 +198,11 @@ export default function App() {
           return;
         }
 
-        // Authentication is complete at this point. Enter the app
-        // immediately instead of keeping the user on the landing/loading
-        // screen while the independent profile and task queries finish.
+        // A session alone is not enough to choose an account-specific UI.
+        // Keep the auth gate closed until this identity's profile has been
+        // resolved, so no previous/default dashboard can flash meanwhile.
         if (isMounted) {
           setSession(session);
-          setIsAuthChecking(false);
         }
 
         const authUser = session.user;
@@ -242,6 +244,11 @@ export default function App() {
           };
         }
 
+        if (isMounted) {
+          setUser(nextUser);
+          setIsAuthChecking(false);
+        }
+
         // FETCH TASKS
         const { data: taskData, error: taskError } = await client
           .from('tasks')
@@ -275,16 +282,9 @@ export default function App() {
           setTaskDataStatus('error');
         }
 
-        if (isMounted) {
-          setUser(nextUser);
-        }
       } catch (err) {
         console.error('[auth] Error in syncUserAndDataFromDatabase:', err);
         if (isMounted) setTaskDataStatus('error');
-      } finally {
-        if (isMounted) {
-          setIsAuthChecking(false);
-        }
       }
     };
 
@@ -311,6 +311,11 @@ export default function App() {
         setTaskDataStatus('loading');
         return;
       }
+      // A different authenticated identity may arrive without an
+      // intermediate null session. Clear the previous user's presentation
+      // and close the gate before resolving the new profile.
+      setUser(DEFAULT_USER);
+      setIsAuthChecking(true);
       syncUserAndDataFromDatabase();
     });
 
