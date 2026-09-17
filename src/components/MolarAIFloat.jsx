@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { SharedMolarAI } from '@mrburdeveloperteam/molar-experience/ai';
+import { SharedMolarAI } from '@mrburdeveloperteam/pet-function/ai';
 import { supabase } from '../lib/supabase';
 import { createTodoMolarAdapter } from '../aiExperience/todoMolarAdapter';
 import { createGroundedContextStore } from '../aiExperience/dataChat/context/groundedConversationContext';
@@ -38,7 +38,7 @@ function MolarSupportFooter() {
 // PHASE 5C NOTE (Molar AI extraction): this file is now a LOCAL adapter
 // only — the floating button, chat panel, message rendering, markdown,
 // input/loading/error UI, and generic send/scroll/clear lifecycle all
-// live in @mrburdeveloperteam/molar-experience/ai's <SharedMolarAI>. This
+// live in @mrburdeveloperteam/pet-function/ai's <SharedMolarAI>. This
 // component's job is: (1) build the AIAdapter To-Do's own business logic
 // implements (see ../aiExperience/todoMolarAdapter.ts — moved
 // mechanically, not rewritten), and (2) fetch the empty-state welcome

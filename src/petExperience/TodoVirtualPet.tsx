@@ -1,5 +1,5 @@
 // PHASE 5D (Virtual Pet migration): thin host wrapper around
-// `@mrburdeveloperteam/molar-experience/pet`'s <SharedVirtualPet>.
+// `@mrburdeveloperteam/pet-function/pet`'s <SharedVirtualPet>.
 //
 // Everything generic (room UI, runtime, persistence sequencing, landscape/
 // fullscreen handling, mini-game embedding shell) now lives in the shared
@@ -23,8 +23,8 @@
 // `session.user.id`, so a full remount happens on every real identity
 // change instead.
 import { useEffect, useRef, useState } from 'react';
-import { SharedVirtualPet } from '@mrburdeveloperteam/molar-experience/pet';
-import type { ExtraGame } from '@mrburdeveloperteam/molar-experience/pet';
+import { SharedVirtualPet } from '@mrburdeveloperteam/pet-function/pet';
+import type { ExtraGame } from '@mrburdeveloperteam/pet-function/pet';
 import { supabase as supabaseClient } from '../lib/supabase';
 import { todoPetRepository } from './todoPetRepository';
 import { PET_ASSET_URLS } from '../aiExperience/molarExperienceAssets';

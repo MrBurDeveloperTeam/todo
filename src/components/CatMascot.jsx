@@ -3,7 +3,7 @@
 // move, and the generic dialogue lifecycle (mount-scoped shown-tracking,
 // dismissal persistence, cross-tab sync, exact-adopted-candidate binding,
 // one-activation/no-cascade, Intro/Welcome-Back timing) all live in
-// `@mrburdeveloperteam/molar-experience/cat`'s `SharedCatMascot` +
+// `@mrburdeveloperteam/pet-function/cat`'s `SharedCatMascot` +
 // `useSharedCatDialogueRuntime`. This component's job is: (1) resolve the
 // current user/pet/sleep state exactly as before, (2) fetch To-Do's own
 // Intro/Welcome-Back content and read the personalized bridge (published
@@ -19,7 +19,7 @@
 // Manual browser parity is the acceptance gate for whether that specific
 // behavioral difference is acceptable.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SharedCatMascot, useSharedCatDialogueRuntime } from '@mrburdeveloperteam/molar-experience/cat';
+import { SharedCatMascot, useSharedCatDialogueRuntime } from '@mrburdeveloperteam/pet-function/cat';
 import { supabase } from '../lib/supabase';
 import { normalizePetId } from '../../VirtualPet/petOptions';
 import { usePersonalizedInsightBridge } from '../aiExperience/petDialogue/PersonalizedInsightBridge';
