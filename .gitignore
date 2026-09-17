@@ -1,7 +1,8 @@
 # Dependencies
 node_modules/
+# Generated shared images restored by predev/prebuild.
+/public/molar-experience/
 dist/node_modules/
-package-lock.json
 
 # Build output
 dist/
