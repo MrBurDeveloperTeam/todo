@@ -31,6 +31,7 @@ import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
 import { logActivityToOdoo } from '../lib/logActivityToOdoo';
 import usePageDurationTracker, { type PageViewLogMeta } from '../hooks/usePageDurationTracker';
+import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
 
 const VIEW_LABELS: Record<ViewType, string> = {
   todo: 'My Tasks',
@@ -58,6 +59,7 @@ interface HomeProps {
   handleLogout: () => void;
   theme: ThemePreference;
   setTheme: (theme: ThemePreference) => void;
+  taskDataStatus: TaskDataStatus;
 }
 
 export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme }: HomeProps) {
