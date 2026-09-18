@@ -1,7 +1,7 @@
 # Dependencies
 node_modules/
 # Generated shared images restored by predev/prebuild.
-/public/molar-experience/
+/public/pet-function/
 dist/node_modules/
 
 # Build output
