@@ -140,7 +140,11 @@ export const checkSession = async (_forceCheck: boolean = false) => {
   // A token means an intentional account handoff and must be exchanged.
   // Otherwise the persisted Supabase session is the fastest authoritative
   // path; do not block it on a network round-trip to the central SSO worker.
-  if (!launchToken) {
+  // _forceCheck skips this shortcut on purpose: it's what lets a tab that's
+  // been open for a while notice the user logged out of Snabbb elsewhere --
+  // without it, this function would never make a network call again once a
+  // local session exists, no matter how many times it's re-invoked.
+  if (!launchToken && !_forceCheck) {
     const { data: { session } } = await supabase.auth.getSession();
     if (session) return session;
   }
@@ -182,13 +186,18 @@ export const checkSession = async (_forceCheck: boolean = false) => {
     }
   } catch (err) {
     const status = (err as any)?.response?.status ?? (err as any)?.status;
-    // We treat 401 as legitimately "not logged in" for our flow once all fallbacks fail
-    if (status !== 401) {
+    // Only a genuine 401 (cookie/token confirmed invalid by the server)
+    // means the user is actually logged out -- safe to sign out locally.
+    // Anything else (a network error, a timeout, a 5xx) is NOT proof of
+    // that, and must not sign the user out: with _forceCheck now re-running
+    // this on every tab focus (see App.tsx), signing out on any failure
+    // would log an already-logged-in user out just because one round trip
+    // to a possibly slow backend happened to fail.
+    if (status === 401) {
+      console.info('[auth] SSO exchange failed with 401 (no valid cookies found) - signing out local session');
       await supabase.auth.signOut().catch(() => { });
-      console.error('SSO exchange failed:', err);
     } else {
-      console.info('[auth] SSO exchange skipped (no valid cookies found) - signing out local session');
-      await supabase.auth.signOut().catch(() => { });
+      console.error('SSO exchange failed (leaving existing session untouched):', err);
     }
     return null;
   }

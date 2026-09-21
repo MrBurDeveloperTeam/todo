@@ -340,9 +340,30 @@ export default function App() {
       syncUserAndDataFromDatabase();
     });
 
+    // A tab open before someone logs out of Snabbb elsewhere never finds out
+    // on its own: checkSession's local-session shortcut (see lib/api.ts)
+    // means it only ever makes a real network call once, on the very first
+    // check above -- after that it just trusts localStorage forever. Forcing
+    // a real check whenever this tab regains focus closes that gap. No need
+    // to touch React state here directly: a 401 makes checkSession() call
+    // supabase.auth.signOut() internally, and the onAuthStateChange listener
+    // just above already reacts to that the same way it reacts to any other
+    // local sign-out.
+    const revalidateOnFocus = () => {
+      if (document.visibilityState === 'visible') {
+        checkSession(true).catch((err) => {
+          console.error('[auth] revalidateOnFocus failed:', err);
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', revalidateOnFocus);
+    window.addEventListener('focus', revalidateOnFocus);
+
     return () => {
       isMounted = false;
       authListener.subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', revalidateOnFocus);
+      window.removeEventListener('focus', revalidateOnFocus);
     };
   }, []);
 
