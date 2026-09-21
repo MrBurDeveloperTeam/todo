@@ -169,6 +169,7 @@ export default function App() {
 
     let isMounted = true;
     let initialCheckDone = false;
+    let resolvedUserId: string | null = null;
 
     const syncUserAndDataFromDatabase = async () => {
       // Phase-3 readiness reset — a re-sync (auth change, retry) must not
@@ -186,6 +187,7 @@ export default function App() {
 
         if (!session) {
           if (isMounted) {
+            resolvedUserId = null;
             setSession(null);
             setUser(DEFAULT_USER);
             setTasks(SEED_DATA);
@@ -202,6 +204,7 @@ export default function App() {
         // Keep the auth gate closed until this identity's profile has been
         // resolved, so no previous/default dashboard can flash meanwhile.
         if (isMounted) {
+          resolvedUserId = session.user.id;
           setSession(session);
         }
 
@@ -298,8 +301,25 @@ export default function App() {
       // during that short race; the initial check below owns the UI state.
       if (!initialCheckDone) return;
 
+      const nextUserId = session?.user?.id ?? null;
+
+      // Returning to a backgrounded tab resumes Supabase token refresh and
+      // can emit TOKEN_REFRESHED or a repeated SIGNED_IN event for the same
+      // account. That is credential maintenance, not a workspace change.
+      // Updating only the session preserves the active Todo view, unsaved
+      // input and the currently open shared pet/game screen.
+      if (
+        nextUserId !== null &&
+        nextUserId === resolvedUserId &&
+        (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN')
+      ) {
+        setSession(session);
+        return;
+      }
+
       setSession(session);
       if (!session) {
+        resolvedUserId = null;
         setUser(DEFAULT_USER);
         setIsAuthChecking(false);
         // Phase-3 safety: this branch does not clear `tasks` itself
@@ -315,6 +335,7 @@ export default function App() {
       // intermediate null session. Clear the previous user's presentation
       // and close the gate before resolving the new profile.
       setUser(DEFAULT_USER);
+      resolvedUserId = nextUserId;
       setIsAuthChecking(true);
       syncUserAndDataFromDatabase();
     });
