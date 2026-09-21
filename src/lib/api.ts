@@ -149,8 +149,8 @@ export const checkSession = async (_forceCheck: boolean = false) => {
     // let exchangeData;
     try {
       const exchangePath = launchToken
-        ? `https://sso.snabbb.com/api/sso/exchange?sso_token=${encodeURIComponent(launchToken)}`
-        : 'https://sso.snabbb.com/api/sso/exchange';
+        ? `https://app.snabbb.com/api/sso/exchange?sso_token=${encodeURIComponent(launchToken)}`
+        : 'https://app.snabbb.com/api/sso/exchange';
       const { data } = await api.get(exchangePath, { timeout: 3000 });
       // exchangeData = res.data;
       // Now securely set the fetched session tokens
