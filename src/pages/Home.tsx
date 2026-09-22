@@ -663,11 +663,11 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         <a href="https://app.snabbb.com/" className="flex h-[52px] items-center px-3.5 border-b border-[var(--border)] cursor-pointer hover:bg-[var(--sidebar-hover)] transition-colors">
           <div className="flex items-center gap-2.5 overflow-hidden">
             <img src={brandLogo} alt="To-do manager" className="h-7 w-auto flex-shrink-0 object-contain" />
-            {!isSidebarCollapsed && (
+            {/* {!isSidebarCollapsed && (
               <span className="text-[15px] font-bold text-[var(--text)] whitespace-nowrap overflow-hidden">
                 To-do <span className="text-accent">manager</span>
               </span>
-            )}
+            )} */}
           </div>
         </a>
 
