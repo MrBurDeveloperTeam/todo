@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useProfileImage } from '../hooks/useProfileImage';
 import { 
   CheckCircle2, 
@@ -32,6 +32,9 @@ import { supabase } from '../lib/supabase';
 import { logActivityToOdoo } from '../lib/logActivityToOdoo';
 import usePageDurationTracker, { type PageViewLogMeta } from '../hooks/usePageDurationTracker';
 import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
+import { buildTodoDialoguePool } from '../aiExperience/petDialogue/buildTodoDialoguePool';
+import { usePublishPersonalizedInsight, type PersonalizedInsightBridgeState } from '../aiExperience/petDialogue/PersonalizedInsightBridge';
+import type { InsightCandidate } from '@mrburdeveloperteam/pet-function/apps/todo';
 
 const VIEW_LABELS: Record<ViewType, string> = {
   todo: 'My Tasks',
@@ -62,9 +65,28 @@ interface HomeProps {
   taskDataStatus: TaskDataStatus;
 }
 
-export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme }: HomeProps) {
+export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
+  const dialoguePool = useMemo(
+    () => taskDataStatus === 'ready' ? buildTodoDialoguePool(tasks) : [],
+    [tasks, taskDataStatus]
+  );
+  const handleDialogueAction = useCallback((candidate: InsightCandidate<unknown>) => {
+    if (candidate.action?.view === 'overdue') {
+      setCurrentView('todo');
+      setCurrentFilter('overdue');
+    } else if (candidate.action?.view === 'today') {
+      setCurrentView('today');
+    }
+  }, []);
+  const dialogueState = useMemo<PersonalizedInsightBridgeState>(
+    () => taskDataStatus === 'ready'
+      ? { status: 'ready', candidates: dialoguePool, onAction: handleDialogueAction }
+      : { status: 'not_ready' },
+    [taskDataStatus, dialoguePool, handleDialogueAction]
+  );
+  usePublishPersonalizedInsight(dialogueState);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
