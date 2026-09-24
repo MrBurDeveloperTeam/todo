@@ -39,7 +39,8 @@ export const ACCENTS = {
 export const updateThemeIcon = (theme: string) => {
   if (typeof document === 'undefined') return;
 
-  const faviconHref = theme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
+  // const faviconHref = theme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
+  const faviconHref = theme === 'dark' ? '/Logo/favicon-todo.png' : '/Logo/favicon-todo.png';
   let favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
 
   if (!favicon) {
