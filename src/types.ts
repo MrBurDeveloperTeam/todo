@@ -4,6 +4,7 @@ export type ListType = string;
 export type ViewType = 'todo' | 'calendar' | 'today' | 'upcoming' | 'settings';
 
 export interface TaskItem {
+  workspaceType?: 'personal' | 'company';
   id: string;
   type: ItemType;
   title: string;

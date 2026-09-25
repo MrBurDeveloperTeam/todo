@@ -7,6 +7,7 @@ export interface TodoWorkspace {
   actorUserId: string;
   workspaceUserId: string;
   workspaceType: 'personal' | 'company';
+  actorType?: 'individual' | 'owner' | 'member';
   role: string;
   canManageEvents: boolean;
 }
@@ -68,7 +69,15 @@ export async function todoRequest(path: string, method = 'GET', body?: unknown, 
 
 export async function loadTodoWorkspace(actorId: string): Promise<TodoWorkspace> {
   const result = await todoRequest('/todo/workspace-context');
-  const selected = todoSelection();
+  let selected = todoSelection();
+  // Only the authenticated Worker's owner result can upgrade a personal launch.
+  if (selected.type === 'personal' && result.actorUserId === actorId &&
+      result.actorType === 'owner' && result.workspaceType === 'company' &&
+      result.workspaceUserId === actorId && result.canManageEvents === true) {
+    sessionStorage.setItem(TYPE_KEY, 'company');
+    sessionStorage.setItem(OWNER_KEY, actorId);
+    selected = todoSelection();
+  }
   if (result.actorUserId !== actorId || result.workspaceType !== selected.type ||
       result.workspaceUserId !== (selected.type === 'company' ? selected.owner : actorId) ||
       typeof result.canManageEvents !== 'boolean') throw new Error('Unable to validate the selected workspace.');
@@ -78,6 +87,7 @@ export async function loadTodoWorkspace(actorId: string): Promise<TodoWorkspace>
 export function mapTodoTask(t: any): TaskItem {
   const urgency = String(t.urgency || '').toLowerCase();
   return {
+    workspaceType: t.workspace_type,
     id: t.id, type: t.type || 'task', title: t.title, desc: t.description || '',
     date: t.date || '', time: t.time || '', enddate: t.enddate || '', endtime: t.endtime || '',
     location: t.location || '', priority: urgency === 'medium' ? 'med' : ['high', 'low', 'med'].includes(urgency) ? urgency as TaskItem['priority'] : 'none',
