@@ -1,3 +1,4 @@
+import { todoRequest, todoTaskPayload, mapTodoTask, type TodoWorkspace } from '../lib/todoWorkspace';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useProfileImage } from '../hooks/useProfileImage';
 import { 
@@ -55,6 +56,8 @@ type CompletionToastState = { taskId: string; message: string };
 
 
 interface HomeProps {
+  workspace: TodoWorkspace | null;
+  workspaceError: string;
   tasks: TaskItem[];
   setTasks: React.Dispatch<React.SetStateAction<TaskItem[]>>;
   user: AppUser;
@@ -65,7 +68,13 @@ interface HomeProps {
   taskDataStatus: TaskDataStatus;
 }
 
-export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
+export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser, handleLogout, theme, setTheme, taskDataStatus }: HomeProps) {
+  const company = workspace?.workspaceType === 'company';
+  const canManageEvents = workspace?.canManageEvents === true;
+  const [mutationError, setMutationError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const canEditTask = (task: TaskItem) => Boolean(workspace) && (task.type !== 'event' || canManageEvents);
   const [currentView, setCurrentView] = useState<ViewType>('todo');
   const [currentFilter, setCurrentFilter] = useState<string>('all');
   const dialoguePool = useMemo(
@@ -114,7 +123,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
   // Theme is inherited from Snabbb and controlled by the app-level theme sync.
   const [accent, setAccent] = useState(user.accent || 'tiffany');
   const [showCompleted, setShowCompleted] = useState(false);
-  const [defaultListId, setDefaultListId] = useState(() => user.default_list_id || 'personal');
+  const [defaultListId, setDefaultListId] = useState(() => company ? 'work' : user.default_list_id || 'personal');
   const [completionToast, setCompletionToast] = useState<CompletionToastState | null>(null);
   const completionToastTimeoutRef = useRef<number | null>(null);
   const accentPickerRef = useRef<HTMLDivElement | null>(null);
@@ -223,28 +232,29 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
   const [pinnedListIds, setPinnedListIds] = useState<string[]>([]);
 
 
+  const categoryStorageKey = `snabbb.todo.personalLists.${user.user_id}`;
   useEffect(() => {
-    if (!supabase) return;
-    const fetchCategories = async () => {
-      if (!supabase) return;
-      const { data: catData, error: catError } = await supabase
-        .from('task-categories')
-        .select('*')
-        .eq('user_id', user.user_id);
-      
-      const combined = [...DEFAULT_CATEGORIES];
-      if (catData && !catError) {
-        setPinnedListIds(catData.filter((cat: any) => !!cat.pinned).map((cat: any) => cat.id));
-        catData.forEach((cat: any) => {
-          if (!DEFAULT_CATEGORY_IDS.includes(cat.id)) {
-            combined.push(cat);
-          }
-        });
+    if (company) {
+      setUserLists(DEFAULT_CATEGORIES.filter(list => list.id !== 'personal'));
+      setPinnedListIds([]);
+      return;
+    }
+    let stored: UserList[] = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(categoryStorageKey) || '[]');
+      if (Array.isArray(parsed)) stored = parsed.filter(cat => cat && typeof cat.id === 'string' && typeof cat.name === 'string' && typeof cat.color === 'string');
+    } catch { /* Start with standard lists if browser storage is unavailable. */ }
+    const lists: UserList[] = [...DEFAULT_CATEGORIES.map(cat => stored.find(item => item.id === cat.id) || cat),
+      ...stored.filter(cat => !DEFAULT_CATEGORY_IDS.includes(cat.id))];
+    // Recover list labels referenced by existing personal tasks without a categories table.
+    for (const task of tasks) {
+      if (task.list && !lists.some(list => list.id === task.list)) {
+        lists.push({ id: task.list, name: task.list, color: '#3b82f6' });
       }
-      setUserLists(combined);
-    };
-    fetchCategories();
-  }, [user.user_id]);
+    }
+    setUserLists(lists);
+    setPinnedListIds(lists.filter(cat => cat.pinned).map(cat => cat.id));
+  }, [categoryStorageKey, company, tasks]);
 
   useEffect(() => () => {
     if (completionToastTimeoutRef.current) {
@@ -259,38 +269,17 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
 
 
   const saveCategory = async (cat: UserList) => {
-    if (!supabase) return;
-    const payload = {
-      ...cat,
-      user_id: user.user_id
-    };
-
-    const { data: existing } = await supabase
-      .from('task-categories')
-      .select('id')
-      .eq('user_id', user.user_id)
-      .eq('id', cat.id)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from('task-categories')
-        .update(payload)
-        .eq('user_id', user.user_id)
-        .eq('id', cat.id);
-      logTodoActivity('list_updated', `Updated list: ${cat.name}`);
-      return;
-    }
-
-    await supabase.from('task-categories').insert(payload);
-    logTodoActivity('list_added', `Added list: ${cat.name}`);
+    if (company) return;
+    const next = [...userLists.filter(item => item.id !== cat.id), cat];
+    try {
+      localStorage.setItem(categoryStorageKey, JSON.stringify(next));
+      logTodoActivity('list_updated', `Saved list: ${cat.name}`);
+    } catch { setMutationError('Unable to save lists in this browser.'); }
   };
-
-  const deleteCategoryDB = async (id: string) => {
-    if (!supabase) return;
-    const list = userLists.find(l => l.id === id);
-    await supabase.from('task-categories').delete().eq('user_id', user.user_id).eq('id', id);
-    logTodoActivity('list_deleted', `Deleted list: ${list?.name || id}`);
+  const deleteCategory = async (id: string) => {
+    if (company) return;
+    localStorage.setItem(categoryStorageKey, JSON.stringify(userLists.filter(item => item.id !== id)));
+    logTodoActivity('list_deleted', `Deleted list: ${id}`);
   };
 
   // Persistence removed (no localStorage)
@@ -331,7 +320,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
 
     const handleSetDefaultList = (listId: string) => {
       setDefaultListId(listId);
-      updateDefaultListDB(listId);
+      if (!company) updateDefaultListDB(listId);
     };
 
   const handleSetShowCompleted = async (show: boolean) => {
@@ -381,218 +370,138 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
     return mapping[hex] || 'blue';
   };
 
-  const handleToggleDone = async (id: string) => {
-    if (!supabase) return;
-    const task = tasks.find(t => t.id === id);
-    if (!task) return;
-    const nextDone = !task.done;
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, done: nextDone } : t));
-    if (nextDone) {
-      showCompletionToast(id, `"${task.title}" has been completed.`);
+  const runMutation = async (action: () => Promise<void>) => {
+    if (!workspace || taskDataStatus !== 'ready' || savingRef.current) return false;
+    savingRef.current = true;
+    setSaving(true);
+    setMutationError('');
+    try {
+      await action();
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : 'Unable to save changes.');
+      // Restore server data after errors, including a partially completed bulk action.
+      try {
+        const result = await todoRequest('/tasks', 'GET', undefined, workspace);
+        setTasks(result.tasks.map(mapTodoTask));
+      } catch { /* Keep the explicit error visible; never fall back to another workspace. */ }
+      return false;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
-    
-    await supabase.from('tasks').update({
-      status: nextDone ? 'done' : 'todo',
-      is_completed: nextDone
-    }).eq('id', id);
-    logTodoActivity(nextDone ? 'task_completed' : 'task_reopened', `"${task.title}" marked ${nextDone ? 'complete' : 'not done'}`);
   };
 
+  const assertEditable = (task: TaskItem) => {
+    if (!canEditTask(task)) throw new Error('Only the company owner or manager can change company events.');
+  };
+  const patchTask = async (task: TaskItem, changes: Record<string, unknown>) => {
+    assertEditable(task);
+    const result = await todoRequest(`/tasks/${task.id}`, 'PATCH', changes, workspace!);
+    setTasks(prev => prev.map(item => item.id === task.id ? mapTodoTask(result.task) : item));
+  };
+  const handleToggleDone = async (id: string) => {
+    const task = tasks.find(item => item.id === id);
+    if (!task) return;
+    await runMutation(async () => {
+      await patchTask(task, { status: task.done ? 'todo' : 'done', is_completed: !task.done });
+      if (!task.done) showCompletionToast(id, `"${task.title}" has been completed.`);
+      logTodoActivity(task.done ? 'task_reopened' : 'task_completed', task.title);
+    });
+  };
   const handleUndoCompletedTask = async () => {
-    if (!supabase || !completionToast) return;
-    const { taskId } = completionToast;
-    const undoneTask = tasks.find(t => t.id === taskId);
-    clearCompletionToast();
-    setTasks(prev => prev.map(task => task.id === taskId ? { ...task, done: false } : task));
-    await supabase.from('tasks').update({
-      status: 'todo',
-      is_completed: false
-    }).eq('id', taskId);
-    logTodoActivity('task_reopened', `Undid completion of "${undoneTask?.title || taskId}"`);
+    const task = tasks.find(item => item.id === completionToast?.taskId);
+    if (!task) return;
+    await runMutation(async () => {
+      await patchTask(task, { status: 'todo', is_completed: false });
+      clearCompletionToast();
+    });
   };
-
+  const deleteTasks = async (items: TaskItem[]) => {
+    items.forEach(assertEditable);
+    for (const task of items) {
+      await todoRequest(`/tasks/${task.id}`, 'DELETE', undefined, workspace!);
+      setTasks(prev => prev.filter(item => item.id !== task.id));
+    }
+  };
   const handleDeleteTask = async (id: string) => {
-    if (!supabase) return;
-    const taskToDelete = tasks.find(t => t.id === id);
-    if (!taskToDelete) return;
-
-    setConfirmState({
-      show: true,
-      title: 'Delete Task?',
-      message: `Are you sure you want to delete "${taskToDelete.title}"? This cannot be undone.`,
-      onConfirm: async () => {
-        setTasks((prev: TaskItem[]) => prev.filter(t => t.id !== id));
+    const task = tasks.find(item => item.id === id);
+    if (!task || !canEditTask(task)) return;
+    setConfirmState({ show: true, title: 'Delete Task?',
+      message: `Delete "${task.title}"? This cannot be undone.`,
+      onConfirm: () => { void runMutation(async () => {
+        await deleteTasks([task]);
         if (selectedTaskId === id) setSelectedTaskId(null);
-        if (supabase) {
-          await supabase.from('tasks').delete().eq('id', id);
-          logTodoActivity('task_deleted', `Deleted "${taskToDelete.title}"`);
-        }
-      }
+        logTodoActivity('task_deleted', task.title);
+      }); },
     });
   };
-
   const openAddModal = (type: ItemType = 'task', defaults: Partial<TaskItem> = {}) => {
-    const listCategory = getValidTaskListId(currentFilter);
-    const calendarSelectedDate = toLocalDateStr(calDate);
-    const baseDate = currentView === 'calendar' ? calendarSelectedDate : todayStr();
-    
+    if (!workspace || saving || (type === 'event' && !canManageEvents)) {
+      setMutationError('Only the company owner or manager can create company events.');
+      return;
+    }
+    const date = currentView === 'calendar' ? toLocalDateStr(calDate) : todayStr();
     setEditingTask(null);
-    setNewTask({
-      type,
-      priority: 'none',
-      list: listCategory,
-      date: baseDate,
-      enddate: type === 'event' ? baseDate : '',
-      ...defaults,
-    });
+    setNewTask({ type, priority: 'none', list: getValidTaskListId(currentFilter), date,
+      enddate: type === 'event' ? date : '', ...defaults });
     setIsModalOpen(true);
   };
-
   const openEditModal = (task: TaskItem) => {
+    if (!canEditTask(task) || saving) return;
     setEditingTask(task);
     setNewTask(task);
     setIsModalOpen(true);
   };
-
-  const handleSaveTask = async () => {
-    if (!newTask.title || !supabase) return;
-
-    if (editingTask) {
-      const updated = {
-        ...editingTask,
-        ...newTask,
-        list: resolveTaskListId(newTask.list || editingTask.list)
-      } as TaskItem;
-      setTasks(prev => prev.map(t => t.id === editingTask.id ? updated : t));
-      
-      await supabase.from('tasks').update({
-        title: updated.title,
-        description: updated.desc,
-        type: updated.type,
-        date: updated.date,
-        time: updated.time,
-        enddate: updated.enddate,
-        endtime: updated.endtime,
-        location: updated.location,
-        urgency: updated.priority === 'none' ? null : (updated.priority === 'med' ? 'MEDIUM' : updated.priority.toUpperCase()),
-        list_id_text: updated.list,
-        status: updated.done ? 'done' : 'todo',
-        is_completed: updated.done
-      }).eq('id', editingTask.id);
-      logTodoActivity('task_updated', `Updated "${updated.title}"`);
-    } else {
-      const id = crypto.randomUUID();
-      const resolvedListId = resolveTaskListId(newTask.list);
-      const item: TaskItem = {
-        id,
-        type: newTask.type || 'task',
-        title: newTask.title || '',
-        desc: newTask.desc || '',
-        date: newTask.date || todayStr(),
-        time: newTask.time || '',
-        enddate: newTask.enddate || todayStr(),
-        endtime: newTask.endtime || '',
-        location: newTask.location || '',
-        priority: newTask.priority || 'none',
-        list: resolvedListId,
-        done: false,
-        created: Date.now(),
-      };
-      setTasks(prev => [item, ...prev]);
-      setSelectedTaskId(item.id);
-
-      const { error } = await supabase.from('tasks').insert({
-        id,
-        user_id: user.user_id,
-        title: item.title,
-        description: item.desc || null,
-        type: item.type,
-        date: item.date || todayStr(),
-        time: item.time || null,
-        enddate: item.enddate || null,
-        endtime: item.endtime || null,
-        location: item.location || null,
-        urgency: item.priority === 'none' ? 'NORMAL' : (item.priority === 'med' ? 'MEDIUM' : item.priority.toUpperCase()),
-        list_id_text: item.list,
-        status: 'todo',
-        is_completed: false,
-        color: getListColorName(item.list)
-      });
-      if (error) {
-        console.error('SUPABASE MODAL INSERT ERROR:', error);
-      } else {
-        logTodoActivity(`${item.type}_added`, `Added ${item.type}: ${item.title}`);
-      }
-    }
-
-    setIsModalOpen(false);
-  };
-
-  const handleQuickAddTask = async (title: string, list: string, type: ItemType = 'task') => {
-    if (!title || !supabase) return;
-    const id = crypto.randomUUID();
-    const resolvedListId = resolveTaskListId(list);
+  const createTask = async (draft: Partial<TaskItem>) => {
     const item: TaskItem = {
-      id,
-      type,
-      title,
-      desc: '',
-      date: todayStr(),
-      time: '',
-      enddate: todayStr(),
-      endtime: '',
-      location: '',
-      priority: 'none',
-      list: resolvedListId,
-      done: false,
-      created: Date.now(),
+      id: crypto.randomUUID(), type: draft.type || 'task', title: draft.title!.trim(),
+      desc: draft.desc || '', date: draft.date || todayStr(), time: draft.time || '',
+      enddate: draft.enddate || '', endtime: draft.endtime || '', location: draft.location || '',
+      priority: draft.priority || 'none', list: resolveTaskListId(draft.list), done: false, created: Date.now(),
     };
-    setTasks(prev => [item, ...prev]);
-    setSelectedTaskId(item.id);
-
-    const { error } = await supabase.from('tasks').insert({
-      id,
-      user_id: user.user_id,
-      title: item.title,
-      description: item.desc || null,
-      type: item.type,
-      date: item.date || todayStr(),
-      time: item.time || null,
-      enddate: item.enddate || null,
-      endtime: item.endtime || null,
-      location: item.location || null,
-      urgency: item.priority === 'none' ? 'NORMAL' : (item.priority === 'med' ? 'MEDIUM' : item.priority.toUpperCase()),
-      list_id_text: item.list,
-      status: 'todo',
-      is_completed: false,
-      color: getListColorName(item.list)
+    assertEditable(item);
+    const result = await todoRequest('/tasks', 'POST', {
+      ...todoTaskPayload(item), id: item.id, color: getListColorName(item.list),
+    }, workspace!);
+    setTasks(prev => [mapTodoTask(result.task), ...prev]);
+    setSelectedTaskId(result.task.id);
+    logTodoActivity(`${item.type}_added`, item.title);
+  };
+  const handleSaveTask = async () => {
+    if (!newTask.title?.trim()) return;
+    const saved = await runMutation(async () => {
+      if (editingTask) {
+        const updated = { ...editingTask, ...newTask, list: resolveTaskListId(newTask.list) } as TaskItem;
+        assertEditable(updated);
+        await patchTask(editingTask, todoTaskPayload(updated));
+        logTodoActivity('task_updated', updated.title);
+      } else await createTask(newTask);
     });
-    if (error) {
-      console.error('SUPABASE INSERT ERROR:', error);
-    } else {
-      logTodoActivity(`${type}_added`, `Added ${type}: ${title}`);
-    }
+    if (saved) setIsModalOpen(false);
   };
-
+  const handleQuickAddTask = async (title: string, list: string, type: ItemType = 'task') => {
+    if (!title.trim()) return false;
+    return runMutation(() => createTask({ title, list, type, date: todayStr() }));
+  };
   const handleSaveTaskDescription = async (id: string, desc: string) => {
-    if (!supabase) return;
-    await supabase
-      .from('tasks')
-      .update({ description: desc || null })
-      .eq('id', id);
+    const task = tasks.find(item => item.id === id);
+    if (task) await runMutation(() => patchTask(task, { description: desc || null }));
   };
-
   const handleMoveTask = async (id: string, updates: Partial<TaskItem>) => {
-    setTasks((prev) => prev.map((task) => task.id === id ? { ...task, ...updates } : task));
-    if (!supabase) return;
-
-    await supabase
-      .from('tasks')
-      .update({
-        date: updates.date,
-        time: updates.time || null,
-      })
-      .eq('id', id);
+    const task = tasks.find(item => item.id === id);
+    if (task) await runMutation(() => patchTask(task, { date: updates.date, time: updates.time || null }));
+  };
+  const clearWorkspaceTasks = async () => {
+    return runMutation(async () => {
+      await deleteTasks(tasks.filter(canEditTask));
+      // Company members keep events they cannot manage. Personal categories are separate.
+      if (!company) {
+        localStorage.removeItem(categoryStorageKey);
+        setUserLists(DEFAULT_CATEGORIES);
+      }
+      setSelectedTaskId(null);
+    });
   };
 
   const handleOpenTaskFromCalendar = (task: TaskItem) => {
@@ -603,12 +512,15 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
   };
 
   const renderContent = () => {
+    if (!workspace || taskDataStatus !== 'ready') return <div role="status" className="p-8 text-center">{workspaceError || 'Loading workspace…'}{workspaceError && <button className="block mx-auto mt-4 underline" onClick={() => location.reload()}>Retry</button>}</div>;
     switch (currentView) {
       case 'todo':
       case 'today':
       case 'upcoming':
         return (
-          <TodoView 
+          <TodoView
+            workspace={workspace!}
+            canEditTask={canEditTask}
             tasks={tasks}
             setTasks={setTasks}
             currentFilter={currentView === 'todo' ? currentFilter : currentView}
@@ -629,7 +541,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         );
       case 'calendar':
         return (
-          <CalendarView 
+          <CalendarView
+            canEditTask={canEditTask}
             tasks={tasks}
             calDate={calDate}
             setCalDate={setCalDate}
@@ -643,7 +556,10 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         );
       case 'settings':
         return (
-          <SettingsView 
+          <SettingsView
+            clearWorkspaceTasks={clearWorkspaceTasks}
+            company={company}
+            canManageEvents={canManageEvents}
             user={user}
             setUser={setUser}
             theme={theme}
@@ -709,6 +625,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
                <div className="px-2 text-[10px] font-semibold uppercase tracking-[0.8px] text-[var(--text4)] mb-2 flex items-center justify-between group">
                  <span>Lists</span>
                  <button 
+                   disabled={company}
+                   title={company ? "Custom lists are available in Personal workspace" : "Add list"}
                    onClick={() => setIsAddingList(!isAddingList)}
                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-[var(--sidebar-hover)] rounded transition-all text-accent"
                  >
@@ -789,7 +707,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
                    onClick={() => { setCurrentView('todo'); setCurrentFilter(list.id); setIsMobileMenuOpen(false); }} 
                    collapsed={isSidebarCollapsed} 
                  />
-                 {!isSidebarCollapsed && (
+                 {!isSidebarCollapsed && !company && (
                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/list:opacity-100 transition-all">
                      <button
                        onClick={(e) => {
@@ -818,22 +736,14 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
                              message: taskCount > 0 
                                ? `Delete "${list.name}" list? This will also permanently delete ${taskCount} task${taskCount > 1 ? 's' : ''} inside it.`
                                : `Delete "${list.name}" list? This action cannot be undone.`,
-                             onConfirm: async () => {
+                             onConfirm: () => { void runMutation(async () => {
+                               await deleteTasks(tasks.filter(t => t.list === list.id || t.list === list.name));
+                               await deleteCategory(list.id);
                                setUserLists(prev => prev.filter(l => l.id !== list.id));
                                setPinnedListIds(prev => prev.filter(id => id !== list.id));
-                               setTasks(prev => prev.filter(t => t.list !== list.id && t.list !== list.name));
+                               if (currentFilter === list.id) setCurrentFilter('all');
+                             }); }
 
-                               if (supabase) {
-                                 // Deleting by both ID and Name to be absolutely sure
-                                 await supabase.from('tasks').delete().eq('user_id', user.user_id).or(`list_id_text.eq."${list.id}",list_id_text.eq."${list.name}"`);
-                                 deleteCategoryDB(list.id);
-                               }
-                               
-                               if (currentFilter === list.id) {
-                                 setCurrentView('todo');
-                                 setCurrentFilter('all');
-                               }
-                             }
                            });
                          }}
                          className="p-1 hover:bg-red-500/10 hover:text-red-500 rounded transition-all text-[var(--text4)]"
@@ -987,6 +897,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
               )}
             </div>
             <button 
+              disabled={!workspace || saving}
               onClick={() => openAddModal('task')}
               className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-white rounded-md text-[12px] sm:text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-all active:scale-[0.97]"
             >
@@ -996,8 +907,9 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
           </div>
         </header>
 
+        <div className="px-5 py-2 text-sm border-b border-[var(--border)]">{!workspace ? 'Loading workspace' : company ? 'Company workspace' : 'Personal workspace'} · <a className="underline" href="https://app.snabbb.com">Switch in Snabbb</a>{saving && ' · Saving…'}</div>
         <main className="flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-5 lg:px-10 scroll-smooth no-scrollbar">
-          {renderContent()}
+          <fieldset disabled={saving} className="h-full min-w-0">{renderContent()}</fieldset>
         </main>
       </div>
 
@@ -1008,6 +920,8 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         setNewTask={setNewTask}
         onSubmit={handleSaveTask}
         isEdit={!!editingTask}
+        canManageEvents={canManageEvents}
+        saving={saving}
         availableLists={userLists}
       />
 
@@ -1020,6 +934,7 @@ export function Home({ tasks, setTasks, user, setUser, handleLogout, theme, setT
         confirmText={confirmState.confirmText || "Confirm Delete"}
       />
 
+      {mutationError && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[250] bg-red-50 text-red-800 border border-red-300 p-4 rounded-lg">{mutationError}<button className="ml-4 underline" onClick={() => setMutationError('')}>Dismiss</button></div>}
       {completionToast && (
         <div className="pointer-events-none fixed bottom-4 left-3 right-3 z-[120] sm:left-auto sm:right-5 sm:bottom-5">
           <Toast

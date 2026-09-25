@@ -1,3 +1,5 @@
+import { EventResponses } from '../EventResponses';
+import type { TodoWorkspace } from '../../lib/todoWorkspace';
 import React, { useState } from 'react';
 import {
   Check,
@@ -16,6 +18,8 @@ import { TaskItem, ItemType, Priority } from '../../types';
 import { todayStr, formatDate, formatTime } from '../../utils';
 
 interface TodoViewProps {
+  workspace: TodoWorkspace;
+  canEditTask: (task: TaskItem) => boolean;
   tasks: TaskItem[];
   setTasks: React.Dispatch<React.SetStateAction<TaskItem[]>>;
   currentFilter: string;
@@ -28,13 +32,15 @@ interface TodoViewProps {
   currentView: string;
   setCurrentView: (view: any) => void;
   showCompleted: boolean;
-  handleQuickAddTask: (title: string, list: string, type?: ItemType) => void;
+  handleQuickAddTask: (title: string, list: string, type?: ItemType) => Promise<boolean>;
   handleSaveTaskDescription: (id: string, desc: string) => Promise<void>;
   userLists: { id: string; name: string; color: string }[];
   defaultListId: string;
 }
 
 export function TodoView({
+  workspace,
+  canEditTask,
   tasks,
   setTasks,
   currentFilter,
@@ -122,7 +128,7 @@ export function TodoView({
     ...userLists.map((list) => ({ id: list.id, label: list.name })),
   ].filter((option, index, array) => array.findIndex((item) => item.id === option.id) === index);
 
-  const submitQuickTask = () => {
+  const submitQuickTask = async () => {
     const title = quickTaskValue.trim();
     if (!title) return;
 
@@ -132,8 +138,7 @@ export function TodoView({
     if (currentFilter === 'event') type = 'event';
     if (currentFilter === 'reminder') type = 'reminder';
 
-    handleQuickAddTask(title, listCategory, type);
-    setQuickTaskValue('');
+    if (await handleQuickAddTask(title, listCategory, type)) setQuickTaskValue('');
   };
 
   const renderSelectedTaskDetail = () => {
@@ -164,13 +169,14 @@ export function TodoView({
             <textarea
               className="w-full text-xs text-[var(--text2)] bg-[var(--bg2)] border border-[var(--border)] p-3 rounded-lg leading-relaxed whitespace-pre-wrap focus:ring-2 focus:ring-[var(--accent-subtle)] focus:border-accent outline-none min-h-[120px] transition-all resize-none"
               placeholder="Add a note or detailed description..."
+              readOnly={!canEditTask(selectedTask)}
               value={selectedTask.desc || ''}
               onChange={(e) => {
                 const newVal = e.target.value;
                 setTasks((prev) => prev.map((t) => t.id === selectedTask.id ? { ...t, desc: newVal } : t));
               }}
               onBlur={(e) => {
-                void handleSaveTaskDescription(selectedTask.id, e.target.value);
+                if (canEditTask(selectedTask)) void handleSaveTaskDescription(selectedTask.id, e.target.value);
               }}
             />
           </div>
@@ -196,15 +202,18 @@ export function TodoView({
             </div>
           )}
 
+          {selectedTask.type === 'event' && workspace.workspaceType === 'company' && <EventResponses key={selectedTask.id} taskId={selectedTask.id} workspace={workspace} />}
           <div className="flex flex-wrap gap-2 pt-4 border-t border-[var(--border)]">
             <button
               className="flex-1 min-w-[120px] py-2 rounded-lg bg-accent text-white text-[12.5px] font-medium flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition"
+              disabled={!canEditTask(selectedTask)}
               onClick={() => openEditModal(selectedTask)}
             >
               <Edit2 size={12} /> Edit
             </button>
             <button
               className="flex-1 min-w-[120px] py-2 rounded-lg border border-[var(--border)] text-[12.5px] font-medium flex items-center justify-center gap-1 hover:bg-[var(--accent-subtle)] hover:text-accent transition"
+              disabled={!canEditTask(selectedTask)}
               onClick={() => handleToggleDone(selectedTask.id)}
             >
               {selectedTask.done ? <RefreshCw size={12} /> : <Check size={12} />}
@@ -212,6 +221,7 @@ export function TodoView({
             </button>
             <button
               className="w-full sm:w-auto p-2 px-3 rounded-lg border border-[var(--border)] text-[var(--text3)] hover:text-[var(--priority-high)] hover:bg-red-50 transition flex items-center justify-center gap-1"
+              disabled={!canEditTask(selectedTask)}
               onClick={() => handleDeleteTask(selectedTask.id)}
             >
               <Trash2 size={12} />
@@ -240,7 +250,7 @@ export function TodoView({
         <div className="flex items-start gap-3 p-3 cursor-pointer">
           <div
             className={`w-4.5 h-4.5 rounded-full border-2 border-[var(--border2)] flex-shrink-0 mt-0.5 flex items-center justify-center transition-all hover:border-accent hover:bg-[var(--accent-subtle)] ${t.done ? 'bg-accent border-accent' : ''}`}
-            onClick={(e) => { e.stopPropagation(); handleToggleDone(t.id); }}
+            onClick={(e) => { e.stopPropagation(); if (canEditTask(t)) handleToggleDone(t.id); }}
           >
             {t.done && <Check size={10} strokeWidth={4} color="white" />}
           </div>
@@ -287,6 +297,7 @@ export function TodoView({
               <textarea
                 className="w-full text-xs text-[var(--text2)] bg-[var(--bg2)] border border-[var(--border)] p-3 rounded-lg leading-relaxed whitespace-pre-wrap focus:ring-2 focus:ring-[var(--accent-subtle)] focus:border-accent outline-none min-h-[110px] transition-all resize-none"
                 placeholder="Add a note or detailed description..."
+                readOnly={!canEditTask(t)}
                 value={t.desc || ''}
                 onClick={(e) => e.stopPropagation()}
                 onChange={(e) => {
@@ -294,7 +305,7 @@ export function TodoView({
                   setTasks((prev) => prev.map((task) => task.id === t.id ? { ...task, desc: newVal } : task));
                 }}
                 onBlur={(e) => {
-                  void handleSaveTaskDescription(t.id, e.target.value);
+                  if (canEditTask(t)) void handleSaveTaskDescription(t.id, e.target.value);
                 }}
               />
             </div>
@@ -313,21 +324,24 @@ export function TodoView({
               </div>
             </div>
 
+            {t.type === 'event' && workspace.workspaceType === 'company' && <EventResponses key={t.id} taskId={t.id} workspace={workspace} />}
             <div className="flex flex-wrap gap-2 pt-1">
               <button
                 className="flex-1 min-w-[110px] py-2 rounded-lg bg-accent text-white text-[12.5px] font-medium flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition"
+                disabled={!canEditTask(t)}
                 onClick={(e) => {
                   e.stopPropagation();
-                  openEditModal(t);
+                  if (canEditTask(t)) openEditModal(t);
                 }}
               >
                 <Edit2 size={12} /> Edit
               </button>
               <button
                 className="flex-1 min-w-[110px] py-2 rounded-lg border border-[var(--border)] text-[12.5px] font-medium flex items-center justify-center gap-1 hover:bg-[var(--accent-subtle)] hover:text-accent transition"
+                disabled={!canEditTask(t)}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleToggleDone(t.id);
+                  if (canEditTask(t)) handleToggleDone(t.id);
                 }}
               >
                 {t.done ? <RefreshCw size={12} /> : <Check size={12} />}
@@ -371,6 +385,7 @@ export function TodoView({
           </div>
         </div>
 
+        {currentFilter === 'event' && !workspace.canManageEvents && <p className="text-sm mb-3">Only the owner or manager can create company events. Select an event to accept or reject it.</p>}
         <form
           className="flex flex-col mb-4"
           onSubmit={(e) => {
@@ -380,6 +395,7 @@ export function TodoView({
         >
           <div className="flex gap-2">
             <input
+              disabled={currentFilter === 'event' && !workspace.canManageEvents}
               id="quick-task-input"
               name="quickTask"
               type="text"
@@ -391,7 +407,7 @@ export function TodoView({
             <button
               type="submit"
               className="hidden sm:inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!quickTaskValue.trim()}
+              disabled={!quickTaskValue.trim() || (currentFilter === 'event' && !workspace.canManageEvents)}
             >
               Save
             </button>
@@ -399,7 +415,7 @@ export function TodoView({
           <button
             type="submit"
             className="mt-2 inline-flex sm:hidden items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!quickTaskValue.trim()}
+            disabled={!quickTaskValue.trim() || (currentFilter === 'event' && !workspace.canManageEvents)}
           >
             Save Task
           </button>

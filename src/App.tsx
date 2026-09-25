@@ -1,3 +1,4 @@
+import { loadTodoWorkspace, todoRequest, mapTodoTask, type TodoWorkspace } from './lib/todoWorkspace';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TaskItem, AppUser } from './types';
 import { toLocalDateStr, todayStr, updateThemeIcon } from './utils';
@@ -132,6 +133,8 @@ export default function App() {
   // stays whatever it was on a failed fetch). See
   // aiExperience/dataChat/contracts/groundedDataResult.ts's
   // `TaskDataStatus` doc comment.
+  const [workspace, setWorkspace] = useState<TodoWorkspace | null>(null);
+  const [workspaceError, setWorkspaceError] = useState('');
   const [taskDataStatus, setTaskDataStatus] = useState<TaskDataStatus>('loading');
 
   const aiContext = useMemo(() => {
@@ -170,13 +173,19 @@ export default function App() {
     let isMounted = true;
     let initialCheckDone = false;
     let resolvedUserId: string | null = null;
+    let syncVersion = 0;
 
     const syncUserAndDataFromDatabase = async () => {
+      const version = ++syncVersion;
+      const isCurrent = () => isMounted && version === syncVersion;
       // Phase-3 readiness reset — a re-sync (auth change, retry) must not
       // leave a stale previous 'ready'/'error' status visible while a new
       // fetch is in flight. See TaskDataStatus's doc comment.
-      if (isMounted) {
+      if (isCurrent()) {
         setTaskDataStatus('loading');
+        setTasks([]);
+        setWorkspace(null);
+        setWorkspaceError('');
         setIsAuthChecking(true);
       }
 
@@ -186,7 +195,7 @@ export default function App() {
         initialCheckDone = true;
 
         if (!session) {
-          if (isMounted) {
+          if (isCurrent()) {
             resolvedUserId = null;
             setSession(null);
             setUser(DEFAULT_USER);
@@ -203,7 +212,7 @@ export default function App() {
         // A session alone is not enough to choose an account-specific UI.
         // Keep the auth gate closed until this identity's profile has been
         // resolved, so no previous/default dashboard can flash meanwhile.
-        if (isMounted) {
+        if (isCurrent()) {
           resolvedUserId = session.user.id;
           setSession(session);
         }
@@ -247,47 +256,27 @@ export default function App() {
           };
         }
 
-        if (isMounted) {
+        if (isCurrent()) {
           setUser(nextUser);
           setIsAuthChecking(false);
         }
 
-        // FETCH TASKS
-        const { data: taskData, error: taskError } = await client
-          .from('tasks')
-          .select('*')
-          .eq('user_id', authUser.id)
-          .order('created_at', { ascending: false });
-
-        if (taskData && !taskError) {
-          const mappedTasks = taskData.map((t: any) => ({
-            id: t.id,
-            type: t.type || 'task',
-            title: t.title,
-            desc: t.description || '',
-            date: t.date,
-            time: t.time || '',
-            enddate: t.enddate,
-            endtime: t.endtime,
-            location: t.location,
-            priority: (t.urgency?.toLowerCase() as any) || 'none',
-            list: t.list_id_text || 'personal',
-            done: t.status === 'done' || t.is_completed === true,
-            created: new Date(t.created_at).getTime(),
-          }));
-          if (isMounted) {
-            setTasks(mappedTasks);
-            setTaskDataStatus('ready');
-          }
-        } else if (isMounted) {
-          // Query failed (or returned no data despite no thrown error) —
-          // genuinely unknown, never treated as "zero tasks".
-          setTaskDataStatus('error');
+        const selectedWorkspace = await loadTodoWorkspace(authUser.id);
+        const taskResult = await todoRequest('/tasks', 'GET', undefined, selectedWorkspace);
+        if (!Array.isArray(taskResult.tasks)) throw new Error('Unable to load workspace tasks.');
+        if (isCurrent()) {
+          setWorkspace(selectedWorkspace);
+          setTasks(taskResult.tasks.map(mapTodoTask));
+          setTaskDataStatus('ready');
         }
 
       } catch (err) {
         console.error('[auth] Error in syncUserAndDataFromDatabase:', err);
-        if (isMounted) setTaskDataStatus('error');
+        if (isCurrent()) {
+          setTaskDataStatus('error');
+          setWorkspaceError(err instanceof Error ? err.message : 'Unable to load workspace.');
+          setIsAuthChecking(false);
+        }
       }
     };
 
@@ -319,15 +308,13 @@ export default function App() {
 
       setSession(session);
       if (!session) {
+        ++syncVersion;
+        setTasks([]);
+        setWorkspace(null);
         resolvedUserId = null;
         setUser(DEFAULT_USER);
         setIsAuthChecking(false);
-        // Phase-3 safety: this branch does not clear `tasks` itself
-        // (pre-existing behavior, unchanged here — see `handleLogout` for
-        // the explicit-logout path that does). Marking readiness back to
-        // 'loading' ensures Data-Driven Chat never treats a possibly-stale
-        // previous user's task list as authorizing a grounded answer,
-        // without altering that pre-existing tasks-array behavior.
+        // Clear previous account data and invalidate in-flight reads.
         setTaskDataStatus('loading');
         return;
       }
@@ -442,6 +429,9 @@ export default function App() {
     // already resolved. See PersonalizedInsightBridge.tsx.
     <PersonalizedInsightBridgeProvider>
       <Home
+        key={`${session.user.id}:${workspace?.workspaceType}:${workspace?.workspaceUserId}`}
+        workspace={workspace}
+        workspaceError={workspaceError}
         tasks={tasks}
         setTasks={setTasks}
         user={user}

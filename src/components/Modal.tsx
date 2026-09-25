@@ -4,6 +4,8 @@ import { TaskItem, ItemType, Priority, ListType } from '../types';
 
 interface ModalProps {
   show: boolean;
+  canManageEvents: boolean;
+  saving: boolean;
   onClose: () => void;
   newTask: Partial<TaskItem>;
   setNewTask: (task: Partial<TaskItem>) => void;
@@ -12,7 +14,7 @@ interface ModalProps {
   availableLists?: {id: string, name: string, color: string}[];
 }
 
-export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, availableLists = [] }: ModalProps) {
+export function Modal({ canManageEvents, saving, show, onClose, newTask, setNewTask, onSubmit, isEdit, availableLists = [] }: ModalProps) {
   const [isListDropdownOpen, setIsListDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +46,8 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
               {(['task', 'event', 'reminder'] as ItemType[]).map(t => (
                 <button 
                   key={t}
+                  disabled={saving || (t === 'event' && !canManageEvents)}
+                  title={t === 'event' && !canManageEvents ? 'Only the company owner or manager can create events' : undefined}
                   onClick={() => setNewTask({...newTask, type: t})}
                   className={`min-w-0 py-2 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition border ${newTask.type === t ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20' : 'bg-[var(--bg3)] border-[var(--border)] text-[var(--text3)] hover:border-accent/40'}`}
                 >
@@ -180,8 +184,8 @@ export function Modal({ show, onClose, newTask, setNewTask, onSubmit, isEdit, av
         <div className="px-4 py-3 sm:px-6 sm:py-4 bg-[var(--bg3)]/50 border-t border-[var(--border)] flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button onClick={onClose} className="w-full sm:w-auto px-5 py-2.5 rounded-2xl text-[13.5px] font-bold hover:bg-[var(--bg3)] transition text-[var(--text2)]">Cancel</button>
           <button 
-            onClick={onSubmit} 
-            disabled={!newTask.title}
+            onClick={onSubmit}
+            disabled={saving || !newTask.title?.trim()}
             className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-black shadow-lg transition active:scale-95 ${newTask.title ? 'bg-accent text-white shadow-accent/20 hover:brightness-110' : 'bg-[var(--bg-disabled)] text-[var(--text4)] cursor-not-allowed'}`}
           >
             {isEdit ? 'Save Changes' : (newTask.type === 'task' ? 'Create Task' : newTask.type === 'event' ? 'Add Event' : 'Add Reminder')}

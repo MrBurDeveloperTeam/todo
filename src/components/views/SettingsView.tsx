@@ -8,6 +8,9 @@ import { ACCENTS } from '../../utils';
 import { ConfirmModal } from '../ConfirmModal';
 
 interface SettingsViewProps {
+  clearWorkspaceTasks: () => Promise<boolean>;
+  company: boolean;
+  canManageEvents: boolean;
   user: AppUser;
   setUser: React.Dispatch<React.SetStateAction<AppUser>>;
   theme: ThemePreference;
@@ -25,6 +28,7 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({
+  clearWorkspaceTasks, company, canManageEvents,
   user,
   setUser,
   theme,
@@ -301,34 +305,10 @@ export function SettingsView({
               show={showClearConfirm}
               onClose={() => setShowClearConfirm(false)}
               onConfirm={async () => {
-                if (supabase) {
-                  // 1. Delete from DB
-                  await supabase.from('tasks').delete().eq('user_id', user.user_id);
-                  await supabase.from('task-categories').delete().eq('user_id', user.user_id);
-                  logActivityToOdoo({
-                    logId: crypto.randomUUID(),
-                    actorEmail: user.email || null,
-                    actorName: user.name || null,
-                    supabaseUserId: user.user_id || null,
-                    action: 'data_cleared',
-                    details: 'Cleared all tasks and lists',
-                    occurredAt: new Date().toISOString(),
-                  });
-                }
-
-                // 2. Clear local state
-                const DEFAULT_CATEGORIES = [
-                  { id: 'personal', name: 'Personal', color: '#3b82f6' },
-                  { id: 'work', name: 'Work', color: '#a855f7' },
-                  { id: 'events', name: 'Events', color: '#ef4444' }
-                ];
-                setTasks([]);
-                setUserLists(DEFAULT_CATEGORIES);
-
-                setShowClearConfirm(false);
+                if (await clearWorkspaceTasks()) setShowClearConfirm(false);
               }}
-              title="Clear All Data?"
-              message="This will permanently delete all your tasks, categories, and settings from this browser. This action cannot be undone."
+              title="Clear Workspace Tasks?"
+              message={company ? (canManageEvents ? "Delete all tasks and events in this company workspace? This affects every member." : "Delete all regular tasks in this company workspace? Company events will be kept. This affects every member.") : "Delete your personal tasks, events and custom lists? Company tasks will be kept."}
               confirmText="Clear Everything"
             />
           </div>
