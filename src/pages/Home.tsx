@@ -232,36 +232,29 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
   const [pinnedListIds, setPinnedListIds] = useState<string[]>([]);
 
 
+  const categoryStorageKey = `snabbb.todo.personalLists.${user.user_id}`;
   useEffect(() => {
-    if (!supabase) return;
     if (company) {
       setUserLists(DEFAULT_CATEGORIES.filter(list => list.id !== 'personal'));
       setPinnedListIds([]);
       return;
     }
-    let active = true;
-    const fetchCategories = async () => {
-      if (!supabase) return;
-      const { data: catData, error: catError } = await supabase
-        .from('task-categories')
-        .select('*')
-        .eq('user_id', user.user_id);
-      
-      if (!active) return;
-      const combined = [...DEFAULT_CATEGORIES];
-      if (catData && !catError) {
-        setPinnedListIds(catData.filter((cat: any) => !!cat.pinned).map((cat: any) => cat.id));
-        catData.forEach((cat: any) => {
-          if (!DEFAULT_CATEGORY_IDS.includes(cat.id)) {
-            combined.push(cat);
-          }
-        });
+    let stored: UserList[] = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(categoryStorageKey) || '[]');
+      if (Array.isArray(parsed)) stored = parsed.filter(cat => cat && typeof cat.id === 'string' && typeof cat.name === 'string' && typeof cat.color === 'string');
+    } catch { /* Start with standard lists if browser storage is unavailable. */ }
+    const lists: UserList[] = [...DEFAULT_CATEGORIES.map(cat => stored.find(item => item.id === cat.id) || cat),
+      ...stored.filter(cat => !DEFAULT_CATEGORY_IDS.includes(cat.id))];
+    // Recover list labels referenced by existing personal tasks without a categories table.
+    for (const task of tasks) {
+      if (task.list && !lists.some(list => list.id === task.list)) {
+        lists.push({ id: task.list, name: task.list, color: '#3b82f6' });
       }
-      setUserLists(combined);
-    };
-    fetchCategories();
-    return () => { active = false; };
-  }, [user.user_id, company]);
+    }
+    setUserLists(lists);
+    setPinnedListIds(lists.filter(cat => cat.pinned).map(cat => cat.id));
+  }, [categoryStorageKey, company, tasks]);
 
   useEffect(() => () => {
     if (completionToastTimeoutRef.current) {
@@ -277,39 +270,16 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
 
   const saveCategory = async (cat: UserList) => {
     if (company) return;
-    if (!supabase) return;
-    const payload = {
-      ...cat,
-      user_id: user.user_id
-    };
-
-    const { data: existing } = await supabase
-      .from('task-categories')
-      .select('id')
-      .eq('user_id', user.user_id)
-      .eq('id', cat.id)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from('task-categories')
-        .update(payload)
-        .eq('user_id', user.user_id)
-        .eq('id', cat.id);
-      logTodoActivity('list_updated', `Updated list: ${cat.name}`);
-      return;
-    }
-
-    await supabase.from('task-categories').insert(payload);
-    logTodoActivity('list_added', `Added list: ${cat.name}`);
+    const next = [...userLists.filter(item => item.id !== cat.id), cat];
+    try {
+      localStorage.setItem(categoryStorageKey, JSON.stringify(next));
+      logTodoActivity('list_updated', `Saved list: ${cat.name}`);
+    } catch { setMutationError('Unable to save lists in this browser.'); }
   };
-
-  const deleteCategoryDB = async (id: string) => {
+  const deleteCategory = async (id: string) => {
     if (company) return;
-    if (!supabase) return;
-    const list = userLists.find(l => l.id === id);
-    await supabase.from('task-categories').delete().eq('user_id', user.user_id).eq('id', id);
-    logTodoActivity('list_deleted', `Deleted list: ${list?.name || id}`);
+    localStorage.setItem(categoryStorageKey, JSON.stringify(userLists.filter(item => item.id !== id)));
+    logTodoActivity('list_deleted', `Deleted list: ${id}`);
   };
 
   // Persistence removed (no localStorage)
@@ -526,9 +496,8 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
     return runMutation(async () => {
       await deleteTasks(tasks.filter(canEditTask));
       // Company members keep events they cannot manage. Personal categories are separate.
-      if (!company && supabase) {
-        const { error } = await supabase.from('task-categories').delete().eq('user_id', user.user_id);
-        if (error) throw error;
+      if (!company) {
+        localStorage.removeItem(categoryStorageKey);
         setUserLists(DEFAULT_CATEGORIES);
       }
       setSelectedTaskId(null);
@@ -769,7 +738,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
                                : `Delete "${list.name}" list? This action cannot be undone.`,
                              onConfirm: () => { void runMutation(async () => {
                                await deleteTasks(tasks.filter(t => t.list === list.id || t.list === list.name));
-                               await deleteCategoryDB(list.id);
+                               await deleteCategory(list.id);
                                setUserLists(prev => prev.filter(l => l.id !== list.id));
                                setPinnedListIds(prev => prev.filter(id => id !== list.id));
                                if (currentFilter === list.id) setCurrentFilter('all');
