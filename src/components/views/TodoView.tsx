@@ -202,7 +202,7 @@ export function TodoView({
             </div>
           )}
 
-          {selectedTask.type === 'event' && workspace.workspaceType === 'company' && <EventResponses key={selectedTask.id} taskId={selectedTask.id} workspace={workspace} />}
+          {selectedTask.type === 'event' && selectedTask.workspaceType === 'company' && workspace.workspaceType === 'company' && <EventResponses key={selectedTask.id} taskId={selectedTask.id} workspace={workspace} />}
           <div className="flex flex-wrap gap-2 pt-4 border-t border-[var(--border)]">
             <button
               className="flex-1 min-w-[120px] py-2 rounded-lg bg-accent text-white text-[12.5px] font-medium flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition"
@@ -324,7 +324,7 @@ export function TodoView({
               </div>
             </div>
 
-            {t.type === 'event' && workspace.workspaceType === 'company' && <EventResponses key={t.id} taskId={t.id} workspace={workspace} />}
+            {t.type === 'event' && t.workspaceType === 'company' && workspace.workspaceType === 'company' && <EventResponses key={t.id} taskId={t.id} workspace={workspace} />}
             <div className="flex flex-wrap gap-2 pt-1">
               <button
                 className="flex-1 min-w-[110px] py-2 rounded-lg bg-accent text-white text-[12.5px] font-medium flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition"
@@ -385,7 +385,7 @@ export function TodoView({
           </div>
         </div>
 
-        {currentFilter === 'event' && !workspace.canManageEvents && <p className="text-sm mb-3">Only the owner or manager can create company events. Select an event to accept or reject it.</p>}
+        {['event', 'events'].includes(currentFilter) && !workspace.canManageEvents && <p className="text-sm mb-3">Only the owner or manager can create company events. Select an event to accept or reject it.</p>}
         <form
           className="flex flex-col mb-4"
           onSubmit={(e) => {
@@ -395,7 +395,7 @@ export function TodoView({
         >
           <div className="flex gap-2">
             <input
-              disabled={currentFilter === 'event' && !workspace.canManageEvents}
+              disabled={['event', 'events'].includes(currentFilter) && !workspace.canManageEvents}
               id="quick-task-input"
               name="quickTask"
               type="text"
@@ -407,7 +407,7 @@ export function TodoView({
             <button
               type="submit"
               className="hidden sm:inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!quickTaskValue.trim() || (currentFilter === 'event' && !workspace.canManageEvents)}
+              disabled={!quickTaskValue.trim() || (['event', 'events'].includes(currentFilter) && !workspace.canManageEvents)}
             >
               Save
             </button>
@@ -415,7 +415,7 @@ export function TodoView({
           <button
             type="submit"
             className="mt-2 inline-flex sm:hidden items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!quickTaskValue.trim() || (currentFilter === 'event' && !workspace.canManageEvents)}
+            disabled={!quickTaskValue.trim() || (['event', 'events'].includes(currentFilter) && !workspace.canManageEvents)}
           >
             Save Task
           </button>

@@ -235,7 +235,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
   const categoryStorageKey = `snabbb.todo.personalLists.${user.user_id}`;
   useEffect(() => {
     if (company) {
-      setUserLists(DEFAULT_CATEGORIES.filter(list => list.id !== 'personal'));
+      setUserLists(DEFAULT_CATEGORIES.filter(list => workspace?.actorType === 'owner' || list.id !== 'personal'));
       setPinnedListIds([]);
       return;
     }
@@ -297,6 +297,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
   });
   const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
   const getValidTaskListId = (candidate?: string) => {
+    if (company && !canManageEvents && (candidate?.toLowerCase() === 'events' || userLists.find(list => list.id === candidate)?.name.toLowerCase() === 'events')) return 'work';
     const fallbackListId = userLists.some((list) => list.id === defaultListId)
       ? defaultListId
       : (userLists[0]?.id || 'personal');
@@ -512,7 +513,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
   };
 
   const renderContent = () => {
-    if (!workspace || taskDataStatus !== 'ready') return <div role="status" className="p-8 text-center">{workspaceError || 'Loading workspace…'}{workspaceError && <button className="block mx-auto mt-4 underline" onClick={() => location.reload()}>Retry</button>}</div>;
+    if (!workspace || taskDataStatus !== 'ready') return <div role="status" className="p-8 text-center">{workspaceError || 'Loading workspaceï¿½'}{workspaceError && <button className="block mx-auto mt-4 underline" onClick={() => location.reload()}>Retry</button>}</div>;
     switch (currentView) {
       case 'todo':
       case 'today':
@@ -907,7 +908,6 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
           </div>
         </header>
 
-        <div className="px-5 py-2 text-sm border-b border-[var(--border)]">{!workspace ? 'Loading workspace' : company ? 'Company workspace' : 'Personal workspace'} · <a className="underline" href="https://app.snabbb.com">Switch in Snabbb</a>{saving && ' · Saving…'}</div>
         <main className="flex-1 overflow-y-auto px-3 py-3 sm:px-5 sm:py-5 lg:px-10 scroll-smooth no-scrollbar">
           <fieldset disabled={saving} className="h-full min-w-0">{renderContent()}</fieldset>
         </main>
