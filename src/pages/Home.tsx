@@ -32,6 +32,7 @@ import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
 import { logActivityToOdoo } from '../lib/logActivityToOdoo';
 import usePageDurationTracker, { type PageViewLogMeta } from '../hooks/usePageDurationTracker';
+import useSessionDurationTracker from '../hooks/useSessionDurationTracker';
 import type { TaskDataStatus } from '../aiExperience/dataChat/contracts/groundedDataResult';
 import { buildTodoDialoguePool } from '../aiExperience/petDialogue/buildTodoDialoguePool';
 import { usePublishPersonalizedInsight, type PersonalizedInsightBridgeState } from '../aiExperience/petDialogue/PersonalizedInsightBridge';
@@ -195,7 +196,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
   const logTodoActivity = (
     action: string,
     details: string,
-    meta: { pagePath?: string; pageDurationSeconds?: number } = {}
+    meta: { pagePath?: string; pageDurationSeconds?: number; sessionDurationSeconds?: number; useBeacon?: boolean } = {}
   ) => {
     logActivityToOdoo({
       logId: crypto.randomUUID(),
@@ -207,6 +208,8 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
       occurredAt: new Date().toISOString(),
       pagePath: meta.pagePath ?? null,
       pageDurationSeconds: meta.pageDurationSeconds ?? null,
+      sessionDurationSeconds: meta.sessionDurationSeconds ?? null,
+      useBeacon: meta.useBeacon,
     });
   };
 
@@ -224,6 +227,25 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
       });
     }
   );
+
+  // Logs a "session_end" (with the session's total duration) when the user
+  // logs out, closes/leaves the page, or hides the tab — same event the
+  // inventory app sends. See hooks/useSessionDurationTracker.ts.
+  const endSession = useSessionDurationTracker(
+    Boolean(user.email),
+    (details: string, durationSeconds: number, useBeacon: boolean) => {
+      logTodoActivity('session_end', details, {
+        sessionDurationSeconds: durationSeconds,
+        useBeacon,
+      });
+    }
+  );
+
+  // Record the session end BEFORE the logout tears the user/session down.
+  const handleLogoutWithSessionEnd = () => {
+    endSession();
+    handleLogout();
+  };
 
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -568,7 +590,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
             setAccent={updateAccentDB}
             showCompleted={showCompleted}
             setShowCompleted={handleSetShowCompleted}
-            handleLogout={handleLogout}
+            handleLogout={handleLogoutWithSessionEnd}
             setTasks={setTasks}
             defaultListId={defaultListId}
             setDefaultListId={handleSetDefaultList}
@@ -799,7 +821,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
                       message: 'Are you sure you want to log out from your account?',
                       confirmText: 'Log Out',
                       onConfirm: () => {
-                        handleLogout();
+                        handleLogoutWithSessionEnd();
                       }
                     });
                   }}
