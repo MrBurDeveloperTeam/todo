@@ -203,7 +203,7 @@ export function TodoView({
           )}
 
           {selectedTask.type === 'event' && selectedTask.workspaceType === 'company' && workspace.workspaceType === 'company' && <EventResponses key={selectedTask.id} taskId={selectedTask.id} workspace={workspace} />}
-          <div className="flex flex-wrap gap-2 pt-4 border-t border-[var(--border)]">
+          {canEditTask(selectedTask) && <div className="flex flex-wrap gap-2 pt-4 border-t border-[var(--border)]">
             <button
               className="flex-1 min-w-[120px] py-2 rounded-lg bg-accent text-white text-[12.5px] font-medium flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition"
               disabled={!canEditTask(selectedTask)}
@@ -227,7 +227,7 @@ export function TodoView({
               <Trash2 size={12} />
               <span className="sm:hidden">Delete</span>
             </button>
-          </div>
+          </div>}
         </div>
       </div>
     );
@@ -325,7 +325,7 @@ export function TodoView({
             </div>
 
             {t.type === 'event' && t.workspaceType === 'company' && workspace.workspaceType === 'company' && <EventResponses key={t.id} taskId={t.id} workspace={workspace} />}
-            <div className="flex flex-wrap gap-2 pt-1">
+            {canEditTask(t) && <div className="flex flex-wrap gap-2 pt-1">
               <button
                 className="flex-1 min-w-[110px] py-2 rounded-lg bg-accent text-white text-[12.5px] font-medium flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition"
                 disabled={!canEditTask(t)}
@@ -347,7 +347,7 @@ export function TodoView({
                 {t.done ? <RefreshCw size={12} /> : <Check size={12} />}
                 {t.done ? 'Reopen' : 'Done'}
               </button>
-            </div>
+            </div>}
           </div>
         )}
       </div>
