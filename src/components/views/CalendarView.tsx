@@ -8,6 +8,7 @@ import { TaskItem } from '../../types';
 import { toLocalDateStr, todayStr, formatTime } from '../../utils';
 
 interface CalendarViewProps {
+  canEditTask: (task: TaskItem) => boolean;
   tasks: TaskItem[];
   calDate: Date;
   setCalDate: React.Dispatch<React.SetStateAction<Date>>;
@@ -20,6 +21,7 @@ interface CalendarViewProps {
 }
 
 export function CalendarView({
+  canEditTask,
   tasks,
   calDate,
   setCalDate,
@@ -435,7 +437,7 @@ export function CalendarView({
                             e.stopPropagation();
                             onOpenTask(task);
                           }}
-                          draggable
+                          draggable={canEditTask(task)}
                           onDragStart={(e) => {
                             e.dataTransfer.setData('text/task-id', task.id);
                             e.dataTransfer.effectAllowed = 'move';
@@ -634,7 +636,7 @@ export function CalendarView({
                       className={`absolute left-3 right-3 z-20 rounded-xl border px-3 py-2 text-left shadow-sm transition hover:border-accent hover:bg-[var(--surface2)] ${getTypeBadgeClass(task.type)}`}
                       style={{ top: `${12 + (index * 64)}px` }}
                       onClick={() => onOpenTask(task)}
-                      draggable
+                      draggable={canEditTask(task)}
                       onDragStart={(e) => {
                         e.dataTransfer.setData('text/task-id', task.id);
                         e.dataTransfer.effectAllowed = 'move';
@@ -670,7 +672,7 @@ export function CalendarView({
                       className={`absolute z-20 rounded-xl border px-2 sm:px-3 py-2 text-left shadow-sm transition hover:border-accent hover:bg-[var(--surface2)] ${getTypeBadgeClass(task.type)} ${dragTaskId === task.id ? 'opacity-60 shadow-[0_18px_36px_rgba(0,0,0,0.32)]' : ''}`}
                       style={{ top: `${layout.top}px`, left: layout.left, width: layout.width, minHeight: '48px' }}
                         onClick={() => onOpenTask(task)}
-                        draggable
+                        draggable={canEditTask(task)}
                         onDragStart={(e) => {
                           e.dataTransfer.setData('text/task-id', task.id);
                           e.dataTransfer.effectAllowed = 'move';
