@@ -30,11 +30,11 @@ export function EventResponses({ taskId, workspace }: { taskId: string; workspac
       setBusy(false);
     }
   };
-  return <section className="my-3 p-3 rounded-lg border border-[var(--border)] text-sm" onClick={event => event.stopPropagation()}>
-    <p className="font-semibold">Your response: {busy ? 'Loading…' : own?.response || 'Not responded'}</p>
+  return <section className="event-responses my-3 p-3 rounded-lg border border-[var(--border)] text-sm" onClick={event => event.stopPropagation()}>
+    <p className="font-semibold">Your response: <span className={!busy && own ? `event-response-status event-response-status--${own.response}` : undefined}>{busy ? 'Loading...' : own?.response || 'Not responded'}</span></p>
     <div className="flex gap-2 mt-2">
-      <button disabled={busy} aria-pressed={own?.response === 'accepted'} className={`rounded-lg border px-3 py-1.5 font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${own?.response === 'accepted' ? 'bg-teal-600 border-teal-600 text-white' : 'bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100 dark:bg-teal-950 dark:border-teal-800 dark:text-teal-300'}`} onClick={() => void respond('accepted')}>Accept</button>
-      <button disabled={busy} aria-pressed={own?.response === 'rejected'} className={`rounded-lg border px-3 py-1.5 font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed ${own?.response === 'rejected' ? 'bg-rose-600 border-rose-600 text-white' : 'bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-300'}`} onClick={() => void respond('rejected')}>Reject</button>
+      <button disabled={busy} aria-pressed={own?.response === 'accepted'} className="event-response-button event-response-button--accepted" onClick={() => void respond('accepted')}>Accept</button>
+      <button disabled={busy} aria-pressed={own?.response === 'rejected'} className="event-response-button event-response-button--rejected" onClick={() => void respond('rejected')}>Reject</button>
       <button disabled={busy} className="underline" onClick={() => setRefresh(value => value + 1)}>Refresh</button>
     </div>
     {error && <p role="alert" className="text-red-600 mt-2">{error}</p>}
@@ -42,7 +42,7 @@ export function EventResponses({ taskId, workspace }: { taskId: string; workspac
       <p className="font-semibold">Event responses ({responses.length})</p>
       {responses.length === 0 && <p>No responses yet.</p>}
       {responses.map(row => <p className="break-all text-xs mt-2" key={row.member_user_id}>
-        {row.member_name || (row.member_user_id === workspace.actorUserId ? 'You' : 'Name unavailable')}: <span className={row.response === 'accepted' ? 'text-teal-700 dark:text-teal-300' : 'text-rose-700 dark:text-rose-300'}>{row.response}</span>
+        {row.member_name || (row.member_user_id === workspace.actorUserId ? 'You' : 'Name unavailable')}: <span className={`event-response-status event-response-status--${row.response}`}>{row.response}</span>
       </p>)}
     </div>}
   </section>;
