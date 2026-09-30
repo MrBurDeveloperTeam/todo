@@ -396,10 +396,10 @@ export function LandingPage({
           <span>accent colours</span>
         </div>
 
-        <div>
+        {/* <div>
           <strong>0</strong>
           <span>signup friction</span>
-        </div>
+        </div> */}
       </section>
 
       <section id="features" className="todo-section todo-features">
