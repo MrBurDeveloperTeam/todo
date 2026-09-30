@@ -108,7 +108,7 @@ export function LandingPage({
 
   const activeAccentColor =
     ACCENT_COLORS.find((accent) => accent.name === activeAccent)?.color ?? ACCENT_COLORS[0].color;
-  const brandLogo = theme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
+  const brandLogo = '/Logo/snabbb-teal.png';
 
   const THEME_VARS = theme === 'dark' ? {
     paper: '#0f172a', paper2: '#111827', paper3: '#334155',
@@ -181,16 +181,16 @@ export function LandingPage({
       {/* NAV */}
       <nav
         className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-8 md:px-16 py-5 bg-white border-b transition-all duration-300" style={{
-          backgroundColor: 'var(--landing-nav)',
-          borderColor: 'var(--landing-nav-border)',
-          boxShadow: theme === 'dark' ? '0 12px 40px rgba(0, 0, 0, 0.28)' : '0 8px 24px rgba(20, 35, 49, 0.06)',
+           backgroundColor: '#ffffff',
+           borderColor: '#d8e8e5',
+           boxShadow: '0 8px 24px rgba(20, 35, 49, 0.06)',
         }}
       >
         <div className="flex items-center">
           <a
             href="https://app.snabbb.com/"
             className="flex items-center pr-8 mr-8 border-r group"
-            style={{ borderColor: 'var(--landing-nav-border)' }}
+            style={{ borderColor: '#d8e8e5' }}
           >
             <img
               src={brandLogo}
@@ -201,7 +201,7 @@ export function LandingPage({
 
           <span
             className="text-lg font-bold"
-            style={{ color: 'var(--landing-nav-text)' }}
+            style={{ color: '#356f6b' }}
           >
             To-do manager
           </span>
@@ -217,7 +217,7 @@ export function LandingPage({
               key={item.label}
               href={item.href}
               className="text-base font-semibold transition-opacity hover:opacity-70"
-              style={{ color: 'var(--landing-nav-text)' }}
+              style={{ color: '#356f6b' }}
             >
               {item.label}
             </a>
@@ -228,14 +228,14 @@ export function LandingPage({
           <button
             onClick={() => setAuthMode('login')}
             className="px-4 py-2 text-sm font-semibold transition-all"
-            style={{ color: 'var(--landing-nav-muted)' }}
+            style={{ color: '#55636f' }}
           >
             Log In    
           </button>
           <a
             href={SNABBB_SIGNUP_URL}
             className="hidden sm:flex items-center gap-3 px-7 py-4 text-white rounded-2xl text-base font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
-            style={{ backgroundColor: 'var(--accent)' }}
+            style={{ backgroundColor: '#5aa69d' }}
           >
             Sign Up
             <ArrowRight size={18} />
