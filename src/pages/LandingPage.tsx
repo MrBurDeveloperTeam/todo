@@ -1,35 +1,221 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  ArrowRight, 
-  CheckCircle2, 
-  Calendar, 
-  Clock, 
-  Search, 
-  Plus, 
-  Mail, 
-  Briefcase, 
-  User,
-  Star,
+import React, { useState } from 'react';
+import {
+  ArrowRight,
+  Bell,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  Clock3,
+  FileText,
   Layers,
-  Zap,
-  Shield,
-  LayoutGrid,
-  ChevronLeft,
-  ChevronRight,
+  ListTodo,
   Menu,
-  Activity,
   Sparkles,
-  Command,
-  Monitor
+  X,
 } from 'lucide-react';
 import { AuthForm } from '../components/AuthForm';
 import { SNABBB_SIGNUP_URL } from '../constants/authLinks';
-import {
-  applyThemeToDocument,
-  persistTheme,
-  readStoredTheme,
-  resolveTheme,
-} from '../lib/themeSync';
+// @ts-expect-error CSS is loaded by the bundler; it has no TypeScript declaration.
+import './todo-landing.css';
+
+const features = [
+  {
+    icon: ListTodo,
+    title: 'Efficient Task Lists',
+    description:
+      'Organise work clearly with a focused task list that keeps priorities visible and easy to manage.',
+  },
+  {
+    icon: CalendarDays,
+    title: 'Dynamic Calendar',
+    description:
+      'Move between month, week, and day views to understand your schedule at a glance.',
+  },
+  {
+    icon: Bell,
+    title: 'Intelligent Reminders',
+    description:
+      'Set time-based reminders and see overdue alerts directly inside your workspace.',
+  },
+  {
+    icon: FileText,
+    title: 'Rich Descriptions',
+    description:
+      'Add notes, links, and context to every item without navigating through complicated forms.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Quick Add Engine',
+    description:
+      'Type a task and press Enter to add it instantly. Use the full form whenever you need more detail.',
+  },
+  {
+    icon: Layers,
+    title: 'Personalised Workspace',
+    description:
+      'Choose your accent colour and create a workspace that feels like your own.',
+  },
+];
+
+const faqs = [
+  {
+    question: 'Do I need an account to use the workspace?',
+    answer:
+      'No. You can open the workspace without signing up. Your local session and preferences are stored in your browser.',
+  },
+  {
+    question: 'Can I view tasks and calendar events together?',
+    answer:
+      'Yes. The workspace combines tasks, events, and reminders so you can understand your work in one place.',
+  },
+  {
+    question: 'Can I add detailed descriptions to tasks?',
+    answer:
+      'Yes. Every item can include detailed notes, links, and supporting context.',
+  },
+  {
+    question: 'Can I change the workspace colour?',
+    answer:
+      'Yes. Choose from the available accent colours in the Personalised Workspace section.',
+  },
+];
+
+function TodoPreview() {
+  const tasks = [
+    { title: 'Review Q3 performance report', type: 'Task', date: 'Tomorrow' },
+    { title: 'Team standup meeting', type: 'Event', date: '10:00 AM' },
+    { title: 'Pay bills', type: 'Reminder', date: 'Overdue', overdue: true },
+    { title: 'Doctor appointment', type: 'Event', date: 'Thu 14:00' },
+  ];
+
+  return (
+    <div className="todo-preview-shell">
+      <div className="todo-browser-bar">
+        <div className="todo-browser-dots">
+          <span className="todo-dot todo-dot-red" />
+          <span className="todo-dot todo-dot-yellow" />
+          <span className="todo-dot todo-dot-green" />
+        </div>
+
+        <div className="todo-browser-address">
+          to-do-manager.app/my-tasks
+        </div>
+      </div>
+
+      <div className="todo-preview-app">
+        <aside className="todo-preview-sidebar">
+          <div className="todo-preview-brand">
+            <div className="todo-preview-mark">T</div>
+            <span>To-do manager</span>
+          </div>
+
+          <div className="todo-preview-nav todo-preview-nav-active">
+            <ListTodo size={15} />
+            <span>My Tasks</span>
+            <strong>12</strong>
+          </div>
+
+          <div className="todo-preview-nav">
+            <CalendarDays size={15} />
+            <span>Upcoming</span>
+          </div>
+
+          <div className="todo-preview-nav">
+            <Layers size={15} />
+            <span>Projects</span>
+          </div>
+
+          <div className="todo-preview-divider" />
+
+          <div className="todo-preview-label">Categories</div>
+
+          <div className="todo-preview-category">
+            <span className="todo-category-dot todo-category-blue" />
+            Personal
+          </div>
+
+          <div className="todo-preview-category">
+            <span className="todo-category-dot todo-category-purple" />
+            Work
+          </div>
+        </aside>
+
+        <div className="todo-preview-content">
+          <div className="todo-preview-toolbar">
+            <strong>My Tasks</strong>
+
+            <div className="todo-preview-toolbar-actions">
+              <div className="todo-preview-search">Search tasks...</div>
+              <button className="todo-preview-add">
+                <span>+</span>
+                New Item
+              </button>
+            </div>
+          </div>
+
+          <div className="todo-preview-main">
+            <div className="todo-preview-task-list">
+              <div className="todo-preview-filters">
+                <span className="todo-filter-active">All</span>
+                <span>Tasks</span>
+                <span>Events</span>
+              </div>
+
+              {tasks.map((task, index) => (
+                <div
+                  className={`todo-preview-task ${
+                    index === 0 ? 'todo-preview-task-selected' : ''
+                  }`}
+                  key={task.title}
+                >
+                  <span className="todo-task-check" />
+                  <span className="todo-task-title">{task.title}</span>
+                  <span className="todo-task-type">{task.type}</span>
+                  <span
+                    className={
+                      task.overdue
+                        ? 'todo-task-date todo-task-overdue'
+                        : 'todo-task-date'
+                    }
+                  >
+                    {task.date}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="todo-preview-details">
+              <strong>Performance Audit</strong>
+
+              <div className="todo-detail-block">
+                <span>Details</span>
+                <p>
+                  Full review of conversion metrics and user retention
+                  strategies.
+                </p>
+              </div>
+
+              <div className="todo-detail-columns">
+                <div>
+                  <span>Priority</span>
+                  <strong className="todo-priority">
+                    <i />
+                    High
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Due Date</span>
+                  <strong>May 12, 2026</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function LandingPage({
   onStart,
@@ -38,643 +224,305 @@ export function LandingPage({
   onStart: () => void;
   onAuthFormActiveChange?: (isActive: boolean) => void;
 }) {
-  const [authMode, setAuthMode] = useState<'landing' | 'login' | 'signup'>('landing');
-  const [activeAccent, setActiveAccent] = useState('blue');
-  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
-    resolveTheme(readStoredTheme() ?? 'light')
+  const [authMode, setAuthMode] = useState<'landing' | 'login' | 'signup'>(
+    'landing',
   );
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      const winScroll = document.documentElement.scrollTop;
-      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const scrolled = (winScroll / height) * 100;
-      setScrollProgress(scrolled);
-    };
+  const openLogin = () => {
+    setMenuOpen(false);
+    setAuthMode('login');
+  };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const openSignup = () => {
+    setMenuOpen(false);
+    setAuthMode('signup');
+  };
 
-  useEffect(() => {
-    // Reveal Observer
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          e.target.classList.add('visible');
-          observer.unobserve(e.target);
-        }
-      });
-    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-
-    const reveals = document.querySelectorAll('.reveal');
-    reveals.forEach(el => observer.observe(el));
-
-    return () => observer.disconnect();
-  }, [authMode]);
-
-  useEffect(() => {
-    applyThemeToDocument(theme);
-    persistTheme(theme);
-  }, [theme]);
-
-  useEffect(() => {
-    onAuthFormActiveChange?.(authMode !== 'landing');
-    return () => onAuthFormActiveChange?.(false);
-  }, [authMode, onAuthFormActiveChange]);
+  const handleBack = () => {
+    setAuthMode('landing');
+    onAuthFormActiveChange?.(false);
+  };
 
   if (authMode !== 'landing') {
+    onAuthFormActiveChange?.(true);
+
     return (
-      <div className="min-h-screen w-full bg-[#f5f5f5]">
+      <div className="todo-auth-page">
         <AuthForm
           mode={authMode === 'signup' ? 'signup' : 'login'}
-          onBack={() => setAuthMode('landing')}
+          onBack={handleBack}
           onSwitchMode={(nextMode) => setAuthMode(nextMode)}
         />
       </div>
     );
   }
 
-  const ACCENT_COLORS = [
-    { name: 'blue', color: '#0078d4' },
-    { name: 'teal', color: '#00897b' },
-    { name: 'purple', color: '#6b35c8' },
-    { name: 'green', color: '#1a7f4e' },
-    { name: 'rose', color: '#c42b45' },
-    { name: 'orange', color: '#d15000' },
-  ];
-
-  const activeAccentColor =
-    ACCENT_COLORS.find((accent) => accent.name === activeAccent)?.color ?? ACCENT_COLORS[0].color;
-  const brandLogo = '/Logo/snabbb-teal.png';
-
-  const THEME_VARS = theme === 'dark' ? {
-    paper: '#0f172a', paper2: '#111827', paper3: '#334155',
-    nav: 'rgba(15, 23, 42, 0.94)', navBorder: '#334155', navText: '#f8fafc', navMuted: '#cbd5e1',
-    howBg: '#111827', howCard: '#1e293b', howBorder: '#334155', howText: '#f8fafc', howMuted: '#cbd5e1',
-    themesBg: '#0f172a', themesCard: '#1e293b', themesBorder: '#334155', themesText: '#f8fafc', themesMuted: '#cbd5e1',
-    themesLabel: '#e2e8f0', themesRing: '#f8fafc', themesRingOffset: '#0f172a',
-    footerBg: '#020617', footerBorder: '#334155', footerText: '#f8fafc', footerMuted: '#94a3b8',
-    ink: '#f8fafc', ink2: '#e2e8f0', ink3: '#cbd5e1', ink4: '#94a3b8',
-    ctaBg: '#020617', ctaText: '#f8fafc', ctaMuted: '#cbd5e1', ctaButtonBg: '#ffffff', ctaButtonText: '#0f172a',
-  } : {
-    paper: '#f5f5f5',
-    paper2: '#ffffff',
-    paper3: '#e2e8f0',
-    nav: 'rgba(255, 255, 255, 0.92)',
-    navBorder: '#e2e8f0',
-    navText: '#0f172a', navMuted: '#64748b',
-    howBg: '#f1f5f9', howCard: '#ffffff', howBorder: '#e2e8f0', howText: '#0f172a', howMuted: '#64748b',
-    themesBg: '#f8fafc', themesCard: '#ffffff', themesBorder: '#e2e8f0', themesText: '#0f172a', themesMuted: '#64748b',
-    themesLabel: '#334155', themesRing: '#0f172a', themesRingOffset: '#f8fafc',
-    footerBg: '#f8fafc', footerBorder: '#e2e8f0', footerText: '#0f172a', footerMuted: '#64748b',
-    ink: '#0f172a', ink2: '#334155', ink3: '#64748b', ink4: '#94a3b8',
-    ctaBg: '#ffffff', ctaText: '#0f172a', ctaMuted: '#64748b', ctaButtonBg: '#0f172a', ctaButtonText: '#ffffff',
-  };
-
   return (
-    <div
-      ref={containerRef}
-      className={`relative min-h-screen w-full font-sans transition-colors duration-700 overflow-x-hidden ${theme === 'dark' ? 'dark' : ''}`}
-      style={{
-        backgroundColor: THEME_VARS.paper,
-        color: THEME_VARS.ink,
-        ['--landing-paper' as string]: THEME_VARS.paper,
-        ['--landing-paper2' as string]: THEME_VARS.paper2,
-        ['--landing-paper3' as string]: THEME_VARS.paper3,
-        ['--landing-nav' as string]: THEME_VARS.nav,
-        ['--landing-nav-border' as string]: THEME_VARS.navBorder,
-        ['--landing-nav-text' as string]: THEME_VARS.navText,
-        ['--landing-nav-muted' as string]: THEME_VARS.navMuted,
-        ['--landing-how-bg' as string]: THEME_VARS.howBg,
-        ['--landing-how-card' as string]: THEME_VARS.howCard,
-        ['--landing-how-border' as string]: THEME_VARS.howBorder,
-        ['--landing-how-text' as string]: THEME_VARS.howText,
-        ['--landing-how-muted' as string]: THEME_VARS.howMuted,
-        ['--landing-themes-bg' as string]: THEME_VARS.themesBg,
-        ['--landing-themes-card' as string]: THEME_VARS.themesCard,
-        ['--landing-themes-border' as string]: THEME_VARS.themesBorder,
-        ['--landing-themes-text' as string]: THEME_VARS.themesText,
-        ['--landing-themes-muted' as string]: THEME_VARS.themesMuted,
-        ['--landing-themes-label' as string]: THEME_VARS.themesLabel,
-        ['--landing-themes-ring' as string]: THEME_VARS.themesRing,
-        ['--landing-themes-ring-offset' as string]: THEME_VARS.themesRingOffset,
-        ['--landing-footer-bg' as string]: THEME_VARS.footerBg,
-        ['--landing-footer-border' as string]: THEME_VARS.footerBorder,
-        ['--landing-footer-text' as string]: THEME_VARS.footerText,
-        ['--landing-footer-muted' as string]: THEME_VARS.footerMuted,
-        ['--landing-ink' as string]: THEME_VARS.ink,
-        ['--landing-ink2' as string]: THEME_VARS.ink2,
-        ['--landing-ink3' as string]: THEME_VARS.ink3,
-        ['--landing-ink4' as string]: THEME_VARS.ink4,
-        ['--accent' as string]: activeAccentColor,
-      }}
-    >
-      {/* SCROLL PROGRESS */}
-      <div className="scroll-progress" style={{ transform: `scaleX(${scrollProgress / 100})` }} />
+    <main className="todo-landing">
+      <nav className="todo-nav">
+        <a
+          className="todo-brand"
+          href="#top"
+          aria-label="To-do manager home"
+        >
+          <img src="/Logo/snabbb-teal.png" alt="Snabbb" />
+          <span>To-do manager</span>
+        </a>
 
-      {/* NOISE & GRAIN */}
-      <div className="pointer-events-none fixed inset-0 z-50 noise-texture opacity-5" />
-
-      {/* NAV */}
-      <nav
-        className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-8 md:px-16 py-5 bg-white border-b transition-all duration-300" style={{
-           backgroundColor: '#ffffff',
-           borderColor: '#d8e8e5',
-           boxShadow: '0 8px 24px rgba(20, 35, 49, 0.06)',
-        }}
-      >
-        <div className="flex items-center">
-          <a
-            href="https://app.snabbb.com/"
-            className="flex items-center pr-8 mr-8 border-r group"
-            style={{ borderColor: '#d8e8e5' }}
-          >
-            <img
-              src={brandLogo}
-              alt="Snabbb."
-              className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
-            />
+        <div className={`todo-nav-links ${menuOpen ? 'todo-nav-open' : ''}`}>
+          <a href="#features" onClick={() => setMenuOpen(false)}>
+            Features
           </a>
 
-          <span
-            className="text-lg font-bold"
-            style={{ color: '#356f6b' }}
-          >
-            To-do manager
-          </span>
+          <a href="#workflow" onClick={() => setMenuOpen(false)}>
+            How It Works
+          </a>
+
+          <a href="#faq" onClick={() => setMenuOpen(false)}>
+            FAQ
+          </a>
+
+          <div className="todo-mobile-actions">
+            <button onClick={openLogin}>Log In</button>
+            <button onClick={openSignup}>Sign Up</button>
+          </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-10">
-          {[
-            { label: 'Features', href: '#features' },
-            { label: 'How It Works', href: '#how' },
-            { label: 'Themes', href: '#themes' },
-          ].map(item => (
-            <a
-              key={item.label}
-              href={item.href}
-              className="text-base font-semibold transition-opacity hover:opacity-70"
-              style={{ color: '#356f6b' }}
-            >
-              {item.label}
-            </a>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setAuthMode('login')}
-            className="px-4 py-2 text-sm font-semibold transition-all"
-            style={{ color: '#55636f' }}
-          >
-            Log In    
+        <div className="todo-nav-actions">
+          <button className="todo-login" onClick={openLogin}>
+            Log In
           </button>
-          <a
-            href={SNABBB_SIGNUP_URL}
-            className="hidden sm:flex items-center gap-3 px-7 py-4 text-white rounded-2xl text-base font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
-            style={{ backgroundColor: '#5aa69d' }}
-          >
+
+          <a className="todo-nav-cta" href={SNABBB_SIGNUP_URL}>
             Sign Up
-            <ArrowRight size={18} />
-          </a>        
+            <ArrowRight size={17} />
+          </a>
         </div>
+
+        <button
+          className="todo-menu-button"
+          onClick={() => setMenuOpen((current) => !current)}
+          aria-label="Toggle navigation"
+          aria-expanded={menuOpen}
+        >
+          {menuOpen ? <X size={23} /> : <Menu size={23} />}
+        </button>
       </nav>
 
-      {/* HERO SECTION */}
-      <section id="hero" className="relative pt-28 md:pt-40 pb-20 px-6 overflow-hidden">
-        {/* Geometric Background */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 hero-grid-pattern opacity-40 [mask-image:radial-gradient(ellipse_80%_60%_at_50%_50%,black_40%,transparent_100%)]" />
-          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[120px] opacity-[0.08]" style={{ backgroundColor: 'var(--accent)' }} />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] rounded-full bg-[#00897b] blur-[100px] opacity-10" />
-          <div className="absolute top-[30%] right-[10%] w-[300px] h-[300px] rounded-full bg-[#e67e00] blur-[80px] opacity-[0.05]" />
-        </div>
-
-        <div className="relative z-10 max-w-4xl mx-auto text-center flex flex-col items-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-paper border border-paper3 text-xs font-semibold text-ink3 shadow-sm mb-10 animate-reveal">
-            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_0_2px_rgba(16,185,129,0.2)]" />
+      <section id="top" className="todo-hero">
+        <div className="todo-hero-copy">
+          <div className="todo-eyebrow">
+            <span className="todo-live-dot" />
             Now available — completely free
           </div>
 
-          <h1 className="font-serif text-[clamp(40px,7vw,90px)] leading-[1.1] tracking-tighter mb-8 animate-reveal [animation-delay:200ms]" style={{ color: 'var(--landing-ink)' }}>
-            Your tasks, <em className="font-serif-italic" style={{ color: 'var(--accent)' }}>your calendar,</em> one place.
+          <h1>
+            Your tasks,
+            <em> your calendar,</em>
+            <span> one place.</span>
           </h1>
 
-          <p className="max-w-xl text-lg md:text-xl font-medium leading-relaxed mb-12 animate-reveal [animation-delay:400ms]" style={{ color: 'var(--landing-ink3)' }}>
-            To-do manager brings together tasks, events, and reminders in a single beautiful workspace. High-fidelity calendar. In-depth rich descriptions. Your own aesthetic.
+          <p>
+            To-do manager brings together tasks, events, and reminders in a
+            single beautiful workspace. High-fidelity calendar. In-depth
+            descriptions. Your own aesthetic.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center gap-4 animate-reveal [animation-delay:600ms]">
-            <a href={SNABBB_SIGNUP_URL} className="w-full sm:w-auto h-16 px-10 text-white rounded-xl text-base font-bold shadow-2xl shadow-ink/20 hover:-translate-y-1 hover:shadow-3xl active:translate-y-0 transition-all flex items-center justify-center gap-3" style={{ backgroundColor: 'var(--accent)' }}>
-              Join Us <ArrowRight size={20} />
-            </a>
-            <a href="#features" className="w-full sm:w-auto h-16 px-10 bg-white/80 border-2 border-paper3 rounded-xl text-base font-semibold text-ink hover:border-ink4 transition-all flex items-center justify-center gap-3 backdrop-blur-sm">
-              Explore Demo
+          <div className="todo-hero-actions">
+            <button className="todo-primary-button" onClick={openSignup}>
+              Join Us
+              <ArrowRight size={18} />
+            </button>
+
+            <a className="todo-secondary-button" href="#features">
+              Explore Features
             </a>
           </div>
 
-          <p className="mt-8 text-xs font-semibold text-ink4 italic animate-reveal [animation-delay:800ms]">
-            No account needed · Runs in your browser · Data stays on your device
-          </p>
+          <div className="todo-trust-row">
+            <span>
+              <CheckCircle2 size={16} />
+              No account needed
+            </span>
+
+            <span>
+              <CheckCircle2 size={16} />
+              Runs in your browser
+            </span>
+
+            <span>
+              <CheckCircle2 size={16} />
+              Data stays on your device
+            </span>
+          </div>
         </div>
 
-        {/* HERO MOCKUP */}
-        <div className="mt-20 max-w-5xl mx-auto w-full relative z-10 animate-reveal [animation-delay:1000ms]">
-           <div className="bg-white rounded-2xl overflow-hidden shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_24px_80px_rgba(0,0,0,0.14),0_8px_32px_rgba(0,0,0,0.08)]">
-              {/* Browser Bar */}
-              <div className="bg-paper2 px-4 py-3 flex items-center gap-2 border-b border-paper3">
-                 <div className="flex gap-1.5">
-                    <div className="h-3 w-3 rounded-full bg-[#ff5f57]" />
-                    <div className="h-3 w-3 rounded-full bg-[#febc2e]" />
-                    <div className="h-3 w-3 rounded-full bg-[#28c840]" />
-                 </div>
-                 <div className="flex-1 max-w-md mx-auto bg-paper border border-paper3 rounded-md py-1 text-[11px] text-ink3 text-center">
-                    to-do-manager.app/my-tasks
-                 </div>
-              </div>
+        <div className="todo-hero-preview">
+          <div className="todo-preview-glow todo-preview-glow-one" />
+          <div className="todo-preview-glow todo-preview-glow-two" />
 
-              {/* Mock App Interface */}
-              <div className="grid grid-cols-[220px_1fr] h-[520px] bg-paper">
-                 {/* Sidebar */}
-                  <div className="border-r border-paper3 p-3 flex flex-col gap-1 w-[220px]" style={{ backgroundColor: 'var(--landing-paper2)' }}>
-                     <div className="flex items-center gap-2 px-2 py-3">
-                        <div className="h-6 w-6 rounded-md flex items-center justify-center text-white font-serif italic text-xs" style={{ backgroundColor: 'var(--landing-ink)' }}>T</div>
-                        <span className="text-sm font-bold truncate" style={{ color: 'var(--landing-ink)' }}>To-do manager</span>
-                     </div>
-                     {[
-                       { icon: <Mail size={14} />, label: 'My Tasks', active: true, badge: '12' },
-                       { icon: <Calendar size={14} />, label: 'Upcoming' },
-                       { icon: <Briefcase size={14} />, label: 'Projects' },
-                       { icon: <User size={14} />, label: 'Inbox', badge: '5' },
-                     ].map((item) => (
-                       <div key={item.label} 
-                            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer transition-all ${item.active ? 'shadow-lg flex-shrink-0 scale-[1.02]' : 'hover:opacity-100'}`}
-                            style={item.active ? { backgroundColor: 'var(--landing-paper)', color: 'var(--accent)' } : { color: 'var(--landing-ink3)', opacity: 0.6 }}>
-                          <div style={item.active ? { color: 'var(--accent)' } : {}}>{item.icon}</div>
-                          <span>{item.label}</span>
-                          {item.badge && <span className="ml-auto text-white text-[9px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'var(--accent)' }}>{item.badge}</span>}
-                       </div>
-                     ))}
-                     <div className="h-px bg-paper3 my-2 mx-1" />
-                     <div className="px-3 text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--landing-ink4)' }}>Categories</div>
-                     <div className="flex items-center gap-3 px-3 py-1.5 text-xs" style={{ color: 'var(--landing-ink3)' }}>
-                        <div className="h-2 w-2 rounded-full bg-blue-400" /> Personal
-                     </div>
-                     <div className="flex items-center gap-3 px-3 py-1.5 text-xs" style={{ color: 'var(--landing-ink3)' }}>
-                        <div className="h-2 w-2 rounded-full bg-purple-400" /> Work
-                     </div>
-                  </div>
+          <TodoPreview />
 
-                 {/* Main Content Area */}
-                 <div className="flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--landing-paper)' }}>
-                    <div className="h-12 border-b border-paper3 flex items-center justify-between px-5">
-                       <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>My Tasks</span>
-                       <div className="flex items-center gap-4">
-                          <div className="h-7 px-3 border border-paper3 rounded-lg text-[10px] flex items-center" style={{ backgroundColor: 'var(--landing-paper2)', color: 'var(--landing-ink4)' }}>Search tasks...</div>
-                          <button className="h-7 px-3 text-white rounded-lg text-[10px] font-bold flex items-center gap-1.5" style={{ backgroundColor: 'var(--accent)' }}>
-                             <Plus size={12} /> New Item
-                          </button>
-                       </div>
-                    </div>
+          <div className="todo-floating-card todo-floating-reminder">
+            <Clock3 size={18} />
+            <div>
+              <strong>Upcoming reminder</strong>
+              <span>Team standup at 10:00 AM</span>
+            </div>
+          </div>
 
-                    <div className="flex-1 grid grid-cols-[1fr_280px] p-5 gap-5">
-                       <div className="flex flex-col gap-2">
-                          <div className="flex gap-2 mb-2">
-                             <div className="px-3 py-1 bg-[#0078d4] text-white text-xs font-bold rounded-full">All</div>
-                             <div className="px-3 py-1 bg-white border border-paper3 text-ink3 text-xs font-bold rounded-full">Tasks</div>
-                             <div className="px-3 py-1 bg-white border border-paper3 text-ink3 text-xs font-bold rounded-full">Events</div>
-                          </div>
-                          {[
-                            { title: 'Review Q3 performance report', type: 'Task', date: 'Tomorrow', active: true },
-                            { title: 'Team standup meeting', type: 'Event', date: '10:00 AM' },
-                            { title: 'Pay bills', type: 'Reminder', date: 'Overdue', red: true },
-                            { title: 'Doctor appointment', type: 'Event', date: 'Thu 14:00' },
-                          ].map(t => (
-                            <div key={t.title} className={`p-3 rounded-xl border flex items-center gap-3 shadow-sm ${t.active ? 'border-[#0078d4] bg-[#f0f7ff]' : 'border-paper3 bg-paper'}`}>
-                               <div className="h-4 w-4 rounded-full border border-ink/20" />
-                               <span className="text-xs font-semibold flex-1">{t.title}</span>
-                               <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${t.type === 'Task' ? 'text-blue-600' : 'bg-[#fce8e6] text-red-600'}`} style={t.type === 'Task' ? { backgroundColor: 'color-mix(in srgb, var(--accent), transparent 85%)', color: 'var(--accent)' } : {}}>{t.type}</span>
-                               <span className={`text-[10px] font-bold ${t.red ? 'text-red-500' : 'text-ink4'}`}>{t.date}</span>
-                            </div>
-                          ))}
-                       </div>
-                       
-                       <div className="bg-paper border border-paper3 rounded-xl p-5 shadow-inner">
-                          <div className="text-sm font-bold mb-4 border-b border-paper3 pb-3" style={{ color: 'var(--accent)' }}>Performance Audit</div>
-                          <div className="space-y-4">
-                             <div>
-                                <div className="text-[10px] font-bold uppercase tracking-widest text-ink4 mb-1">Details</div>
-                                <div className="text-[11px] leading-relaxed text-ink2 bg-white/50 p-3 rounded-lg border border-paper3">
-                                   Full review of conversion metrics and user retention strategies.
-                                </div>
-                             </div>
-                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                   <div className="text-[10px] font-bold uppercase tracking-widest text-ink4 mb-1">Priority</div>
-                                   <div className="text-xs font-bold flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-red-500" /> High</div>
-                                </div>
-                                <div>
-                                   <div className="text-[10px] font-bold uppercase tracking-widest text-ink4 mb-1">Due Date</div>
-                                   <div className="text-xs font-bold">May 12, 2026</div>
-                                </div>
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                 </div>
-              </div>
-           </div>
+          <div className="todo-floating-card todo-floating-complete">
+            <CheckCircle2 size={18} />
+            <span>Task completed</span>
+          </div>
         </div>
       </section>
 
-      {/* STATS BAND */}
-      <div className="relative py-16 bg-[#0e0e0f] text-white overflow-hidden">
-         <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,#fff2,transparent_40px,#fff2_41px)] opacity-[0.05]" />
-         <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 lg:grid-cols-4 gap-12 relative z-10 w-full">
-            {[
-              { num: '3', suffix: 'in1', label: 'Tasks, Events & Reminders' },
-              { num: '∞', label: 'Unlimited tasks, forever free' },
-              { num: '6+', label: 'Accent colors to choose from' },
-              { num: '0', suffix: 'kb', label: 'Server uploads — private data' },
-            ].map(div => (
-               <div key={div.label} className="text-center group">
-                 <div className="font-serif text-5xl md:text-6xl text-white group-hover:scale-110 transition-transform duration-500">
-                   {div.num}<span className="italic" style={{ color: 'var(--accent)' }}>{div.suffix}</span>
-                 </div>
-                 <div className="mt-3 text-xs md:text-sm font-semibold tracking-wide text-white/40 uppercase">{div.label}</div>
-               </div>
-            ))}
-         </div>
-      </div>
+      <section className="todo-stat-strip">
+        <div>
+          <strong>1</strong>
+          <span>connected workspace</span>
+        </div>
 
-      {/* FEATURES SECTION */}
-      <section id="features" className="py-12 md:py-20 px-6 max-w-7xl mx-auto">
-         <div className="reveal">
-            <div className="text-xs font-bold uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--accent)' }}>Core Ecosystem</div>
-             <h2 className="font-serif text-3xl md:text-5xl leading-[1.1] mb-4" style={{ color: 'var(--landing-ink)' }}>Built for the way <em className="italic opacity-80">you actually work</em></h2>
-             <p className="text-base max-w-lg" style={{ color: 'var(--landing-ink3)' }}>No bloated feature sets. Just the tools that matter, executed beautifully.</p>
-         </div>
+        <div>
+          <strong>3</strong>
+          <span>work views</span>
+        </div>
 
-          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[
-              { icon: '📋', title: 'Efficient Task List Style', desc: 'A clean two-panel layout — task list on the left, rich detail panel on the right. Browse and inspect without leaving.', color: '#e8f0fe' },
-              { icon: '📅', title: 'Strategic Dynamic Calendar', desc: 'Month, Week, and Day views — navigate with mini calendar, drill in, and see everything at a glance.', color: '#fce8e6' },
-              { icon: '🔔', title: 'Intelligent Reminders', desc: 'Set time-based reminders that show overdue alerts directly in your list. Never miss a deadline with visual indicators.', color: '#f1f5f9' },
-              { icon: '✍️', title: 'Comprehensive Descriptions', desc: 'Add detailed notes, links, and context to every item. One description field — no multi-step wizards.', color: '#e8f5e9' },
-              { icon: '⚡', title: 'Quick Add Engine', desc: "Type a task and hit Enter. added instantly. No modal, no friction. Use the full form when you need the details.", color: '#f3e8fd' },
-              { icon: '🎨', title: 'Theme Personalization', desc: 'Light or dark mode. Six accent colors. Your preferences are saved locally so it looks exactly how you like it.', color: '#e0f2fe' },
-            ].map((f, i) => (
-               <div
-                 key={f.title}
-                 className="reveal group p-6 border rounded-2xl hover:shadow-xl transition-all duration-500"
-                 style={{
-                   backgroundColor: 'var(--landing-paper2)',
-                   borderColor: 'var(--landing-paper3)',
-                 }}
-               >
-                  {/* <div className="h-10 w-10 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform" style={{ backgroundColor: f.color }}>{f.icon}</div> */}
-                  <h3 className="text-lg font-bold mb-1.5" style={{ color: 'var(--landing-ink)' }}>{f.title}</h3>
-                  <p className="text-xs leading-relaxed" style={{ color: 'var(--landing-ink3)' }}>{f.desc}</p>
-              </div>
-            ))}
-         </div>
+        <div>
+          <strong>6</strong>
+          <span>accent colours</span>
+        </div>
+
+        <div>
+          <strong>0</strong>
+          <span>signup friction</span>
+        </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section
-        id="how"
-        className="py-24 md:py-32 px-6 transition-colors duration-500"
-        style={{ backgroundColor: 'var(--landing-how-bg)' }}
-      >
-         <div className="max-w-6xl mx-auto">
-            <div className="text-center reveal mb-20">
-               <div className="text-xs font-bold uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--accent)' }}>Operations</div>
-               <h2 className="font-serif text-4xl md:text-5xl" style={{ color: 'var(--landing-how-text)' }}>Simple as it gets</h2>
-            </div>
+      <section id="features" className="todo-section todo-features">
+        <div className="todo-section-heading">
+          <div className="todo-section-label">Core ecosystem</div>
+          <h2>Everything you need to stay in motion.</h2>
+          <p>
+            Tasks, calendar events, reminders, and descriptions come together
+            in one focused workspace.
+          </p>
+        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 relative">
-               <div className="hidden lg:block absolute top-12 left-[12%] right-[12%] h-[1.5px] bg-gradient-to-r from-paper3 via-[var(--accent)] to-paper3 z-0" />
-               {[
-                 { step: '1', title: 'Open Workspace', desc: 'No signup, no login requirement. Open the app and start organizing instantly.' },
-                 { step: '2', title: 'Add Missions', desc: 'Use quick-add for speed or full forms for strategic tasks with data and dates.' },
-                 { step: '3', title: 'Sync Calendar', desc: 'Watch your schedule auto-populate across Month, Week and Day views.' },
-                 { step: '4', title: 'Execute', desc: 'Keep your momentum high with overdue alerts and velocity tracking indicators.' },
-               ].map(s => (
-                 <div key={s.step} className="reveal text-center relative z-10 group">
-                    <div
-                      className="h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg group-hover:scale-110 transition-transform duration-500 font-serif italic text-3xl"
-                      style={{
-                        backgroundColor: 'var(--landing-how-card)',
-                        border: '1px solid var(--landing-how-border)',
-                        color: 'var(--accent)',
-                      }}
-                    >
-                       {s.step}
-                    </div>
-                    <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--landing-how-text)' }}>{s.title}</h3>
-                    <p className="text-sm leading-relaxed px-4" style={{ color: 'var(--landing-how-muted)' }}>{s.desc}</p>
-                 </div>
-               ))}
-            </div>
-         </div>
+        <div className="todo-feature-grid">
+          {features.map((feature) => {
+            const Icon = feature.icon;
+
+            return (
+              <article className="todo-feature-card" key={feature.title}>
+                <div className="todo-feature-icon">
+                  <Icon size={22} />
+                </div>
+
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </article>
+            );
+          })}
+        </div>
       </section>
 
-      {/* CALENDAR PREVIEW SECTION */}
-      <section id="calendar" className="py-24 md:py-32 px-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-         <div className="reveal">
-            <div className="text-xs font-bold uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--accent)' }}>Visibility</div>
-            <h2 className="font-serif text-5xl md:text-7xl leading-[1.05] mb-8">Strategic quality,<br /> <em className="italic opacity-70">zero friction.</em></h2>
-            <p className="text-lg text-ink3 mb-10 max-w-md">Navigate your schedule with surgical precision. month, week, or day — it is built for elite output.</p>
-            
-            <div className="space-y-4">
-               {[
-                 'Month, Week & Day high-density views',
-                 'Mini-navigator sidebar integration',
-                 'Strategic priority color mapping',
-                 'Direct-slot item creation engine'
-               ].map(benefit => (
-                 <div key={benefit} className="flex items-center gap-4 text-ink2 font-medium">
-                    <div className="h-6 w-6 rounded-full bg-[#0078d4] flex items-center justify-center flex-shrink-0">
-                       <CheckCircle2 size={14} className="text-white" />
-                    </div>
-                    {benefit}
-                 </div>
-               ))}
-            </div>
-         </div>
+      <section id="workflow" className="todo-workflow">
+        <div className="todo-section-heading">
+          <div className="todo-section-label">Simple workflow</div>
+          <h2>From thought to done.</h2>
+          <p>
+            Keep the process simple and make progress visible without adding
+            unnecessary steps.
+          </p>
+        </div>
 
-         <div className="relative reveal [animation-delay:300ms]">
-            <div className="bg-white rounded-2xl p-8 shadow-[0_4px_32px_rgba(0,0,0,0.09),0_0_0_1px_rgba(0,0,0,0.05)]">
-               <div className="flex items-center justify-between mb-8">
-                  <span className="text-lg font-bold">March 2026</span>
-                  <div className="flex gap-2">
-                     <button className="h-10 w-10 rounded-lg border border-paper3 flex items-center justify-center hover:bg-paper3 transition-colors text-ink3"><ChevronLeft size={16} /></button>
-                     <button className="h-10 w-10 rounded-lg border border-paper3 flex items-center justify-center hover:bg-paper3 transition-colors text-ink3"><ChevronRight size={16} /></button>
+        <div className="todo-workflow-grid">
+          <div>
+            <span>01</span>
+            <strong>Add</strong>
+            <p>Capture a task, event, or reminder in seconds.</p>
+          </div>
+
+          <div>
+            <span>02</span>
+            <strong>Organise</strong>
+            <p>Add dates, descriptions, categories, and priority.</p>
+          </div>
+
+          <div>
+            <span>03</span>
+            <strong>Execute</strong>
+            <p>Use your task list and calendar to keep moving.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" className="todo-section todo-faq">
+        <div className="todo-section-heading">
+          <div className="todo-section-label">Questions</div>
+          <h2>Good to know.</h2>
+          <p>Some quick answers about the to-do workspace.</p>
+        </div>
+
+        <div className="todo-faq-list">
+          {faqs.map((faq, index) => {
+            const isOpen = openFaq === index;
+
+            return (
+              <div className={`todo-faq-item ${isOpen ? 'is-open' : ''}`} key={faq.question}>
+                <button
+                  onClick={() => setOpenFaq(isOpen ? null : index)}
+                  aria-expanded={isOpen}
+                >
+                  <span>{faq.question}</span>
+                  <ChevronDown size={19} />
+                </button>
+
+                {isOpen && (
+                  <div className="todo-faq-answer">
+                    <p>{faq.answer}</p>
                   </div>
-               </div>
-
-               <div className="grid grid-cols-7 gap-1">
-                  {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
-                    <div key={d} className="text-center text-[10px] font-bold text-ink4 uppercase py-3">{d}</div>
-                  ))}
-                  {[...Array(14)].map((_, i) => {
-                    const day = i + 23;
-                    const isToday = day === 24;
-                    const isMarch = day <= 31;
-                    return (
-                      <div key={i} className={`min-h-[70px] p-2 rounded-xl transition-colors border-2 border-transparent ${isMarch ? 'hover:bg-paper2' : 'opacity-30'}`} style={isToday ? { borderColor: 'var(--accent)' } : {}}>
-                         <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold mb-2 ${isToday ? 'text-white' : 'text-ink2'}`} style={isToday ? { backgroundColor: 'var(--accent)' } : {}}>
-                            {day > 31 ? day - 31 : day}
-                         </div>
-                         {day === 24 && <div className="text-[9px] font-bold py-1 px-2 rounded-md bg-blue-100 text-blue-700 truncate">Standup</div>}
-                         {day === 27 && <div className="text-[9px] font-bold py-1 px-2 rounded-md bg-red-100 text-red-700 truncate">Audit</div>}
-                      </div>
-                    );
-                  })}
-               </div>
-            </div>
-
-            {/* Floating Context Cards */}
-            <div className="absolute -top-10 -right-10 w-48 bg-white p-5 rounded-2xl shadow-xl border border-paper3 animate-bounce-slow hidden md:block">
-               <div className="text-[10px] font-black tracking-widest text-ink4 uppercase mb-2">Weekly Velocity</div>
-               <div className="text-lg font-bold text-ink">92% Done</div>
-               <div className="mt-3 h-1.5 w-full bg-paper3 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: '92%' }} />
-               </div>
-            </div>
-
-            <div className="absolute -bottom-10 -left-10 w-52 bg-white p-5 rounded-2xl shadow-xl border border-paper3 animate-bounce-slow hidden md:block" style={{ animationDelay: '1s' }}>
-                <div className="text-[10px] font-black tracking-widest text-ink4 uppercase mb-2">Upcoming Node</div>
-                <div className="text-md font-bold text-ink">Product Sync</div>
-                <div className="text-[11px] text-ink3 mt-1">10:00 AM · 40m remaining</div>
-            </div>
-         </div>
-      </section>
-
-      {/* APPEARANCE / THEMES */}
-      <section
-        id="themes"
-        className="pt-12 pb-24 md:pt-16 md:pb-32 px-6 transition-colors duration-500"
-        style={{ backgroundColor: 'var(--landing-themes-bg)' }}
-      >
-         <div className="max-w-7xl mx-auto">
-            <div className="reveal mb-10 text-center max-w-2xl mx-auto">
-               <div className="text-xs font-bold uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--accent)' }}>Identity</div>
-               <h2 className="font-serif text-4xl md:text-6xl leading-tight mb-6" style={{ color: 'var(--landing-themes-text)' }}>Your app, <em className="italic opacity-80">your style.</em></h2>
-               <p className="text-lg" style={{ color: 'var(--landing-themes-muted)' }}>Pick colors. Personalize your focus environment. It all persists instantly.</p>
-            </div>
-
-            <div className="mt-16 reveal flex flex-col items-center">
-               <span className="text-xs font-bold uppercase tracking-widest mb-6" style={{ color: 'var(--landing-themes-muted)' }}>Accent Color Palette —</span>
-               <div className="flex flex-wrap justify-center gap-4">
-                  {ACCENT_COLORS.map(a => (
-                    <button 
-                      key={a.name}
-                      onClick={() => setActiveAccent(a.name)}
-                      className="h-12 w-12 rounded-full transition-all duration-300 hover:scale-110 flex items-center justify-center"
-                      style={{
-                        backgroundColor: a.color,
-                        ...(activeAccent === a.name
-                          ? {
-                              boxShadow: '0 0 0 4px var(--landing-themes-ring)',
-                              outline: '4px solid var(--landing-themes-ring-offset)',
-                            }
-                          : {}),
-                      }}
-                    >
-                      {activeAccent === a.name && <div className="h-2 w-2 rounded-full bg-white" />}
-                    </button>
-                  ))}
-               </div>
-            </div>
-         </div>
-      </section>
-
-      {/* REVIEWS */}
-      {/* <section id="reviews" className="py-24 md:py-32 px-6 max-w-7xl mx-auto">
-         <div className="text-center reveal mb-20">
-            <div className="text-xs font-bold uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--accent)' }}>Feedback</div>
-            <h2 className="font-serif text-4xl md:text-6xl" style={{ color: 'var(--landing-ink)' }}>Elite reviews</h2>
-         </div>
-
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              { author: 'Amirah Hassan', role: 'Ops Director', quote: 'Finally a workspace that respects my focus. The Outlook calendar experience is unmatched.', initials: 'AH', color: '#0078d4' },
-              { author: 'Kevin Marsh', role: 'Engineer', quote: "The teal mode is perfect. No account required means zero friction for my fast-moving workflow.", initials: 'KM', color: '#6b35c8' },
-              { author: 'Serena Li', role: 'Designer', quote: 'The spatial engine and the description logic are just like Atlas. It helps me think better.', initials: 'SL', color: '#1a7f4e' },
-            ].map((r, i) => (
-              <div
-                key={r.author}
-                className="reveal p-10 border rounded-3xl transition-all duration-300"
-                style={{
-                  backgroundColor: 'var(--landing-paper2)',
-                  borderColor: 'var(--landing-paper3)',
-                }}
-              >
-                 <div className="flex gap-0.5 text-amber-500 mb-6 font-bold tracking-tight">★★★★★</div>
-                 <p className="leading-[1.8] mb-10 italic" style={{ color: 'var(--landing-ink2)' }}>"{r.quote}"</p>
-                 <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full flex items-center justify-center font-serif text-white text-sm italic" style={{ backgroundColor: r.color }}>{r.initials}</div>
-                    <div>
-                       <div className="text-sm font-bold" style={{ color: 'var(--landing-ink)' }}>{r.author}</div>
-                       <div className="text-xs" style={{ color: 'var(--landing-ink3)' }}>{r.role}</div>
-                    </div>
-                 </div>
+                )}
               </div>
-            ))}
-         </div>
-      </section> */}
-
-      {/* FINAL CTA */}
-      <section id="cta" className="mx-6 md:mx-12 mb-20">
-         <div
-           className="relative overflow-hidden rounded-[2.5rem] py-24 md:py-36 text-center px-10 border transition-colors duration-500"
-           style={{ backgroundColor: THEME_VARS.ctaBg, borderColor: THEME_VARS.paper3 }}
-         >
-            <div className="absolute inset-0 pointer-events-none opacity-20">
-               <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_20%_50%,rgba(0,120,212,0.3)_0%,transparent_60%)]" />
-               <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_80%_50%,rgba(0,137,123,0.3)_0%,transparent_60%)]" />
-               <div className="absolute inset-0 noise-texture opacity-10" />
-            </div>
-
-            <div className="relative z-10">
-               <h2 className="font-serif text-5xl md:text-8xl tracking-tight leading-none mb-10" style={{ color: THEME_VARS.ctaText }}>Ready to get<br /><em className="italic opacity-50">organized?</em></h2>
-               <p className="text-xl font-medium max-w-lg mx-auto mb-14" style={{ color: THEME_VARS.ctaMuted }}>Open your workspace right now. No signup. No friction. Pure execution.</p>
-               <a href={SNABBB_SIGNUP_URL} className="h-20 px-12 rounded-2xl text-xl font-black shadow-3xl hover:-translate-y-2 transition-all flex items-center justify-center gap-4 mx-auto" style={{ backgroundColor: THEME_VARS.ctaButtonBg, color: THEME_VARS.ctaButtonText, border: '2px solid var(--accent)' }}>
-                  Join Us <ArrowRight size={24} style={{ color: 'var(--accent)' }} />
-               </a>
-               <p className="mt-8 text-sm font-bold tracking-widest uppercase opacity-60" style={{ color: THEME_VARS.ctaMuted }}>Free session · Local persistence · 100% Privacy</p>
-            </div>
-         </div>
+            );
+          })}
+        </div>
       </section>
 
-      {/* FOOTER */}
-      <footer
-        className="px-6 md:px-12 py-12 border-t flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left transition-colors duration-500"
-        style={{
-          backgroundColor: 'var(--landing-footer-bg)',
-          borderColor: 'var(--landing-footer-border)',
-        }}
-      >
-          <a href="https://app.snabbb.com/" className="flex items-center gap-2">
-            <img src={brandLogo} alt="To-do manager" className="h-6 w-auto object-contain" />
-            <span className="text-md font-bold tracking-tight uppercase" style={{ color: 'var(--landing-footer-text)' }}>To-do manager</span>
-          </a>
-          
-          <div className="flex gap-8 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--landing-footer-muted)' }}>
-             <a href="#features" className="transition-colors" style={{ color: 'var(--landing-footer-muted)' }}>Features</a>
-             <a href="#calendar" className="transition-colors" style={{ color: 'var(--landing-footer-muted)' }}>Calendar</a>
-             <a href="#themes" className="transition-colors" style={{ color: 'var(--landing-footer-muted)' }}>Themes</a>
-             <button onClick={() => setAuthMode('login')} className="transition-colors" style={{ color: 'var(--landing-footer-muted)' }}>Open App</button>
-          </div>
+      <section className="todo-final-cta">
+        <div>
+          <div className="todo-section-label">Ready when you are</div>
+          <h2>Make space for better work.</h2>
+          <p>
+            Open your workspace, organise your next move, and get started
+            without friction.
+          </p>
+        </div>
 
-          <div className="text-[10px] font-black uppercase tracking-[0.3em]" style={{ color: 'var(--landing-footer-muted)' }}>
-            © 2026 Hei Systems.
-          </div>
+        <button className="todo-primary-button todo-light-button" onClick={onStart}>
+          Open Workspace
+          <ArrowRight size={18} />
+        </button>
+      </section>
+
+      <footer className="todo-footer">
+        <a className="todo-brand" href="#top">
+          <img src="/Logo/snabbb-teal.png" alt="Snabbb" />
+          <span>To-do manager</span>
+        </a>
+
+        <p>Clearer planning for focused work.</p>
+
+        <div className="todo-footer-links">
+          <a href="#features">Features</a>
+          <a href="#workflow">How It Works</a>
+          <a href="#faq">FAQ</a>
+        </div>
       </footer>
-    </div>
+    </main>
   );
 }
