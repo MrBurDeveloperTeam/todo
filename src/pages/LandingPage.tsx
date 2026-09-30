@@ -58,11 +58,11 @@ const features = [
 ];
 
 const faqs = [
-  {
-    question: 'Do I need an account to use the workspace?',
-    answer:
-      'No. You can open the workspace without signing up. Your local session and preferences are stored in your browser.',
-  },
+  // {
+  //   question: 'Do I need an account to use the workspace?',
+  //   answer:
+  //     'No. You can open the workspace without signing up. Your local session and preferences are stored in your browser.',
+  // },
   {
     question: 'Can I view tasks and calendar events together?',
     answer:
@@ -332,7 +332,7 @@ export function LandingPage({
 
           <div className="todo-hero-actions">
             <button className="todo-primary-button" onClick={openSignup}>
-              Join Us
+              Sign Up
               <ArrowRight size={18} />
             </button>
 
@@ -358,26 +358,11 @@ export function LandingPage({
             </span>
           </div>
         </div>
-
-        <div className="todo-hero-preview">
-          <div className="todo-preview-glow todo-preview-glow-one" />
-          <div className="todo-preview-glow todo-preview-glow-two" />
-
-          <TodoPreview />
-
-          <div className="todo-floating-card todo-floating-reminder">
-            <Clock3 size={18} />
-            <div>
-              <strong>Upcoming reminder</strong>
-              <span>Team standup at 10:00 AM</span>
-            </div>
-          </div>
-
-          <div className="todo-floating-card todo-floating-complete">
-            <CheckCircle2 size={18} />
-            <span>Task completed</span>
-          </div>
-        </div>
+        <img
+          className="todo-workspace-preview-image"
+          src="/images/todo-workspace-preview.png"
+          alt="To-do manager workspace showing tasks, calendar items, and task details"
+        />
       </section>
 
       <section className="todo-stat-strip">
@@ -502,11 +487,13 @@ export function LandingPage({
             without friction.
           </p>
         </div>
-
-        <button className="todo-primary-button todo-light-button" onClick={onStart}>
+        <a
+          className="todo-primary-button todo-light-button"
+          href={SNABBB_SIGNUP_URL}
+        >
           Open Workspace
           <ArrowRight size={18} />
-        </button>
+        </a>
       </section>
 
       <footer className="todo-footer">

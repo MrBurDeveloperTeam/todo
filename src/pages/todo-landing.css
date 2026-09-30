@@ -33,6 +33,10 @@
   font: inherit;
 }
 
+.todo-landing .todo-nav-cta {
+  color: #ffffff;
+}
+
 .todo-landing button {
   cursor: pointer;
 }
@@ -315,6 +319,21 @@
   position: relative;
   z-index: 1;
   overflow: hidden;
+  border: 1px solid rgba(16, 43, 53, 0.12);
+  border-radius: 22px;
+  background: white;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 30px 80px rgba(16, 43, 53, 0.17),
+    0 8px 28px rgba(16, 43, 53, 0.08);
+}
+
+.todo-workspace-preview-image {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
   border: 1px solid rgba(16, 43, 53, 0.12);
   border-radius: 22px;
   background: white;
@@ -718,8 +737,9 @@
 
 .todo-stat-strip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(3, minmax(160px, 220px));
+  justify-content: center;
+  gap: 80px;
   padding: 42px 6vw;
   color: white;
   background: var(--todo-navy);
