@@ -197,7 +197,7 @@ export function LandingPage({
         </a>
         
         <div className="hidden md:flex items-center gap-8">
-          {['Features', 'Calendar', 'Themes', 'Reviews'].map(item => (
+          {['Features', 'Calendar', 'Themes'].map(item => (
             <a key={item} href={`#${item.toLowerCase()}`} 
                className="text-sm font-bold tracking-tight uppercase hover:opacity-100 transition-all opacity-40 hover:scale-105" 
                style={{ color: 'var(--landing-nav-text)' }}>
@@ -413,7 +413,7 @@ export function LandingPage({
                    borderColor: 'var(--landing-paper3)',
                  }}
                >
-                  <div className="h-10 w-10 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform" style={{ backgroundColor: f.color }}>{f.icon}</div>
+                  {/* <div className="h-10 w-10 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform" style={{ backgroundColor: f.color }}>{f.icon}</div> */}
                   <h3 className="text-lg font-bold mb-1.5" style={{ color: 'var(--landing-ink)' }}>{f.title}</h3>
                   <p className="text-xs leading-relaxed" style={{ color: 'var(--landing-ink3)' }}>{f.desc}</p>
               </div>
@@ -553,7 +553,7 @@ export function LandingPage({
                      { title: 'Forest Protocol', bg: '#f5f5f5', accent: 'teal', side: '#ffffff', t: 'light' },
                    ].map(p => (
                      <div key={p.title} className="group cursor-pointer flex flex-col items-center" onClick={() => {
-                       setTheme(p.t as any);
+                      //  setTheme(p.t as any);
                        setActiveAccent(p.accent);
                      }}>
                         <div
@@ -621,7 +621,7 @@ export function LandingPage({
       </section>
 
       {/* REVIEWS */}
-      <section id="reviews" className="py-24 md:py-32 px-6 max-w-7xl mx-auto">
+      {/* <section id="reviews" className="py-24 md:py-32 px-6 max-w-7xl mx-auto">
          <div className="text-center reveal mb-20">
             <div className="text-xs font-bold uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--accent)' }}>Feedback</div>
             <h2 className="font-serif text-4xl md:text-6xl" style={{ color: 'var(--landing-ink)' }}>Elite reviews</h2>
@@ -653,7 +653,7 @@ export function LandingPage({
               </div>
             ))}
          </div>
-      </section>
+      </section> */}
 
       {/* FINAL CTA */}
       <section id="cta" className="mx-6 md:mx-12 mb-20">
