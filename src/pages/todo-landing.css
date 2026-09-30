@@ -419,7 +419,7 @@
   border-radius: 7px;
   color: white;
   background: var(--todo-teal);
-  font-family: 'Open Sans', serif;
+  font-family: 'Open Sans', sans-serif;
   font-style: italic;
 }
 
@@ -998,10 +998,20 @@
   color: #a6e1d9;
 }
 
-.todo-light-button {
+.todo-landing .todo-light-button {
   flex: 0 0 auto;
-  color: var(--todo-teal-dark);
-  background: white;
+  color: #000000;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.todo-landing .todo-light-button svg {
+  color: #000000;
+}
+
+.todo-landing .todo-light-button:hover {
+  color: #000000;
+  background: #eaf8f5;
   box-shadow: none;
 }
 

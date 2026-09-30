@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowRight,
   Bell,
@@ -230,6 +231,12 @@ export function LandingPage({
   const [menuOpen, setMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  useEffect(() => {
+    onAuthFormActiveChange?.(authMode !== 'landing');
+
+    return () => onAuthFormActiveChange?.(false);
+  }, [authMode, onAuthFormActiveChange]);
+
   const openLogin = () => {
     setMenuOpen(false);
     setAuthMode('login');
@@ -242,11 +249,11 @@ export function LandingPage({
 
   const handleBack = () => {
     setAuthMode('landing');
-    onAuthFormActiveChange?.(false);
+    // onAuthFormActiveChange?.(false);
   };
 
   if (authMode !== 'landing') {
-    onAuthFormActiveChange?.(true);
+    // onAuthFormActiveChange?.(true);
 
     return (
       <div className="todo-auth-page">
