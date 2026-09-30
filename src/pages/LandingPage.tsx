@@ -542,58 +542,9 @@ export function LandingPage({
             <div className="reveal mb-10 text-center max-w-2xl mx-auto">
                <div className="text-xs font-bold uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--accent)' }}>Identity</div>
                <h2 className="font-serif text-4xl md:text-6xl leading-tight mb-6" style={{ color: 'var(--landing-themes-text)' }}>Your app, <em className="italic opacity-80">your style.</em></h2>
-               <p className="text-lg" style={{ color: 'var(--landing-themes-muted)' }}>Switch modes. pick colors. Personalize your focus environment. it all persists instantly.</p>
+               <p className="text-lg" style={{ color: 'var(--landing-themes-muted)' }}>Pick colors. Personalize your focus environment. It all persists instantly.</p>
             </div>
 
-            <div className="flex flex-col items-center gap-12 reveal">
-               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
-                                  {[
-                     { title: 'Light Aesthetic', bg: '#f5f5f5', accent: 'blue', side: '#ffffff', t: 'light' },
-                     { title: 'Midnight Engine', bg: '#1a1a1a', accent: 'blue', side: '#222', t: 'dark', dark: true },
-                     { title: 'Forest Protocol', bg: '#f5f5f5', accent: 'teal', side: '#ffffff', t: 'light' },
-                   ].map(p => (
-                     <div key={p.title} className="group cursor-pointer flex flex-col items-center" onClick={() => {
-                      //  setTheme(p.t as any);
-                       setActiveAccent(p.accent);
-                     }}>
-                        <div
-                          className="rounded-2xl overflow-hidden shadow-xl transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-3xl w-full"
-                          style={{
-                            backgroundColor: 'var(--landing-themes-card)',
-                            border: '1px solid var(--landing-themes-border)',
-                          }}
-                        >
-                           <div className="h-40 relative flex overflow-hidden" style={{ backgroundColor: p.bg }}>
-                              <div
-                                className="w-1/3 shadow-sm"
-                                style={{
-                                  backgroundColor: p.side,
-                                  borderRight: '1px solid var(--landing-themes-border)',
-                                }}
-                              />
-                              <div className="flex-1 p-4 space-y-2">
-                                 {/* Mock Reacting Accent */}
-                                 <div className="h-4 w-full rounded-md" style={{ 
-                                   backgroundColor: p.accent === 'blue' ? ACCENT_COLORS[0].color : (p.accent === 'teal' ? ACCENT_COLORS[1].color : ACCENT_COLORS[0].color) + '15',
-                                   border: `1px solid ${p.accent === 'blue' ? ACCENT_COLORS[0].color : (p.accent === 'teal' ? ACCENT_COLORS[1].color : ACCENT_COLORS[0].color)}` 
-                                 }} />
-                                 <div className="h-4 w-2/3 rounded-md bg-paper3/50" />
-                              </div>
-                              <div
-                                className="absolute inset-x-0 bottom-0 h-10 px-4 flex items-center backdrop-blur-md"
-                                style={{
-                                  backgroundColor: p.dark ? 'rgba(8, 12, 18, 0.68)' : 'rgba(255, 255, 255, 0.12)',
-                                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                                }}
-                              >
-                                 <span className="text-[10px] font-bold" style={{ color: p.dark ? '#ffffff' : '#142331' }}>{p.title}</span>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                   ))}
-               </div>
-            </div>
             <div className="mt-16 reveal flex flex-col items-center">
                <span className="text-xs font-bold uppercase tracking-widest mb-6" style={{ color: 'var(--landing-themes-muted)' }}>Accent Color Palette —</span>
                <div className="flex flex-wrap justify-center gap-4">
