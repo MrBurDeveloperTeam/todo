@@ -498,7 +498,7 @@ export function LandingPage({
           className="todo-primary-button todo-light-button"
           href={SNABBB_SIGNUP_URL}
         >
-          Open Workspace
+          Sign Up
           <ArrowRight size={18} />
         </a>
       </section>
