@@ -180,28 +180,46 @@ export function LandingPage({
 
       {/* NAV */}
       <nav
-        className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-6 md:px-12 py-5 backdrop-blur-2xl border-b transition-all duration-300"
-        style={{
+        className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between px-8 md:px-16 py-5 bg-white border-b transition-all duration-300" style={{
           backgroundColor: 'var(--landing-nav)',
           borderColor: 'var(--landing-nav-border)',
           boxShadow: theme === 'dark' ? '0 12px 40px rgba(0, 0, 0, 0.28)' : '0 8px 24px rgba(20, 35, 49, 0.06)',
         }}
       >
-        <a href="https://app.snabbb.com/" className="flex items-center gap-2 group">
-          <img
-            src={brandLogo}
-            alt="To-do manager"
-            className="h-8 w-auto object-contain drop-shadow-sm transition-transform group-hover:scale-105"
-          />
-          <span className="text-lg font-bold tracking-tight" style={{ color: 'var(--landing-nav-text)' }}>To-do <span style={{ color: 'var(--accent)' }}>manager</span></span>
-        </a>
-        
-        <div className="hidden md:flex items-center gap-8">
-          {['Features', 'Calendar', 'Themes'].map(item => (
-            <a key={item} href={`#${item.toLowerCase()}`} 
-               className="text-sm font-bold tracking-tight uppercase hover:opacity-100 transition-all opacity-40 hover:scale-105" 
-               style={{ color: 'var(--landing-nav-text)' }}>
-              {item}
+        <div className="flex items-center">
+          <a
+            href="https://app.snabbb.com/"
+            className="flex items-center pr-8 mr-8 border-r group"
+            style={{ borderColor: 'var(--landing-nav-border)' }}
+          >
+            <img
+              src={brandLogo}
+              alt="Snabbb."
+              className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
+            />
+          </a>
+
+          <span
+            className="text-lg font-bold"
+            style={{ color: 'var(--landing-nav-text)' }}
+          >
+            To-do manager
+          </span>
+        </div>
+
+        <div className="hidden md:flex items-center gap-10">
+          {[
+            { label: 'Features', href: '#features' },
+            { label: 'How It Works', href: '#how' },
+            { label: 'Themes', href: '#themes' },
+          ].map(item => (
+            <a
+              key={item.label}
+              href={item.href}
+              className="text-base font-semibold transition-opacity hover:opacity-70"
+              style={{ color: 'var(--landing-nav-text)' }}
+            >
+              {item.label}
             </a>
           ))}
         </div>
@@ -214,10 +232,14 @@ export function LandingPage({
           >
             Log In    
           </button>
-          <a href={SNABBB_SIGNUP_URL} className="hidden sm:flex items-center gap-2 px-5 py-2.5 text-white rounded-lg text-sm font-bold shadow-lg shadow-black/10 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all" style={{ backgroundColor: 'var(--accent)' }}>
+          <a
+            href={SNABBB_SIGNUP_URL}
+            className="hidden sm:flex items-center gap-3 px-7 py-4 text-white rounded-2xl text-base font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all"
+            style={{ backgroundColor: 'var(--accent)' }}
+          >
             Sign Up
-            <ArrowRight size={14} />
-          </a>
+            <ArrowRight size={18} />
+          </a>        
         </div>
       </nav>
 
