@@ -365,11 +365,13 @@ export function LandingPage({
             </span>
           </div>
         </div>
-        <img
-          className="todo-workspace-preview-image"
-          src="/images/todo-workspace-preview.png"
-          alt="To-do manager workspace showing tasks, calendar items, and task details"
-        />
+        <div className="todo-hero-preview">
+          <img
+            className="todo-workspace-preview-image"
+            src="/images/todo-workspace-preview.png"
+            alt="To-do manager workspace showing tasks, calendar items, and task details"
+          />
+        </div>
       </section>
 
       <section className="todo-stat-strip">

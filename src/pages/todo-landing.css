@@ -214,11 +214,11 @@
 }
 
 .todo-live-dot {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: #4aa89e;
-  box-shadow: 0 0 0 8px rgba(74, 168, 158, 0.14);
+  box-shadow: 0 0 0 7px rgba(74, 168, 158, 0.14);
 }
 
 .todo-hero h1 {
@@ -297,6 +297,33 @@
 .todo-hero-preview {
   position: relative;
   min-width: 0;
+}
+
+.todo-hero-preview::before,
+.todo-hero-preview::after {
+  position: absolute;
+  z-index: 0;
+  display: block;
+  border-radius: 50%;
+  content: '';
+  filter: blur(34px);
+  pointer-events: none;
+}
+
+.todo-hero-preview::before {
+  top: 8%;
+  left: 22%;
+  width: 390px;
+  height: 390px;
+  background: rgba(214, 241, 237, 0.85);
+}
+
+.todo-hero-preview::after {
+  right: 6%;
+  bottom: -12%;
+  width: 320px;
+  height: 320px;
+  background: rgba(245, 234, 208, 0.72);
 }
 
 .todo-preview-glow {
