@@ -150,6 +150,13 @@
   box-shadow: 0 12px 25px rgba(11, 159, 145, 0.2);
 }
 
+.todo-nav-cta {
+  gap: 7px;
+  padding: 10px 16px;
+  border-radius: 11px;
+  font-size: 14px;
+}
+
 .todo-nav-cta:hover,
 .todo-primary-button:hover {
   transform: translateY(-2px);
@@ -207,11 +214,11 @@
 }
 
 .todo-live-dot {
-  width: 8px;
-  height: 8px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: #69c89e;
-  box-shadow: 0 0 0 4px rgba(105, 200, 158, 0.16);
+  background: #4aa89e;
+  box-shadow: 0 0 0 8px rgba(74, 168, 158, 0.14);
 }
 
 .todo-hero h1 {
@@ -227,7 +234,7 @@
 
 .todo-hero h1 em {
   color: var(--todo-teal);
-  font-style: italic;
+  font-style: normal;
 }
 
 .todo-hero h1 span {
@@ -974,7 +981,7 @@
   padding: 68px clamp(28px, 6vw, 85px);
   border-radius: 24px;
   color: white;
-  background: var(--todo-teal-dark);
+  background: #43847d;
 }
 
 .todo-final-cta h2 {
