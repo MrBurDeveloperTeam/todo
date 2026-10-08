@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { AuthForm } from '../components/AuthForm';
-import { SNABBB_SIGNUP_URL } from '../constants/authLinks';
+import { SNABBB_HOME_URL, SNABBB_SIGNUP_URL } from '../constants/authLinks';
 // @ts-expect-error CSS is loaded by the bundler; it has no TypeScript declaration.
 import './todo-landing.css';
 
@@ -271,8 +271,8 @@ export function LandingPage({
       <nav className="todo-nav">
         <a
           className="todo-brand"
-          href="#top"
-          aria-label="To-do manager home"
+          href={SNABBB_HOME_URL}
+          aria-label="Go to Snabbb home"
         >
           <img src="/Logo/snabbb-teal.png" alt="Snabbb" />
           <span>To-do manager</span>
@@ -506,7 +506,11 @@ export function LandingPage({
       </section>
 
       <footer className="todo-footer">
-        <a className="todo-brand" href="#top">
+        <a
+          className="todo-brand"
+          href={SNABBB_HOME_URL}
+          aria-label="Go to Snabbb home"
+        >
           <img src="/Logo/snabbb-teal.png" alt="Snabbb" />
           <span>To-do manager</span>
         </a>
