@@ -53,7 +53,7 @@ const DEFAULT_CATEGORIES = [
 ];
 const DEFAULT_CATEGORY_IDS = DEFAULT_CATEGORIES.map(c => c.id);
 type UserList = { id: string; name: string; color: string; pinned?: boolean };
-type CompletionToastState = { taskId: string; message: string };
+type CompletionToastState = { taskId: string; message: string; label?: string };
 
 
 interface HomeProps {
@@ -157,11 +157,11 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
     setCompletionToast(null);
   };
 
-  const showCompletionToast = (taskId: string, message: string) => {
+  const showCompletionToast = (taskId: string, message: string, label = 'Completed') => {
     if (completionToastTimeoutRef.current) {
       window.clearTimeout(completionToastTimeoutRef.current);
     }
-    setCompletionToast({ taskId, message });
+    setCompletionToast({ taskId, message, label });
     completionToastTimeoutRef.current = window.setTimeout(() => {
       setCompletionToast(null);
       completionToastTimeoutRef.current = null;
@@ -456,6 +456,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
         await deleteTasks([task]);
         if (selectedTaskId === id) setSelectedTaskId(null);
         logTodoActivity('task_deleted', task.title);
+        showCompletionToast('', `"${task.title}" was deleted.`, 'Deleted');
       }); },
     });
   };
@@ -490,6 +491,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
     setTasks(prev => [mapTodoTask(result.task), ...prev]);
     setSelectedTaskId(result.task.id);
     logTodoActivity(`${item.type}_added`, item.title);
+    showCompletionToast('', `"${item.title}" was added.`, 'Added');
   };
   const handleSaveTask = async () => {
     if (!newTask.title?.trim()) return;
@@ -961,8 +963,9 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
         <div className="pointer-events-none fixed bottom-4 left-3 right-3 z-[120] sm:left-auto sm:right-5 sm:bottom-5">
           <Toast
             message={completionToast.message}
-            onUndo={handleUndoCompletedTask}
+            onUndo={completionToast.taskId ? handleUndoCompletedTask : undefined}
             onClose={clearCompletionToast}
+            label={completionToast.label}
           />
         </div>
       )}
