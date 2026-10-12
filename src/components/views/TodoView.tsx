@@ -1,6 +1,6 @@
 import { EventResponses } from '../EventResponses';
 import type { TodoWorkspace } from '../../lib/todoWorkspace';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Check,
   Calendar,
@@ -61,6 +61,8 @@ export function TodoView({
   const [isCompletedCollapsed, setIsCompletedCollapsed] = useState(true);
   const [isOverdueCollapsed, setIsOverdueCollapsed] = useState(true);
   const [quickTaskValue, setQuickTaskValue] = useState('');
+  const [quickTaskError, setQuickTaskError] = useState('');
+  const quickTaskInputRef = useRef<HTMLInputElement>(null);
   const standardFilters = ['all', 'task', 'event', 'reminder', 'today', 'overdue', 'upcoming'];
 
   const getValidTaskListId = (candidate?: string) => {
@@ -130,7 +132,12 @@ export function TodoView({
 
   const submitQuickTask = async () => {
     const title = quickTaskValue.trim();
-    if (!title) return;
+    if (!title) {
+      setQuickTaskError('Enter a task before saving.');
+      quickTaskInputRef.current?.focus();
+      return;
+    }
+    setQuickTaskError('');
 
     const listCategory = getValidTaskListId(currentFilter);
 
@@ -388,13 +395,16 @@ export function TodoView({
         {['event', 'events'].includes(currentFilter) && !workspace.canManageEvents && <p className="text-sm mb-3">Only the owner or manager can create company events. Select an event to accept or reject it.</p>}
         <form
           className="flex flex-col mb-4"
+          noValidate
           onSubmit={(e) => {
             e.preventDefault();
             submitQuickTask();
           }}
         >
           <div className="flex gap-2">
+            <label htmlFor="quick-task-input" className="sr-only">Task title</label>
             <input
+              ref={quickTaskInputRef}
               disabled={['event', 'events'].includes(currentFilter) && !workspace.canManageEvents}
               id="quick-task-input"
               name="quickTask"
@@ -402,12 +412,17 @@ export function TodoView({
               placeholder="Add a task..."
               className="flex-1 px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--surface)] text-[13.5px] outline-none focus:border-accent focus:ring-2 focus:ring-[var(--accent-subtle)]"
               value={quickTaskValue}
-              onChange={(e) => setQuickTaskValue(e.target.value)}
+              aria-invalid={Boolean(quickTaskError)}
+              aria-describedby={quickTaskError ? 'quick-task-error' : undefined}
+              onChange={(e) => {
+                setQuickTaskValue(e.target.value);
+                if (quickTaskError) setQuickTaskError('');
+              }}
             />
             <button
               type="submit"
               className="hidden sm:inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!quickTaskValue.trim() || (['event', 'events'].includes(currentFilter) && !workspace.canManageEvents)}
+              disabled={['event', 'events'].includes(currentFilter) && !workspace.canManageEvents}
             >
               Save
             </button>
@@ -415,10 +430,15 @@ export function TodoView({
           <button
             type="submit"
             className="mt-2 inline-flex sm:hidden items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!quickTaskValue.trim() || (['event', 'events'].includes(currentFilter) && !workspace.canManageEvents)}
+            disabled={['event', 'events'].includes(currentFilter) && !workspace.canManageEvents}
           >
             Save Task
           </button>
+          {quickTaskError && (
+            <p id="quick-task-error" role="alert" className="mt-2 px-2 text-xs font-semibold text-[var(--priority-high)]">
+              {quickTaskError}
+            </p>
+          )}
           <div className="mt-1 px-2 text-[10px] text-[var(--text4)] flex items-center gap-1 opacity-80">
             <Info size={10} className="text-accent" />
             <span>Tasks created here are automatically assigned to the <strong className="text-[var(--text3)] uppercase">{getValidTaskListId(currentFilter)}</strong> list</span>

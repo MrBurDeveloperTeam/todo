@@ -16,6 +16,7 @@ interface ModalProps {
 
 export function Modal({ canManageEvents, saving, show, onClose, newTask, setNewTask, onSubmit, isEdit, availableLists = [] }: ModalProps) {
   const [isListDropdownOpen, setIsListDropdownOpen] = useState(false);
+  const [titleError, setTitleError] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const selectableLists = availableLists.filter(list => canManageEvents || (list.id.toLowerCase() !== 'events' && list.name.toLowerCase() !== 'events'));
@@ -61,10 +62,17 @@ export function Modal({ canManageEvents, saving, show, onClose, newTask, setNewT
               autoFocus
               autoComplete="off"
               className="w-full text-xl sm:text-2xl font-black bg-transparent outline-none placeholder:text-[var(--text4)]"
+              aria-label="Task title"
               placeholder="What needs to be done?"
+              aria-invalid={Boolean(titleError)}
+              aria-describedby={titleError ? 'modal-title-error' : undefined}
               value={newTask.title || ''}
-              onChange={e => setNewTask({...newTask, title: e.target.value})}
+              onChange={e => {
+                setNewTask({...newTask, title: e.target.value});
+                if (titleError) setTitleError('');
+              }}
             />
+            {titleError && <p id="modal-title-error" role="alert" className="text-xs font-semibold text-[var(--priority-high)]">{titleError}</p>}
 
             <textarea 
               className="w-full min-h-[100px] bg-[var(--bg3)] p-4 rounded-2xl outline-none placeholder:text-[var(--text4)] resize-none text-[13.5px] border border-[var(--border)] focus:border-accent transition group"
@@ -185,9 +193,16 @@ export function Modal({ canManageEvents, saving, show, onClose, newTask, setNewT
         <div className="px-4 py-3 sm:px-6 sm:py-4 bg-[var(--bg3)]/50 border-t border-[var(--border)] flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button onClick={onClose} className="w-full sm:w-auto px-5 py-2.5 rounded-2xl text-[13.5px] font-bold hover:bg-[var(--bg3)] transition text-[var(--text2)]">Cancel</button>
           <button 
-            onClick={onSubmit}
-            disabled={saving || !newTask.title?.trim()}
-            className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-black shadow-lg transition active:scale-95 ${newTask.title ? 'bg-accent text-white shadow-accent/20 hover:brightness-110' : 'bg-[var(--bg-disabled)] text-[var(--text4)] cursor-not-allowed'}`}
+            onClick={() => {
+              if (!newTask.title?.trim()) {
+                setTitleError('Enter a title before saving.');
+                return;
+              }
+              setTitleError('');
+              onSubmit();
+            }}
+            disabled={saving}
+            className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-black shadow-lg transition active:scale-95 ${newTask.title?.trim() ? 'bg-accent text-white shadow-accent/20 hover:brightness-110' : 'bg-[var(--bg-disabled)] text-[var(--text4)]'}`}
           >
             {isEdit ? 'Save Changes' : (newTask.type === 'task' ? 'Create Task' : newTask.type === 'event' ? 'Add Event' : 'Add Reminder')}
           </button>
