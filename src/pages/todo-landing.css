@@ -85,7 +85,7 @@
   border-left: 1px solid var(--todo-line);
   color: var(--todo-teal-dark);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .todo-nav-links {
