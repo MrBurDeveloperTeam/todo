@@ -445,7 +445,7 @@ export function TodoView({
           </div>
         </form>
 
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-2 mini-scrollbar">
+        <div className="hidden sm:flex gap-2 mb-4 overflow-x-auto pb-2 mini-scrollbar">
           {['all', 'task', 'event', 'reminder', 'today', 'upcoming', 'overdue'].map((f) => (
             <button
               key={f}
