@@ -96,7 +96,7 @@
   margin-right: 38px;
   color: #71838a;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .todo-nav-links a {
@@ -155,6 +155,7 @@
   padding: 10px 16px;
   border-radius: 11px;
   font-size: 14px;
+  font-weight: 500;
 }
 
 .todo-nav-cta:hover,
