@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Clock, Calendar, Search, Briefcase, ChevronDown } from 'lucide-react';
 import { TaskItem, ItemType, Priority, ListType } from '../types';
 
@@ -18,6 +19,31 @@ export function Modal({ canManageEvents, saving, show, onClose, newTask, setNewT
   const [isListDropdownOpen, setIsListDropdownOpen] = useState(false);
   const [titleError, setTitleError] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!show) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const viewport = window.visualViewport;
+    // The visual viewport also shrinks when a phone's keyboard opens.
+    const updateViewport = () => {
+      const overlay = overlayRef.current;
+      if (!overlay) return;
+      overlay.style.height = `${viewport?.height ?? window.innerHeight}px`;
+      overlay.style.top = `${viewport?.offsetTop ?? 0}px`;
+    };
+    updateViewport();
+    viewport?.addEventListener('resize', updateViewport);
+    viewport?.addEventListener('scroll', updateViewport);
+    window.addEventListener('resize', updateViewport);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      viewport?.removeEventListener('resize', updateViewport);
+      viewport?.removeEventListener('scroll', updateViewport);
+      window.removeEventListener('resize', updateViewport);
+    };
+  }, [show]);
 
   const selectableLists = availableLists.filter(list => canManageEvents || (list.id.toLowerCase() !== 'events' && list.name.toLowerCase() !== 'events'));
   const selectedList = selectableLists.find(l => l.id === newTask.list) || selectableLists[0];
@@ -34,15 +60,15 @@ export function Modal({ canManageEvents, saving, show, onClose, newTask, setNewT
 
   if (!show) return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 sm:p-6 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-xl bg-[var(--surface)] rounded-2xl sm:rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200 max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-2rem)]">
-        <div className="px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg3)]/50">
-          <h2 className="text-lg sm:text-xl font-black">{isEdit ? 'Edit Item' : 'Create New'}</h2>
+  return createPortal(
+    <div ref={overlayRef} className="task-modal-overlay fixed inset-x-0 top-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+      <div role="dialog" aria-modal="true" aria-labelledby="task-modal-heading" className="task-modal-panel flex min-h-0 min-w-0 flex-col w-full max-w-xl max-h-full bg-[var(--surface)] rounded-2xl sm:rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg3)]/50">
+          <h2 id="task-modal-heading" className="text-lg sm:text-xl font-black">{isEdit ? 'Edit Item' : 'Create New'}</h2>
           <button onClick={onClose} className="p-2 hover:bg-[var(--bg3)] rounded-full transition"><X size={20} /></button>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-5 max-h-[calc(100vh-8.5rem)] sm:max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <div className="min-h-0 min-w-0 p-4 sm:p-6 space-y-5 overflow-y-auto overscroll-contain custom-scrollbar" onScroll={() => setIsListDropdownOpen(false)}>
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
               {(['task', 'event', 'reminder'] as ItemType[]).map(t => (
@@ -190,7 +216,7 @@ export function Modal({ canManageEvents, saving, show, onClose, newTask, setNewT
 
         </div>
 
-        <div className="px-4 py-3 sm:px-6 sm:py-4 bg-[var(--bg3)]/50 border-t border-[var(--border)] flex flex-col-reverse sm:flex-row justify-end gap-3">
+        <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 bg-[var(--bg3)]/50 border-t border-[var(--border)] flex flex-col-reverse sm:flex-row justify-end gap-3">
           <button onClick={onClose} className="w-full sm:w-auto px-5 py-2.5 rounded-2xl text-[13.5px] font-bold hover:bg-[var(--bg3)] transition text-[var(--text2)]">Cancel</button>
           <button 
             onClick={() => {
@@ -208,6 +234,6 @@ export function Modal({ canManageEvents, saving, show, onClose, newTask, setNewT
           </button>
         </div>
       </div>
-    </div>
+    </div>, document.body
   );
 }
