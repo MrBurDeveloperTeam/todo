@@ -4,6 +4,39 @@
 @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap');
 
+.task-modal-overlay {
+  height: 100dvh;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+/* Safari's native date/time controls have an intrinsic minimum width. */
+.task-modal-panel input,
+.task-modal-panel textarea,
+.task-modal-panel .grid > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.task-modal-panel input[type='date'],
+.task-modal-panel input[type='time'] {
+  appearance: none;
+  width: 100%;
+  display: block;
+}
+
+@media (max-width: 639px) {
+  /* Prevent iOS from zooming the page when a form field receives focus. */
+  .task-modal-panel input,
+  .task-modal-panel textarea {
+    font-size: 16px;
+  }
+}
+
+body:has(.task-modal-overlay) .floating-companions {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 :root {
   --accent: #0078d4;
   --accent-light: #e8f3fc;

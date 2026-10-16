@@ -441,7 +441,7 @@ export default function App() {
         setTheme={handleSetTheme}
         taskDataStatus={taskDataStatus}
       />
-      <div className={isVirtualPetOpen ? 'hidden' : 'contents'}>
+      <div className={isVirtualPetOpen ? 'hidden' : 'floating-companions relative z-[80] isolate'}>
         {/* PHASE TODO-CAT-CACHE: keyed + userId-sourced from
             session.user.id, same rationale as TodoVirtualPet below —
             CatMascot's own account-sensitive presentation cache
