@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Info,
+  SlidersHorizontal,
   ChevronDown
 } from 'lucide-react';
 import { TaskItem, ItemType, Priority } from '../../types';
@@ -371,27 +372,6 @@ export function TodoView({
           </span>
         </div>
 
-        <div className="mb-3 sm:hidden">
-          <label className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text4)] block mb-2">Current Category</label>
-          <div className="relative">
-            <select
-              value={currentFilter}
-              onChange={(e) => {
-                setCurrentFilter(e.target.value);
-                if (currentView !== 'todo') setCurrentView('todo');
-              }}
-              className="w-full appearance-none rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2.5 pr-10 text-[13px] font-bold text-accent outline-none focus:border-accent"
-            >
-              {mobileCategoryOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text4)]" />
-          </div>
-        </div>
-
         {['event', 'events'].includes(currentFilter) && !workspace.canManageEvents && <p className="text-sm mb-3">Only the owner or manager can create company events. Select an event to accept or reject it.</p>}
         <form
           className="flex flex-col mb-4"
@@ -401,8 +381,8 @@ export function TodoView({
             submitQuickTask();
           }}
         >
+          <label htmlFor="quick-task-input" className="mb-2 text-xs font-bold text-[var(--text2)] sm:sr-only">Quick add task</label>
           <div className="flex gap-2">
-            <label htmlFor="quick-task-input" className="sr-only">Task title</label>
             <input
               ref={quickTaskInputRef}
               disabled={['event', 'events'].includes(currentFilter) && !workspace.canManageEvents}
@@ -410,7 +390,7 @@ export function TodoView({
               name="quickTask"
               type="text"
               placeholder="Add a task..."
-              className="flex-1 px-3 py-2 rounded-lg border border-[var(--input-border)] bg-[var(--surface)] text-[13.5px] outline-none focus:border-accent focus:ring-2 focus:ring-[var(--accent-subtle)]"
+              className="min-w-0 flex-1 px-3 py-2.5 sm:py-2 rounded-lg border border-[var(--input-border)] bg-[var(--surface)] text-base sm:text-[13.5px] outline-none focus:border-accent focus:ring-2 focus:ring-[var(--accent-subtle)]"
               value={quickTaskValue}
               aria-invalid={Boolean(quickTaskError)}
               aria-describedby={quickTaskError ? 'quick-task-error' : undefined}
@@ -421,19 +401,12 @@ export function TodoView({
             />
             <button
               type="submit"
-              className="hidden sm:inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="shrink-0 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={['event', 'events'].includes(currentFilter) && !workspace.canManageEvents}
             >
               Save
             </button>
           </div>
-          <button
-            type="submit"
-            className="mt-2 inline-flex sm:hidden items-center justify-center rounded-lg bg-accent px-4 py-2.5 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={['event', 'events'].includes(currentFilter) && !workspace.canManageEvents}
-          >
-            Save Task
-          </button>
           {quickTaskError && (
             <p id="quick-task-error" role="alert" className="mt-2 px-2 text-xs font-semibold text-[var(--priority-high)]">
               {quickTaskError}
@@ -444,6 +417,28 @@ export function TodoView({
             <span>Tasks created here are automatically assigned to the <strong className="text-[var(--text3)] uppercase">{getValidTaskListId(currentFilter)}</strong> list</span>
           </div>
         </form>
+
+        <div className="mb-4 flex items-center gap-3 border-t border-[var(--border)] pt-4 sm:hidden">
+          <label htmlFor="mobile-task-filter" className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-[var(--text3)]">
+            <SlidersHorizontal size={14} aria-hidden="true" /> Filter tasks
+          </label>
+          <div className="relative min-w-0 flex-1">
+            <select
+              id="mobile-task-filter"
+              value={currentFilter}
+              onChange={(e) => {
+                setCurrentFilter(e.target.value);
+                if (currentView !== 'todo') setCurrentView('todo');
+              }}
+              className="w-full min-w-0 appearance-none rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 pr-8 text-base font-medium text-[var(--text2)] outline-none focus:border-accent"
+            >
+              {mobileCategoryOptions.map((option) => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+            <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text4)]" />
+          </div>
+        </div>
 
         <div className="hidden sm:flex gap-2 mb-4 overflow-x-auto pb-2 mini-scrollbar">
           {['all', 'task', 'event', 'reminder', 'today', 'upcoming', 'overdue'].map((f) => (
