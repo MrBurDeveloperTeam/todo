@@ -128,7 +128,9 @@ export function TodoView({
     { id: 'today', label: 'Today' },
     { id: 'upcoming', label: 'Upcoming' },
     { id: 'overdue', label: 'Overdue' },
-    ...userLists.map((list) => ({ id: list.id, label: list.name })),
+    ...userLists
+    .filter((list) => list.name.trim().toLowerCase() !== 'events')
+    .map((list) => ({ id: list.id, label: list.name })),
   ].filter((option, index, array) => array.findIndex((item) => item.id === option.id) === index);
 
   const submitQuickTask = async () => {
