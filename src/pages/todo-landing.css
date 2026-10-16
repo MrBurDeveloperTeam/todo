@@ -205,21 +205,21 @@
 .todo-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  font-weight: 600;
+  gap: 9px;
   padding: 9px 13px;
   margin-bottom: 26px;
-  border: 1px solid var(--todo-line);
-  border-radius: 999px;
-  background: white;
-  box-shadow: 0 8px 24px rgba(16, 43, 53, 0.06);
+  border: 1px solid #c9ece7;
+  border-radius: 30px;
+  background: rgba(223, 247, 243, 0.7);
 }
 
 .todo-live-dot {
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: #4aa89e;
-  box-shadow: 0 0 0 7px rgba(74, 168, 158, 0.14);
+  background: var(--todo-teal);
+  box-shadow: 0 0 0 5px rgba(11, 159, 145, 0.12);
 }
 
 .todo-hero h1 {
