@@ -37,57 +37,6 @@ body:has(.task-modal-overlay) .floating-companions {
   pointer-events: none;
 }
 
-/* Give the floating controls one safe-area-aware anchor. The cat package's
-   percentage top otherwise moves as Safari expands/collapses its toolbar. */
-.floating-companions {
-  --companion-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
-  --companion-right: calc(24px + env(safe-area-inset-right, 0px));
-  --companion-button-size: 64px;
-  --companion-cat-width: 80.64px;
-}
-
-.floating-companions .snabbb-molar-experience .molar-ai-trigger-wrapper {
-  bottom: var(--companion-bottom);
-  right: calc(var(--companion-right) + 8px);
-}
-
-.floating-companions .snabbb-molar-experience .molar-ai-trigger-inner,
-.floating-companions .snabbb-molar-experience .molar-ai-trigger-btn {
-  width: var(--companion-button-size);
-  height: var(--companion-button-size);
-  display: grid;
-  place-items: center;
-  padding: 0;
-}
-
-.floating-companions .snabbb-molar-experience .molar-ai-trigger-icon {
-  display: block;
-  margin: 0;
-  object-position: center;
-}
-
-.floating-companions .molar-cat-wrapper:has(.molar-cat-sprite--sleep) {
-  top: auto !important;
-  left: auto !important;
-  right: calc(var(--companion-right) + (var(--companion-button-size) - var(--companion-cat-width)) / 2);
-  bottom: calc(var(--companion-bottom) + var(--companion-button-size) + 12px);
-  width: var(--companion-cat-width);
-  transform: none !important;
-  transition: none !important;
-}
-
-@media (max-width: 639px) {
-  /* Keep the same dock when the mobile pet wakes up, too. */
-  .floating-companions .molar-cat-wrapper {
-    top: auto !important;
-    left: auto !important;
-    right: calc(var(--companion-right) + (var(--companion-button-size) - var(--companion-cat-width)) / 2);
-    bottom: calc(var(--companion-bottom) + var(--companion-button-size) + 12px);
-    width: var(--companion-cat-width);
-    transform: none !important;
-    transition: none !important;
-  }
-}
 
 :root {
   --accent: #0078d4;
