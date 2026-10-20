@@ -340,7 +340,7 @@ export function LandingPage({
           <div className="todo-hero-actions">
             <button className="todo-primary-button" onClick={openSignup}>
               Sign Up
-              <ArrowRight size={18} />
+              <ArrowRight size={22} strokeWidth={2.5} />
             </button>
 
             <a className="todo-secondary-button" href="#features">
