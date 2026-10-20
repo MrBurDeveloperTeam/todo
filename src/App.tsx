@@ -397,7 +397,10 @@ export default function App() {
     setTaskDataStatus('ready');
   };
 
-  if (isAuthChecking) {
+  // The auth gate drops as soon as the profile is resolved, but the workspace and tasks
+  // are fetched right after that. Keep the launch screen up until they are ready (or
+  // failed), so the page never shows its own "Loading workspace…" placeholder.
+  if (isAuthChecking || (session && taskDataStatus === 'loading')) {
     // Same screen as the gallery's /opening.html and index.html's splash.
     return <LaunchScreen status={session ? 'Loading your tasks…' : 'Signing you in…'} />;
   }
