@@ -1,4 +1,5 @@
 import { loadTodoWorkspace, todoRequest, mapTodoTask, type TodoWorkspace } from './lib/todoWorkspace';
+import LaunchScreen from './components/LaunchScreen';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TaskItem, AppUser } from './types';
 import { toLocalDateStr, todayStr, updateThemeIcon } from './utils';
@@ -397,14 +398,8 @@ export default function App() {
   };
 
   if (isAuthChecking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-sm font-bold text-slate-500 animate-pulse">Initializing Workspace...</p>
-        </div>
-      </div>
-    );
+    // Same screen as the gallery's /opening.html and index.html's splash.
+    return <LaunchScreen status={session ? 'Loading your tasks…' : 'Signing you in…'} />;
   }
 
   if (!session) {
