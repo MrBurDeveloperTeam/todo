@@ -856,8 +856,8 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
             <Menu size={16} />
           </button>
           
-          <h1 className="min-w-0 text-sm font-semibold text-[var(--text)] whitespace-nowrap sm:text-base">
-            {currentView === 'todo' ? 'My Tasks' : (currentView === 'today' ? 'Today' : (currentView === 'upcoming' ? 'Upcoming' : currentView))}
+          <h1 className="w-20 shrink-0 text-sm font-semibold text-[var(--text)] whitespace-nowrap sm:text-base">
+            {VIEW_LABELS[currentView]}
           </h1>
 
           <div className="flex-1 max-w-[360px] mx-auto relative hidden sm:block">
