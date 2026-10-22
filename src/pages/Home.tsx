@@ -841,7 +841,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col min-w-0 relative h-full">
-        <header className="h-[52px] flex-shrink-0 flex items-center gap-3 px-5 border-b border-[var(--border)] bg-[var(--header-bg)] sticky top-0 z-40">
+        <header className="relative h-[52px] flex-shrink-0 flex items-center gap-3 px-5 border-b border-[var(--border)] bg-[var(--header-bg)] sticky top-0 z-40">
           <button 
             id="toggle-sidebar" 
             onClick={() => {
@@ -856,11 +856,11 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
             <Menu size={16} />
           </button>
           
-          <h1 className="min-w-0 text-sm font-semibold text-[var(--text)] whitespace-nowrap sm:text-base">
-            {currentView === 'todo' ? 'My Tasks' : (currentView === 'today' ? 'Today' : (currentView === 'upcoming' ? 'Upcoming' : currentView))}
+          <h1 className="w-20 shrink-0 text-sm font-semibold text-[var(--text)] whitespace-nowrap sm:text-base">
+            {VIEW_LABELS[currentView]}
           </h1>
 
-          <div className="flex-1 max-w-[360px] mx-auto relative hidden sm:block">
+          <div className="absolute left-1/2 top-1/2 hidden w-[360px] max-w-[calc(100%_-_2rem)] -translate-x-1/2 -translate-y-1/2 sm:block">
             <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text4)]">
               <Search size={13} strokeWidth={2.5} />
             </div>
