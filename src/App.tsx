@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { TaskItem, AppUser } from './types';
 import { toLocalDateStr, todayStr, updateThemeIcon } from './utils';
 import { supabase } from './lib/supabase';
+import { fetchOdooSessionName } from './hooks/useOdooSessionName';
 import { LandingPage } from './pages/LandingPage';
 import { Home } from './pages/Home';
 import { api, checkSession } from './lib/api';
@@ -260,6 +261,11 @@ export default function App() {
         if (isCurrent()) {
           setUser(nextUser);
           setIsAuthChecking(false);
+          // Name from Odoo get_session_info (same source as the App Gallery).
+          void fetchOdooSessionName(nextUser.email).then((odooName) => {
+            if (!odooName || !isCurrent()) return;
+            setUser((current) => (current.user_id === nextUser.user_id ? { ...current, name: odooName } : current));
+          });
         }
 
         const selectedWorkspace = await loadTodoWorkspace(authUser.id);
