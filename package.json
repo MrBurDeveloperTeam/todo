@@ -13,7 +13,7 @@
     "verify:pet": "node scripts/verify-pet.mjs"
   },
   "dependencies": {
-    "@mrburdeveloperteam/pet-function": "github:mrburdeveloperteam/pet-function#v0.12.2",
+    "@mrburdeveloperteam/pet-function": "github:mrburdeveloperteam/pet-function#v0.12.3",
     "@supabase/supabase-js": "^2.98.0",
     "@tanstack/react-query": "^5.59.0",
     "axios": "^1.13.5",
@@ -51,7 +51,7 @@
     "node": ">=22"
   },
   "allowScripts": {
-    "github:mrburdeveloperteam/pet-function#8a1993a66d60087829519c053ee7de0ed3475320": true,
+    "github:mrburdeveloperteam/pet-function#4c7e6732ca808e144f817d79ba80dba4f4df7406": true,
     "github:mrburdeveloperteam/pet-function#379f59531366d2d5ebcaf80adaa00bf91048e585": true,
     "esbuild@0.28.1": true
   }
