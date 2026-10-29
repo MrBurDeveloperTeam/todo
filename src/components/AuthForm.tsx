@@ -34,7 +34,7 @@ export function AuthForm({ mode, onBack: _onBack, onSwitchMode }: { mode: 'login
   const [rememberMe, setRememberMe] = useState(false);
   const isSignup = mode === 'signup';
   const theme = localStorage.getItem('tf_theme') === 'dark' ? 'dark' : 'light';
-  const brandLogo = theme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.webp';
+  const brandLogo = theme === 'dark' ? '/Logo/snabbb-white.webp' : '/Logo/snabbb-teal.webp';
   const effectivePosition = position === 'Other' ? otherPosition.trim() : position;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
