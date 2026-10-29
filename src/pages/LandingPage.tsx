@@ -274,7 +274,7 @@ export function LandingPage({
           href={SNABBB_HOME_URL}
           aria-label="Go to Snabbb home"
         >
-          <img src="/Logo/snabbb-teal.png" alt="Snabbb" />
+          <img src="/Logo/snabbb-teal.webp" alt="Snabbb" />
           <span>To-do manager</span>
         </a>
 
@@ -511,7 +511,7 @@ export function LandingPage({
           href={SNABBB_HOME_URL}
           aria-label="Go to Snabbb home"
         >
-          <img src="/Logo/snabbb-teal.png" alt="Snabbb" />
+          <img src="/Logo/snabbb-teal.webp" alt="Snabbb" />
           <span>To-do manager</span>
         </a>
 
