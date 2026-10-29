@@ -36,6 +36,22 @@ export const ACCENTS = {
   orange: { main: '#d15000', light: '#fdf0e8', hover: '#b54400' }
 };
 
+/** Pick the higher-contrast text color for a user-selected accent. */
+export const getAccentTextColor = (hex: string): '#000000' | '#ffffff' => {
+  const match = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex);
+  if (!match) return '#ffffff';
+
+  const luminance = match.slice(1).reduce((total, channel, index) => {
+    const value = parseInt(channel, 16) / 255;
+    const linear = value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    return total + linear * [0.2126, 0.7152, 0.0722][index];
+  }, 0);
+
+  const darkContrast = (luminance + 0.05) / 0.05;
+  const lightContrast = 1.05 / (luminance + 0.05);
+  return darkContrast > lightContrast ? '#000000' : '#ffffff';
+};
+
 export const updateThemeIcon = (theme: string) => {
   if (typeof document === 'undefined') return;
 

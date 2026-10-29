@@ -61,11 +61,11 @@ export function ConfirmModal({
                onConfirm();
                onClose();
              }}
-             className={`flex-1 py-2 text-[13px] font-bold text-white rounded-xl transition-all shadow-lg active:scale-[0.98] ${
+             className={`flex-1 py-2 text-[13px] font-bold rounded-xl transition-all shadow-lg active:scale-[0.98] ${
                type === 'danger' ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20' : 
                type === 'warning' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' : 
-               'bg-accent hover:bg-[var(--accent-hover)] shadow-accent/20'
-             }`}
+               'bg-accent hover:shadow-xl shadow-accent/20'
+             } ${type === 'danger' || type === 'warning' ? 'text-white' : 'text-[var(--accent-contrast)]'}`}
            >
              {confirmText}
            </button>

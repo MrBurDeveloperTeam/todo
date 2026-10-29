@@ -40,6 +40,7 @@ body:has(.task-modal-overlay) .floating-companions {
 
 :root {
   --accent: #0078d4;
+  --accent-contrast: #ffffff;
   --accent-light: #e8f3fc;
   --accent-hover: #106ebe;
   --accent-subtle: rgba(0, 120, 212, 0.12);
@@ -128,8 +129,8 @@ body:has(.task-modal-overlay) .floating-companions {
   --border2: #444;
   --text: #f0f0f0;
   --text2: #ccc;
-  --text3: #888;
-  --text4: #555;
+  --text3: #b8b8b8;
+  --text4: #a3a3a3;
   --sidebar-bg: #1e1e1e;
   --sidebar-text: #d0d0d0;
   --sidebar-hover: #2d2d2d;

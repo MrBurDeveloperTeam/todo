@@ -166,7 +166,7 @@ export function SettingsView({
                     ? 'bg-green-500 text-white'
                     : saveStatus === 'error'
                       ? 'bg-red-500 text-white'
-                      : 'bg-accent text-white hover:opacity-90 active:scale-[0.98]'
+                      : 'bg-accent text-[var(--accent-contrast)] hover:shadow-lg active:scale-[0.98]'
                   } disabled:opacity-50`}
               >
                 {isSaving ? (
@@ -208,7 +208,7 @@ export function SettingsView({
                   <Sun size={16} />
                 </button>
                 <button
-                  className={`p-2 rounded-lg border transition ${theme === 'dark' ? 'border-accent bg-accent text-white' : 'border-[var(--border)]'}`}
+                  className={`p-2 rounded-lg border transition ${theme === 'dark' ? 'border-accent bg-accent text-[var(--accent-contrast)]' : 'border-[var(--border)]'}`}
                   onClick={() => setTheme('dark')}
                   aria-label="Use dark mode"
                   title="Dark"
@@ -315,7 +315,7 @@ export function SettingsView({
         </div>
       </div>
 
-      <div className="bg-accent text-white p-5 sm:p-6 rounded-xl shadow-lg relative overflow-hidden">
+      <div className="bg-accent text-[var(--accent-contrast)] p-5 sm:p-6 rounded-xl shadow-lg relative overflow-hidden">
         <div className="relative z-10">
           <h2 className="text-lg sm:text-xl font-black mb-1">To-do manager v1.0.0</h2>
           <p className="text-sm opacity-90">Experience the premium task manager. Your data is saved locally on this browser.</p>
