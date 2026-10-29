@@ -310,7 +310,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
   const [calDate, setCalDate] = useState(new Date());
   const [calView, setCalView] = useState('month');
   const resolvedTheme = resolveTheme(theme);
-  const brandLogo = resolvedTheme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.png';
+  const brandLogo = resolvedTheme === 'dark' ? '/Logo/snabbb-white.png' : '/Logo/snabbb-teal.webp';
   const sortedLists = [...userLists].sort((a, b) => {
     const aPinned = pinnedListIds.includes(a.id) ? 1 : 0;
     const bPinned = pinnedListIds.includes(b.id) ? 1 : 0;
