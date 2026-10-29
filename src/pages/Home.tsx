@@ -27,7 +27,7 @@ import { SettingsView } from '../components/views/SettingsView';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Toast } from '../components/Toast';
-import { toLocalDateStr, todayStr, ACCENTS, updateThemeIcon } from '../utils';
+import { toLocalDateStr, todayStr, ACCENTS, getAccentTextColor, updateThemeIcon } from '../utils';
 import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
 import { logActivityToOdoo } from '../lib/logActivityToOdoo';
@@ -367,6 +367,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
     // Update CSS variables for accent
     const accentData = (ACCENTS as any)[accent] || { main: accent, light: `${accent}15`, hover: accent };
     document.documentElement.style.setProperty('--accent', accentData.main);
+    document.documentElement.style.setProperty('--accent-contrast', getAccentTextColor(accentData.main));
     document.documentElement.style.setProperty('--accent-rgb', accentData.main.startsWith('#') ? hexToRgb(accentData.main) : '0, 120, 212');
     document.documentElement.style.setProperty('--accent-light', accentData.light || `${accentData.main}15`);
     document.documentElement.style.setProperty('--accent-subtle', resolved === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)');
@@ -796,7 +797,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
           />
           
           <div className={`mt-3 flex items-center gap-2.5 px-2 py-2.5 rounded-lg bg-[var(--bg3)] overflow-hidden ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-            <div className="h-7 w-7 flex-shrink-0 rounded-full bg-accent flex items-center justify-center text-white font-bold text-xs uppercase">
+            <div className="h-7 w-7 flex-shrink-0 rounded-full bg-accent flex items-center justify-center text-[var(--accent-contrast)] font-bold text-xs uppercase">
               {profileImageUrl ? (
                 <img
                   src={profileImageUrl}
@@ -902,7 +903,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
                         aria-label={`Use ${name} accent color`}
                         title={name.charAt(0).toUpperCase() + name.slice(1)}
                       >
-                        {accent === name && <Check size={14} className="text-white drop-shadow" strokeWidth={3} />}
+                        {accent === name && <Check size={14} className="drop-shadow" style={{ color: getAccentTextColor(color.main) }} strokeWidth={3} />}
                       </button>
                     ))}
                   </div>
@@ -924,7 +925,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
             <button 
               disabled={!workspace || saving}
               onClick={() => openAddModal('task')}
-              className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-white rounded-md text-[12px] sm:text-[13px] font-medium hover:bg-[var(--accent-hover)] transition-all active:scale-[0.97]"
+              className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-[var(--accent-contrast)] rounded-md text-[12px] sm:text-[13px] font-medium hover:shadow-lg transition-all active:scale-[0.97]"
             >
               <Plus size={14} strokeWidth={2.5} /> 
               <span className="hidden sm:inline">New Task</span>

@@ -215,7 +215,7 @@ export function TodoView({
           {selectedTask.type === 'event' && selectedTask.workspaceType === 'company' && workspace.workspaceType === 'company' && <EventResponses key={selectedTask.id} taskId={selectedTask.id} workspace={workspace} />}
           {canEditTask(selectedTask) && <div className="flex flex-wrap gap-2 pt-4 border-t border-[var(--border)]">
             <button
-              className="flex-1 min-w-[120px] py-2 rounded-lg bg-accent text-white text-[12.5px] font-medium flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition"
+              className="flex-1 min-w-[120px] py-2 rounded-lg bg-accent text-[var(--accent-contrast)] text-[12.5px] font-medium flex items-center justify-center gap-1 hover:shadow-lg active:scale-95 transition"
               disabled={!canEditTask(selectedTask)}
               onClick={() => openEditModal(selectedTask)}
             >
@@ -337,7 +337,7 @@ export function TodoView({
             {t.type === 'event' && t.workspaceType === 'company' && workspace.workspaceType === 'company' && <EventResponses key={t.id} taskId={t.id} workspace={workspace} />}
             {canEditTask(t) && <div className="flex flex-wrap gap-2 pt-1">
               <button
-                className="flex-1 min-w-[110px] py-2 rounded-lg bg-accent text-white text-[12.5px] font-medium flex items-center justify-center gap-1 hover:brightness-110 active:scale-95 transition"
+                className="flex-1 min-w-[110px] py-2 rounded-lg bg-accent text-[var(--accent-contrast)] text-[12.5px] font-medium flex items-center justify-center gap-1 hover:shadow-lg active:scale-95 transition"
                 disabled={!canEditTask(t)}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -403,7 +403,7 @@ export function TodoView({
             />
             <button
               type="submit"
-              className="shrink-0 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-white transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="shrink-0 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-[13px] font-semibold text-[var(--accent-contrast)] transition hover:shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
               disabled={['event', 'events'].includes(currentFilter) && !workspace.canManageEvents}
             >
               Save
@@ -450,7 +450,7 @@ export function TodoView({
                 setCurrentFilter(f);
                 if (currentView !== 'todo') setCurrentView('todo');
               }}
-              className={`px-3 py-1 rounded-full text-[12.5px] font-medium border border-[var(--border)] whitespace-nowrap transition-all ${currentFilter === f ? 'bg-accent text-white border-accent' : 'bg-[var(--surface)] text-[var(--text2)] hover:border-accent hover:text-accent'}`}
+              className={`px-3 py-1 rounded-full text-[12.5px] font-medium border border-[var(--border)] whitespace-nowrap transition-all ${currentFilter === f ? 'bg-accent text-[var(--accent-contrast)] border-accent' : 'bg-[var(--surface)] text-[var(--text2)] hover:border-accent hover:text-accent'}`}
             >
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
