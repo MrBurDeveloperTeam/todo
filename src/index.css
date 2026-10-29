@@ -40,7 +40,8 @@ body:has(.task-modal-overlay) .floating-companions {
 
 :root {
   --accent: #0078d4;
-  --accent-contrast: #ffffff;
+  /* Safe first-paint foreground for the default blue/Tiffany accents. */
+  --accent-contrast: #000000;
   --accent-light: #e8f3fc;
   --accent-hover: #106ebe;
   --accent-subtle: rgba(0, 120, 212, 0.12);
