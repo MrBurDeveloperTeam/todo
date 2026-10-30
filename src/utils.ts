@@ -36,20 +36,40 @@ export const ACCENTS = {
   orange: { main: '#d15000', light: '#fdf0e8', hover: '#b54400' }
 };
 
-/** Pick the higher-contrast text color for a user-selected accent. */
-export const getAccentTextColor = (hex: string): '#000000' | '#ffffff' => {
+const parseAccentColor = (hex: string): [number, number, number] | null => {
   const match = /^#?([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(hex);
-  if (!match) return '#ffffff';
+  return match ? [parseInt(match[1], 16), parseInt(match[2], 16), parseInt(match[3], 16)] : null;
+};
 
-  const luminance = match.slice(1).reduce((total, channel, index) => {
-    const value = parseInt(channel, 16) / 255;
+const accentLuminance = (channels: [number, number, number]): number =>
+  channels.reduce((total, channel, index) => {
+    const value = channel / 255;
     const linear = value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
     return total + linear * [0.2126, 0.7152, 0.0722][index];
   }, 0);
 
+/** Pick the higher-contrast text color for a user-selected accent. */
+export const getAccentTextColor = (hex: string): '#000000' | '#ffffff' => {
+  const channels = parseAccentColor(hex);
+  if (!channels) return '#ffffff';
+  const luminance = accentLuminance(channels);
   const darkContrast = (luminance + 0.05) / 0.05;
   const lightContrast = 1.05 / (luminance + 0.05);
   return darkContrast > lightContrast ? '#000000' : '#ffffff';
+};
+
+/** Preserve the accent hue while making a white button label readable. */
+export const getAccentFillForWhiteText = (hex: string): string => {
+  const channels = parseAccentColor(hex);
+  if (!channels) return '#007b77';
+
+  for (let percent = 100; percent >= 0; percent--) {
+    const candidate = channels.map(channel => Math.round(channel * percent / 100)) as [number, number, number];
+    if (1.05 / (accentLuminance(candidate) + 0.05) >= 4.7) {
+      return `#${candidate.map(channel => channel.toString(16).padStart(2, '0')).join('')}`;
+    }
+  }
+  return '#000000';
 };
 
 export const updateThemeIcon = (theme: string) => {

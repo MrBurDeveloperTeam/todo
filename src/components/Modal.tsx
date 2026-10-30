@@ -8,6 +8,7 @@ interface ModalProps {
   canManageEvents: boolean;
   saving: boolean;
   accentTextColor: '#000000' | '#ffffff';
+  lightAccentFill: string;
   onClose: () => void;
   newTask: Partial<TaskItem>;
   setNewTask: (task: Partial<TaskItem>) => void;
@@ -16,7 +17,7 @@ interface ModalProps {
   availableLists?: {id: string, name: string, color: string}[];
 }
 
-export function Modal({ canManageEvents, saving, accentTextColor, show, onClose, newTask, setNewTask, onSubmit, isEdit, availableLists = [] }: ModalProps) {
+export function Modal({ canManageEvents, saving, accentTextColor, lightAccentFill, show, onClose, newTask, setNewTask, onSubmit, isEdit, availableLists = [] }: ModalProps) {
   const [isListDropdownOpen, setIsListDropdownOpen] = useState(false);
   const [titleError, setTitleError] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -63,7 +64,7 @@ export function Modal({ canManageEvents, saving, accentTextColor, show, onClose,
 
   return createPortal(
     <div ref={overlayRef} className="task-modal-overlay fixed inset-x-0 top-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div role="dialog" aria-modal="true" aria-labelledby="task-modal-heading" className="task-modal-panel flex min-h-0 min-w-0 flex-col w-full max-w-xl max-h-full bg-[var(--surface)] rounded-2xl sm:rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200">
+      <div role="dialog" aria-modal="true" aria-labelledby="task-modal-heading" style={{ '--modal-light-accent-bg': lightAccentFill } as React.CSSProperties} className="task-modal-panel flex min-h-0 min-w-0 flex-col w-full max-w-xl max-h-full bg-[var(--surface)] rounded-2xl sm:rounded-3xl shadow-2xl border border-[var(--border)] overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--bg3)]/50">
           <h2 id="task-modal-heading" className="text-lg sm:text-xl font-black">{isEdit ? 'Edit Item' : 'Create New'}</h2>
           <button onClick={onClose} className="p-2 hover:bg-[var(--bg3)] rounded-full transition"><X size={20} /></button>
@@ -79,7 +80,7 @@ export function Modal({ canManageEvents, saving, accentTextColor, show, onClose,
                   title={t === 'event' && !canManageEvents ? 'Only the company owner or manager can create events' : undefined}
                   onClick={() => setNewTask({...newTask, type: t})}
                   data-accent-text={accentTextColor === '#ffffff' ? 'light' : 'dark'}
-                  className={`min-w-0 py-2 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition border disabled:opacity-75 disabled:cursor-not-allowed disabled:shadow-none ${newTask.type === t ? 'bg-accent text-[var(--accent-contrast)] border-accent shadow-lg shadow-accent/20' : 'bg-[var(--bg3)] border-[var(--border)] text-[var(--text3)] hover:border-accent/40'}`}
+                  className={`min-w-0 py-2 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition border disabled:opacity-75 disabled:cursor-not-allowed ${newTask.type === t ? 'bg-accent text-[var(--accent-contrast)] border-accent' : 'bg-[var(--bg3)] border-[var(--border)] text-[var(--text3)] hover:border-accent/40'}`}
                 >
                   {t === 'event' && !canManageEvents ? 'Event (locked)' : t}
                 </button>
@@ -231,7 +232,7 @@ export function Modal({ canManageEvents, saving, accentTextColor, show, onClose,
             }}
             disabled={saving}
             data-accent-text={accentTextColor === '#ffffff' ? 'light' : 'dark'}
-            className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-black shadow-lg transition active:scale-95 ${newTask.title?.trim() ? 'bg-accent text-[var(--accent-contrast)] shadow-accent/20 hover:shadow-xl' : 'bg-[var(--bg-disabled)] text-[var(--text4)]'}`}
+            className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-black transition active:scale-95 ${newTask.title?.trim() ? 'bg-accent text-[var(--accent-contrast)]' : 'bg-[var(--bg-disabled)] text-[var(--text4)]'}`}
           >
             {isEdit ? 'Save Changes' : (newTask.type === 'task' ? 'Create Task' : newTask.type === 'event' ? 'Add Event' : 'Add Reminder')}
           </button>

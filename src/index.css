@@ -24,12 +24,18 @@
   display: block;
 }
 
-/* Keep the selected type and save label dark on light accent fills. */
-.task-modal-panel button.bg-accent {
+/* The dialog's accent actions keep their labels crisp in both themes. */
+:root[data-theme='light'] .task-modal-panel button.bg-accent {
+  background-color: var(--modal-light-accent-bg, #007b77) !important;
+  border-color: var(--modal-light-accent-bg, #007b77) !important;
+  color: #fff !important;
+}
+
+:root[data-theme='dark'] .task-modal-panel button.bg-accent {
   color: #000 !important;
 }
 
-.task-modal-panel button.bg-accent[data-accent-text='light'] {
+:root[data-theme='dark'] .task-modal-panel button.bg-accent[data-accent-text='light'] {
   color: #fff !important;
 }
 
