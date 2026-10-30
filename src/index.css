@@ -24,18 +24,10 @@
   display: block;
 }
 
-/* The dialog's accent actions keep their labels crisp in both themes. */
-:root[data-theme='light'] .task-modal-panel button.bg-accent {
-  background-color: var(--modal-light-accent-bg, #007b77) !important;
-  border-color: var(--modal-light-accent-bg, #007b77) !important;
-  color: #fff !important;
-}
-
-:root[data-theme='dark'] .task-modal-panel button.bg-accent {
-  color: #000 !important;
-}
-
-:root[data-theme='dark'] .task-modal-panel button.bg-accent[data-accent-text='light'] {
+/* Darken user accents enough for white labels in either theme. */
+.task-modal-panel button.bg-accent {
+  background-color: var(--modal-white-text-accent-bg, #007b77) !important;
+  border-color: var(--modal-white-text-accent-bg, #007b77) !important;
   color: #fff !important;
 }
 
