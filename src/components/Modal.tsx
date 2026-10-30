@@ -78,7 +78,7 @@ export function Modal({ canManageEvents, saving, whiteTextAccentFill, show, onCl
                   disabled={saving || (t === 'event' && !canManageEvents)}
                   title={t === 'event' && !canManageEvents ? 'Only the company owner or manager can create events' : undefined}
                   onClick={() => setNewTask({...newTask, type: t})}
-                  className={`min-w-0 py-2 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition border disabled:opacity-75 disabled:cursor-not-allowed ${newTask.type === t ? 'bg-accent text-white border-accent' : 'bg-[var(--bg3)] border-[var(--border)] text-[var(--text3)] hover:border-accent/40'}`}
+                  className={`min-w-0 py-2 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-medium uppercase tracking-wider transition border disabled:opacity-75 disabled:cursor-not-allowed ${newTask.type === t ? 'bg-accent text-white border-accent' : 'bg-[var(--bg3)] border-[var(--border)] text-[var(--text3)] hover:border-accent/40'}`}
                 >
                   {t === 'event' && !canManageEvents ? 'Event (locked)' : t}
                 </button>
@@ -229,7 +229,7 @@ export function Modal({ canManageEvents, saving, whiteTextAccentFill, show, onCl
               onSubmit();
             }}
             disabled={saving}
-            className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-black transition active:scale-95 ${newTask.title?.trim() ? 'bg-accent text-white' : 'bg-[var(--bg-disabled)] text-[var(--text4)]'}`}
+            className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-medium transition active:scale-95 ${newTask.title?.trim() ? 'bg-accent text-white' : 'bg-[var(--bg-disabled)] text-[var(--text4)]'}`}
           >
             {isEdit ? 'Save Changes' : (newTask.type === 'task' ? 'Create Task' : newTask.type === 'event' ? 'Add Event' : 'Add Reminder')}
           </button>
