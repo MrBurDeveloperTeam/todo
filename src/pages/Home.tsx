@@ -367,6 +367,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
     // Update CSS variables for accent
     const accentData = (ACCENTS as any)[accent] || { main: accent, light: `${accent}15`, hover: accent };
     document.documentElement.style.setProperty('--accent', accentData.main);
+    document.documentElement.style.setProperty('--accent-button-bg', getAccentFillForWhiteText(accentData.main));
     document.documentElement.style.setProperty('--accent-contrast', getAccentTextColor(accentData.main));
     document.documentElement.style.setProperty('--accent-rgb', accentData.main.startsWith('#') ? hexToRgb(accentData.main) : '0, 120, 212');
     document.documentElement.style.setProperty('--accent-light', accentData.light || `${accentData.main}15`);
@@ -925,7 +926,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
             <button 
               disabled={!workspace || saving}
               onClick={() => openAddModal('task')}
-              className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-[var(--accent-contrast)] rounded-md text-[12px] sm:text-[13px] font-medium hover:shadow-lg transition-all active:scale-[0.97]"
+              className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-white rounded-md text-[12px] sm:text-[13px] font-medium hover:shadow-lg transition-all active:scale-[0.97]"
             >
               <Plus size={14} strokeWidth={2.5} /> 
               <span className="hidden sm:inline">New Task</span>

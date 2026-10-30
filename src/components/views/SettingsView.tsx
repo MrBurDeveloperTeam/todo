@@ -166,7 +166,7 @@ export function SettingsView({
                     ? 'bg-green-500 text-white'
                     : saveStatus === 'error'
                       ? 'bg-red-500 text-white'
-                      : 'bg-accent text-[var(--accent-contrast)] hover:shadow-lg active:scale-[0.98]'
+                      : 'bg-accent text-white hover:shadow-lg active:scale-[0.98]'
                   } disabled:opacity-50`}
               >
                 {isSaving ? (
@@ -208,7 +208,7 @@ export function SettingsView({
                   <Sun size={16} />
                 </button>
                 <button
-                  className={`p-2 rounded-lg border transition ${theme === 'dark' ? 'border-accent bg-accent text-[var(--accent-contrast)]' : 'border-[var(--border)]'}`}
+                  className={`p-2 rounded-lg border transition ${theme === 'dark' ? 'border-accent bg-accent text-white' : 'border-[var(--border)]'}`}
                   onClick={() => setTheme('dark')}
                   aria-label="Use dark mode"
                   title="Dark"

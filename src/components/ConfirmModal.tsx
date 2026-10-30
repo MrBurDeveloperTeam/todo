@@ -65,7 +65,7 @@ export function ConfirmModal({
                type === 'danger' ? 'bg-red-500 hover:bg-red-600 shadow-red-500/20' : 
                type === 'warning' ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/20' : 
                'bg-accent hover:shadow-xl shadow-accent/20'
-             } ${type === 'danger' || type === 'warning' ? 'text-white' : 'text-[var(--accent-contrast)]'}`}
+             } text-white`}
            >
              {confirmText}
            </button>

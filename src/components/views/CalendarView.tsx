@@ -768,7 +768,7 @@ export function CalendarView({
             setCalDate(d);
           }}><ChevronRight size={16} /></button>
         </div>
-        <button className={`border border-[var(--border)] text-xs font-black transition active:scale-95 shrink-0 hover:bg-accent hover:text-[var(--accent-contrast)] ${isPhoneLayout ? 'rounded-full px-3 py-2' : 'rounded-lg px-3 py-1.5'}`} onClick={() => setCalDate(new Date())}>Today</button>
+        <button className={`border border-[var(--border)] text-xs font-black transition active:scale-95 shrink-0 hover:bg-accent hover:text-white ${isPhoneLayout ? 'rounded-full px-3 py-2' : 'rounded-lg px-3 py-1.5'}`} onClick={() => setCalDate(new Date())}>Today</button>
         <h2 className={`text-[var(--text)] min-w-0 flex-1 order-3 basis-full sm:order-none sm:basis-auto sm:ml-2 ${isPhoneLayout ? 'text-[20px] font-black tracking-[-0.02em]' : 'text-[15px] sm:text-[17px] font-black'}`}>
           {calView === 'month' ? monthLabel :
            calView === 'week' ? `Week of ${calDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` :

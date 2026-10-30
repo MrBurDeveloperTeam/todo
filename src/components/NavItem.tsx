@@ -11,7 +11,7 @@ export function NavItem({ icon, label, badge, active, onClick, collapsed }: { ic
         <span className="text-[13.5px] whitespace-nowrap transition-all opacity-100">{label}</span>
       )}
       {!collapsed && badge !== undefined && badge > 0 && (
-        <span className="ml-auto bg-accent text-[var(--accent-contrast)] text-[9px] font-bold h-4.5 min-w-[18px] px-1.5 rounded-full flex items-center justify-center">{badge}</span>
+        <span className="nav-item-count ml-auto bg-accent text-white text-[9px] font-bold h-4.5 min-w-[18px] px-1.5 rounded-full flex items-center justify-center">{badge}</span>
       )}
       {collapsed && (
         <div className="absolute left-16 bg-black text-white px-2 py-1 rounded text-[10px] invisible group-hover:visible whitespace-nowrap z-[100] shadow-xl">{label}</div>
