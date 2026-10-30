@@ -24,6 +24,15 @@
   display: block;
 }
 
+/* Keep the selected type and save label dark on light accent fills. */
+.task-modal-panel button.bg-accent {
+  color: #000 !important;
+}
+
+.task-modal-panel button.bg-accent[data-accent-text='light'] {
+  color: #fff !important;
+}
+
 @media (max-width: 639px) {
   /* Prevent iOS from zooming the page when a form field receives focus. */
   .task-modal-panel input,
