@@ -940,8 +940,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
 
       <Modal 
         show={isModalOpen} 
-        accentTextColor={getAccentTextColor((ACCENTS as Record<string, { main: string }>)[accent]?.main || accent)}
-        lightAccentFill={getAccentFillForWhiteText((ACCENTS as Record<string, { main: string }>)[accent]?.main || accent)}
+        whiteTextAccentFill={getAccentFillForWhiteText((ACCENTS as Record<string, { main: string }>)[accent]?.main || accent)}
         onClose={() => setIsModalOpen(false)}
         newTask={newTask}
         setNewTask={setNewTask}
