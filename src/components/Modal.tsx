@@ -75,10 +75,12 @@ export function Modal({ canManageEvents, saving, whiteTextAccentFill, show, onCl
               {(['task', 'event', 'reminder'] as ItemType[]).map(t => (
                 <button 
                   key={t}
+                  type="button"
+                  aria-pressed={newTask.type === t}
                   disabled={saving || (t === 'event' && !canManageEvents)}
                   title={t === 'event' && !canManageEvents ? 'Only the company owner or manager can create events' : undefined}
                   onClick={() => setNewTask({...newTask, type: t})}
-                  className={`min-w-0 py-2 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-medium uppercase tracking-wider transition border disabled:opacity-75 disabled:cursor-not-allowed ${newTask.type === t ? 'bg-accent text-white border-accent' : 'bg-[var(--bg3)] border-[var(--border)] text-[var(--text3)] hover:border-accent/40'}`}
+                  className={`task-modal-type-option min-w-0 py-2 px-2 sm:px-3 rounded-xl text-[10px] sm:text-xs font-medium uppercase tracking-wider transition border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-75 disabled:cursor-not-allowed ${newTask.type === t ? 'bg-accent text-white border-accent' : 'hover:border-accent hover:brightness-95'}`}
                 >
                   {t === 'event' && !canManageEvents ? 'Event (locked)' : t}
                 </button>
@@ -163,7 +165,7 @@ export function Modal({ canManageEvents, saving, whiteTextAccentFill, show, onCl
                   <button 
                     key={p}
                     onClick={() => setNewTask({...newTask, priority: p})}
-                    className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-black uppercase transition ${newTask.priority === p ? (p === 'high' ? 'bg-red-500 text-white' : p === 'med' ? 'bg-orange-500 text-white' : p === 'low' ? 'bg-blue-500 text-white' : 'bg-slate-500 text-white') : 'hover:bg-[var(--bg-hover)] text-[var(--text3)]'}`}
+                    className={`flex-1 py-1 px-2 rounded-lg text-[10px] font-black uppercase transition ${newTask.priority === p ? (p === 'high' ? 'bg-red-500 text-white' : p === 'med' ? 'bg-accent text-white' : p === 'low' ? 'bg-blue-500 text-white' : 'bg-slate-500 text-white') : 'hover:bg-[var(--bg-hover)] text-[var(--text3)]'}`}
                   >
                     {p === 'none' ? '—' : p}
                   </button>
@@ -229,7 +231,7 @@ export function Modal({ canManageEvents, saving, whiteTextAccentFill, show, onCl
               onSubmit();
             }}
             disabled={saving}
-            className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-medium transition active:scale-95 ${newTask.title?.trim() ? 'bg-accent text-white' : 'bg-[var(--bg-disabled)] text-[var(--text4)]'}`}
+            className={`w-full sm:w-auto px-8 py-2.5 rounded-2xl text-[13.5px] font-medium transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${newTask.title?.trim() ? 'bg-accent text-white hover:brightness-95' : 'bg-[var(--bg-disabled)] text-[var(--text4)]'}`}
           >
             {isEdit ? 'Save Changes' : (newTask.type === 'task' ? 'Create Task' : newTask.type === 'event' ? 'Add Event' : 'Add Reminder')}
           </button>
