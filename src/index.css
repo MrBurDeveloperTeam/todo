@@ -31,6 +31,12 @@
   color: #fff !important;
 }
 
+.task-modal-type-option[aria-pressed='false'] {
+  background-color: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  color: var(--text);
+}
+
 @media (max-width: 639px) {
   /* Prevent iOS from zooming the page when a form field receives focus. */
   .task-modal-panel input,
