@@ -27,7 +27,7 @@ import { SettingsView } from '../components/views/SettingsView';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { Toast } from '../components/Toast';
-import { toLocalDateStr, todayStr, ACCENTS, getAccentTextColor, updateThemeIcon } from '../utils';
+import { toLocalDateStr, todayStr, ACCENTS, getAccentFillForWhiteText, getAccentTextColor, updateThemeIcon } from '../utils';
 import { resolveTheme, type ThemePreference } from '../lib/themeSync';
 import { supabase } from '../lib/supabase';
 import { logActivityToOdoo } from '../lib/logActivityToOdoo';
@@ -941,6 +941,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
       <Modal 
         show={isModalOpen} 
         accentTextColor={getAccentTextColor((ACCENTS as Record<string, { main: string }>)[accent]?.main || accent)}
+        lightAccentFill={getAccentFillForWhiteText((ACCENTS as Record<string, { main: string }>)[accent]?.main || accent)}
         onClose={() => setIsModalOpen(false)}
         newTask={newTask}
         setNewTask={setNewTask}
