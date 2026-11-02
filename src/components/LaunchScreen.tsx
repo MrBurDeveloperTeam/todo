@@ -18,7 +18,7 @@ const LaunchScreen: React.FC<LaunchScreenProps> = ({
   <div className="ls" role="status" aria-live="polite">
     <img
       className="ls-icon"
-      src="https://app.snabbb.com/icons/new-icons/to-do.png?v=1"
+      src="/Logo/to-do.webp"
       alt=""
       width={160}
       height={160}
