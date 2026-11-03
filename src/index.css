@@ -39,6 +39,20 @@ button.hover\:bg-accent:hover,
   color: #fff !important;
 }
 
+.task-action-button {
+  background-color: #5ab8ae;
+  color: #fff;
+}
+
+.task-action-button:hover:not(:disabled) {
+  background-color: #4ca89e;
+}
+
+.task-action-button:focus-visible {
+  outline: 2px solid #246b64;
+  outline-offset: 2px;
+}
+
 .task-modal-type-option[aria-pressed='false'] {
   background-color: color-mix(in srgb, var(--accent) 16%, var(--surface));
   border-color: color-mix(in srgb, var(--accent) 42%, var(--border));

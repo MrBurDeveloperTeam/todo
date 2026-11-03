@@ -926,7 +926,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
             <button 
               disabled={!workspace || saving}
               onClick={() => openAddModal('task')}
-              className="h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 bg-accent text-white rounded-md text-[12px] sm:text-[13px] font-medium hover:shadow-lg transition-all active:scale-[0.97]"
+              className="task-action-button h-8 flex items-center gap-1.5 px-2.5 sm:px-3.5 rounded-md text-[12px] sm:text-[13px] font-medium hover:shadow-lg transition-all active:scale-[0.97]"
             >
               <Plus size={14} strokeWidth={2.5} /> 
               <span className="hidden sm:inline">New Task</span>
