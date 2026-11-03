@@ -4,6 +4,7 @@ import { useProfileImage } from '../hooks/useProfileImage';
 import { 
   CheckCircle2, 
   Calendar as CalendarIcon, 
+  CalendarClock,
   Clock, 
   Search, 
   Settings as SettingsIcon, 
@@ -14,7 +15,6 @@ import {
   LayoutGrid, 
   PanelLeftClose, 
   PanelLeftOpen, 
-  Activity,
   LogOut,
   Palette,
   Check
@@ -642,7 +642,7 @@ export function Home({ workspace, workspaceError, tasks, setTasks, user, setUser
             <NavItem icon={<CheckCircle2 size={16} />} label="My Tasks" active={currentView === 'todo'} onClick={() => { setCurrentView('todo'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} badge={tasks.filter(t => !t.done && t.type === 'task').length} />
             <NavItem icon={<CalendarIcon size={16} />} label="Calendar" active={currentView === 'calendar'} onClick={() => { setCurrentView('calendar'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
             <NavItem icon={<Clock size={16} />} label="Today" active={currentView === 'today'} onClick={() => { setCurrentView('today'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
-            <NavItem icon={<Activity size={16} />} label="Upcoming" active={currentView === 'upcoming'} onClick={() => { setCurrentView('upcoming'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
+            <NavItem icon={<CalendarClock size={16} />} label="Upcoming" active={currentView === 'upcoming'} onClick={() => { setCurrentView('upcoming'); setIsMobileMenuOpen(false); }} collapsed={isSidebarCollapsed} />
           </div>
         </div>
 
